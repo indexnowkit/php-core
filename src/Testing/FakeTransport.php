@@ -26,7 +26,7 @@ final class FakeTransport implements StreamingTransportInterface
     /** @var list<Response|Throwable> */
     private array $queue = [];
 
-    /** @var array<string, Response|Throwable> */
+    /** @var array<string, non-empty-list<Response|Throwable>> */
     private array $getResponses = [];
 
     public function __construct(private readonly Response $default = new Response(200)) {}
@@ -38,9 +38,15 @@ final class FakeTransport implements StreamingTransportInterface
         return $this;
     }
 
-    public function onGet(string $url, Response|Throwable $response): self
+    /**
+     * Responses for GET $url, consumed in order; the last one is repeated (so a single one is permanent).
+     */
+    public function onGet(string $url, Response|Throwable ...$responses): self
     {
-        $this->getResponses[$url] = $response;
+        if ($responses === []) {
+            return $this;
+        }
+        $this->getResponses[$url] = array_values($responses);
 
         return $this;
     }
@@ -61,7 +67,12 @@ final class FakeTransport implements StreamingTransportInterface
     public function get(string $url): Response
     {
         $this->gets[] = $url;
-        $response = $this->getResponses[$url] ?? new Response(404, 'not found');
+        $queue = $this->getResponses[$url] ?? null;
+        $response = $queue === null ? new Response(404, 'not found') : $queue[0];
+        if ($queue !== null && \count($queue) > 1) {
+            array_shift($queue);
+            $this->getResponses[$url] = $queue;
+        }
         if ($response instanceof Throwable) {
             throw $response;
         }

@@ -30,6 +30,8 @@ IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $
 
 The same holds for the constructors of `Config`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`,
 `SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
+`Sitemap\Spool` is public for `create()`, `probeDisk()`, `uri()` and `close()`; its `stream_*` methods are the PHP stream-wrapper
+protocol and `@internal`.
 `RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` are public static helpers in the same "call" tier: adapters
 call them to compile their own declarations; their signatures only grow by appended optional parameters.
 

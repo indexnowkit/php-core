@@ -9,6 +9,7 @@ use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Sitemap\SitemapReader;
+use IndexNowKit\Sitemap\SpoolMode;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Testing\FakeTransport;
 use PHPUnit\Framework\TestCase;
@@ -125,6 +126,62 @@ final class SitemapReaderTest extends TestCase
         gc_collect_cycles();
 
         self::assertSame($before, \count((array) get_resources('stream')), 'every temp file is closed when the generator is destroyed');
+    }
+
+    public function testMemorySpoolReadsGzipAndIndexesWithoutTouchingTheDisk(): void
+    {
+        $t = new FakeTransport();
+        $index = '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>https://www.example.com/s1.xml.gz</loc></sitemap></sitemapindex>';
+        $t->onGet('https://www.example.com/sitemap.xml', new Response(200, $index));
+        $t->onGet('https://www.example.com/s1.xml.gz', new Response(200, (string) gzencode(self::URLSET)));
+
+        $entries = iterator_to_array((new SitemapReader($t, spool: SpoolMode::Memory))->read('https://www.example.com/sitemap.xml'), false);
+
+        self::assertCount(3, $entries);
+    }
+
+    public function testNetworkFailureAndServerErrorAreRetriedButClientErrorsAreNot(): void
+    {
+        $sleeps = [];
+        $sleep = static function (int $seconds) use (&$sleeps): void {
+            $sleeps[] = $seconds;
+        };
+        $logger = new ArrayLogger();
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/sitemap.xml', FakeTransport::failing('connection reset'), new Response(503), new Response(200, self::URLSET));
+
+        $entries = iterator_to_array((new SitemapReader($t, logger: $logger, fetchRetries: 2, sleep: $sleep))->read('https://www.example.com/sitemap.xml'), false);
+
+        self::assertCount(3, $entries);
+        self::assertSame([1, 2], $sleeps, 'backoff 1 s then 2 s');
+        self::assertCount(2, $logger->messages('info'));
+
+        $t->onGet('https://www.example.com/gone.xml', new Response(404), new Response(200, self::URLSET));
+        $sleeps = [];
+        try {
+            iterator_to_array((new SitemapReader($t, fetchRetries: 2, sleep: $sleep))->read('https://www.example.com/gone.xml'), false);
+            self::fail('a 404 must not be retried');
+        } catch (TransportException $e) {
+            self::assertStringContainsString('HTTP 404', $e->getMessage());
+            self::assertSame([], $sleeps);
+        }
+
+        $t->onGet('https://www.example.com/down.xml', FakeTransport::failing('down'), FakeTransport::failing('down'), FakeTransport::failing('still down'));
+        $sleeps = [];
+        try {
+            iterator_to_array((new SitemapReader($t, fetchRetries: 2, sleep: $sleep))->read('https://www.example.com/down.xml'), false);
+            self::fail('retries are bounded');
+        } catch (TransportException $e) {
+            self::assertStringContainsString('still down', $e->getMessage(), 'the last error is reported');
+            self::assertSame([1, 2], $sleeps);
+        }
+    }
+
+    public function testTruncatedXmlIsReportedAsEndingEarly(): void
+    {
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('ends early');
+        iterator_to_array((new SitemapReader(new FakeTransport()))->parse('<?xml version="1.0"?><urlset ' . self::NS . '><url><loc>https://www.example.com/a</loc></url><url><loc>https://www.exam'), false);
     }
 
     public function testNestedSitemapOnAnotherPortOrSchemeIsSkipped(): void

@@ -16,6 +16,7 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 final class StubClientException extends RuntimeException implements ClientExceptionInterface {}
@@ -101,6 +102,122 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertSame(7, $response->retryAfter);
         rewind($sink);
         self::assertSame(200000, \strlen((string) stream_get_contents($sink)));
+    }
+
+    public function testBodyShorterThanContentLengthIsATruncatedDownload(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(200, ['Content-Length' => '1000'], str_repeat('x', 100)));
+        $transport = new Psr18Transport($client, $f, $f);
+
+        try {
+            $transport->get('https://h.example.com/sitemap.xml');
+            self::fail('expected a TransportException');
+        } catch (TransportException $e) {
+            self::assertStringContainsString('truncated, 100 of 1000 bytes', $e->getMessage());
+        }
+
+        $client = new StubPsr18Client(new Psr7Response(200, ['Content-Length' => '1000'], str_repeat('x', 100)));
+        $sink = fopen('php://temp', 'w+');
+        self::assertNotFalse($sink);
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('truncated, 100 of 1000 bytes');
+        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/sitemap.xml', $sink);
+    }
+
+    public function testContentLengthIsIgnoredForPostDiagnosticsAndEncodedBodies(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(200, ['Content-Length' => '5000'], str_repeat('x', 3000)));
+        self::assertSame(Psr18Transport::POST_BODY_LIMIT, \strlen((new Psr18Transport($client, $f, $f))->post('https://h.example.com/indexnow', '{}')->body));
+
+        $client = new StubPsr18Client(new Psr7Response(200, ['Content-Length' => '1000', 'Content-Encoding' => 'gzip'], str_repeat('x', 100)));
+        self::assertSame(100, \strlen((new Psr18Transport($client, $f, $f))->get('https://h.example.com/sitemap.xml')->body), 'a decoded body is legitimately longer or shorter than Content-Length');
+    }
+
+    public function testConnectionLostMidBodyBecomesATransportException(): void
+    {
+        $f = $this->factory();
+        $body = new class implements StreamInterface {
+            private int $reads = 0;
+
+            public function __toString(): string
+            {
+                return '';
+            }
+
+            public function close(): void {}
+
+            public function detach()
+            {
+                return null;
+            }
+
+            public function getSize(): ?int
+            {
+                return null;
+            }
+
+            public function tell(): int
+            {
+                return 0;
+            }
+
+            public function eof(): bool
+            {
+                return false;
+            }
+
+            public function isSeekable(): bool
+            {
+                return false;
+            }
+
+            public function seek(int $offset, int $whence = SEEK_SET): void {}
+
+            public function rewind(): void {}
+
+            public function isWritable(): bool
+            {
+                return false;
+            }
+
+            public function write(string $string): int
+            {
+                return 0;
+            }
+
+            public function isReadable(): bool
+            {
+                return true;
+            }
+
+            public function read(int $length): string
+            {
+                if (++$this->reads === 1) {
+                    return str_repeat('a', 100);
+                }
+
+                throw new RuntimeException('Unable to read from stream: End of response with 900 bytes missing');
+            }
+
+            public function getContents(): string
+            {
+                return '';
+            }
+
+            public function getMetadata(?string $key = null)
+            {
+                return null;
+            }
+        };
+        $client = new StubPsr18Client(new Psr7Response(200, [], $body));
+        $sink = fopen('php://temp', 'w+');
+        self::assertNotFalse($sink);
+
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('connection lost after 100 bytes');
+        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/sitemap.xml', $sink);
     }
 
     public function testDownloadOverConfiguredLimitThrows(): void

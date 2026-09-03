@@ -363,7 +363,11 @@ Ship four commands. They are what turns "it does not work" into a self-service a
 The sitemap command should stream: read the generator, submit every `batch.max_urls` URLs, fold results into
 counts (the Symfony bundle's `ResultSummary` is the reference), and never collect the URL list into an array.
 Expose the reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`,
-`max_bytes`, `allow_foreign_hosts`) and offer `--allow-foreign-hosts` for one-off runs.
+`max_bytes`, `allow_foreign_hosts`, `spool` = auto|disk|memory, `spool_dir`, `fetch_retries`) and offer
+`--allow-foreign-hosts` for one-off runs. Submit the pending batch before reporting a mid-run failure: the re-run is
+idempotent, what was read is still worth announcing. In `check`, report where documents are spooled
+(`Sitemap\Spool::probeDisk($dir)` tells you why a temp dir is unusable): a read-only container without a writable
+temp dir only shows up on the first cron run otherwise.
 
 `Checker` never throws and covers configuration, key files and a live probe. Add your own lines to the report for
 adapter-specific wiring (is the ORM listener actually active? is the queue transport routed?) — those are the

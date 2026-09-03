@@ -18,6 +18,7 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\Psr18Client;
+use Throwable;
 
 /**
  * PSR-18 transport. POST responses are read up to 2 KiB (diagnostics only); GET responses up to 50 MiB
@@ -89,11 +90,12 @@ final class Psr18Transport implements StreamingTransportInterface
         $response = $this->sendRequest($request);
         $body = $response->getBody();
         if ($body->isReadable()) {
-            $this->copyBody($body, $this->getBodyLimit, $request, static function (string $chunk) use ($sink, $request): void {
+            $read = $this->copyBody($body, $this->getBodyLimit, $request, static function (string $chunk) use ($sink, $request): void {
                 if (@fwrite($sink, $chunk) !== \strlen($chunk)) {
                     throw new TransportException(\sprintf('GET %s: cannot write the response body to the sink.', $request->getUri()->getHost()));
                 }
             });
+            self::assertComplete($response, $read, $request);
         }
 
         return new Response($response->getStatusCode(), '', self::retryAfter($response));
@@ -141,8 +143,12 @@ final class Psr18Transport implements StreamingTransportInterface
     private function send(RequestInterface $request, int $bodyLimit): Response
     {
         $response = $this->sendRequest($request);
+        $content = $this->readBody($response->getBody(), $bodyLimit, $request);
+        if ($bodyLimit !== self::POST_BODY_LIMIT) {
+            self::assertComplete($response, \strlen($content), $request);
+        }
 
-        return new Response($response->getStatusCode(), $this->readBody($response->getBody(), $bodyLimit, $request), self::retryAfter($response));
+        return new Response($response->getStatusCode(), $content, self::retryAfter($response));
     }
 
     private function sendRequest(RequestInterface $request): ResponseInterface
@@ -169,23 +175,45 @@ final class Psr18Transport implements StreamingTransportInterface
 
     /**
      * Reads $body in READ_CHUNK pieces and hands each to $write; a body over $limit is truncated (POST diagnostics)
-     * or rejected (GET).
+     * or rejected (GET). A connection that drops mid-body surfaces as a TransportException naming the bytes read.
      *
      * @param callable(string): void $write
+     *
+     * @return int bytes read
      */
-    private function copyBody(StreamInterface $body, int $limit, RequestInterface $request, callable $write): void
+    private function copyBody(StreamInterface $body, int $limit, RequestInterface $request, callable $write): int
     {
         $read = 0;
-        while (!$body->eof() && $read < $limit) {
-            $chunk = $body->read(min(self::READ_CHUNK, $limit - $read));
-            if ($chunk === '') {
-                break;
+        try {
+            while (!$body->eof() && $read < $limit) {
+                $chunk = $body->read(min(self::READ_CHUNK, $limit - $read));
+                if ($chunk === '') {
+                    break;
+                }
+                $read += \strlen($chunk);
+                $write($chunk);
             }
-            $read += \strlen($chunk);
-            $write($chunk);
+            $overflow = $read >= $limit && !$body->eof() && $body->read(1) !== '';
+        } catch (TransportException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new TransportException(\sprintf('%s %s: connection lost after %d bytes: %s', $request->getMethod(), $request->getUri()->getHost(), $read, $e->getMessage()), 0, $e);
         }
-        if ($read >= $limit && !$body->eof() && $body->read(1) !== '' && $limit !== self::POST_BODY_LIMIT) {
+        if ($overflow && $limit !== self::POST_BODY_LIMIT) {
             throw new TransportException(\sprintf('%s %s: response body larger than %d bytes.', $request->getMethod(), $request->getUri()->getHost(), $limit));
+        }
+
+        return $read;
+    }
+
+    /**
+     * A body shorter than the announced Content-Length is a truncated download, not a document.
+     */
+    private static function assertComplete(ResponseInterface $response, int $read, RequestInterface $request): void
+    {
+        $length = $response->getHeaderLine('Content-Length');
+        if ($length !== '' && preg_match('/^\d+$/', $length) === 1 && $read < (int) $length && $response->getHeaderLine('Content-Encoding') === '') {
+            throw new TransportException(\sprintf('%s %s: response truncated, %d of %s bytes received.', $request->getMethod(), $request->getUri()->getHost(), $read, $length));
         }
     }
 

@@ -85,6 +85,17 @@ downstream piece — event classification, guards, locales, deletion semantics, 
   and the parser copy were all in memory at once (about three times the document size). New `allowForeignHosts`
   constructor option and `read()` argument to follow nested sitemaps on another origin (CDN-hosted parts);
   non-http(s) `<loc>` values are skipped with a warning. Temp files are closed when the generator is destroyed.
+- `Sitemap\Spool` / `SpoolMode`: the spool is an anonymous temp file (in `spoolDir:` or the system temp dir) or,
+  on a read-only filesystem, memory (`Auto` falls back with one warning, `Disk` fails, `Memory` never touches the
+  disk; memory use is bounded by the size cap per document). XMLReader reads the spool through the
+  `indexnowkit-spool://` stream wrapper, so parsing no longer depends on a filesystem path.
+- `SitemapReader` retries a document fetch after a network failure or a 5xx (`fetchRetries:`, default 2, 1/2/4 s
+  apart; `sleep:` for tests); 4xx and broken documents are not retried. A document that ends prematurely is reported
+  as "ends early (truncated download or broken sitemap)" instead of "invalid XML".
+- `Psr18Transport`: a body shorter than the announced `Content-Length` and a connection lost mid-body are
+  `TransportException`s ("response truncated, N of M bytes received", "connection lost after N bytes") instead of
+  a silently short document or a foreign `RuntimeException`.
+- `Testing\FakeTransport::onGet()` takes several responses, consumed in order (the last one repeats).
 - `Testing\FakeTransport`, `ArrayLogger`, `FrozenClock` and `RecordingDispatcher` are part of the published package.
 - `Config::OPTIONS` and `Config::unknownOptions()` for typo detection in adapter config; `strict_hosts`;
   per-host `base_url` (`hosts: {host: {key, key_location, base_url}}`) and `Config::baseUrlFor()` for URL generation

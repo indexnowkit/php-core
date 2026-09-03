@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Sitemap;
 
+use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
@@ -19,10 +20,12 @@ use XMLReader;
 /**
  * Streams <loc> entries of a sitemap or sitemap index (recursively), gzip aware.
  *
- * Memory stays flat whatever the sitemap size: every document is spooled to a temp file (streamed straight from
- * the network when the transport implements {@see StreamingTransportInterface}), gzip is inflated chunk by chunk
- * into a second temp file, and XMLReader walks the file with a few KiB of buffers. Entries are yielded one by one,
- * so a consumer that submits in batches never holds the whole URL list either.
+ * Memory stays flat whatever the sitemap size: every document is spooled ({@see Spool}: a temp file, or memory on a
+ * read-only filesystem, streamed straight from the network when the transport implements
+ * {@see StreamingTransportInterface}), gzip is inflated chunk by chunk into a second spool, and XMLReader walks the
+ * spool through the `indexnowkit-spool://` wrapper with a few KiB of buffers. Entries are yielded one by one, so a
+ * consumer that submits in batches never holds the whole URL list either. Network failures while fetching a
+ * document are retried with a short backoff; HTTP 4xx and invalid documents are not.
  *
  * Safety: nested sitemaps must live on the origin of the root sitemap (anything else is skipped with a warning,
  * unless foreign hosts are allowed explicitly), recursion depth, the number of fetched documents and the document
@@ -37,12 +40,24 @@ final class SitemapReader
 
     private const CHUNK = 65536;
 
+    /** Seconds before the second, third, ... fetch attempt. */
+    private const RETRY_DELAYS = [1, 2, 4];
+
+    private bool $spoolWarned = false;
+
+    /** @var Closure(int): void */
+    private readonly Closure $sleep;
+
     /**
-     * @param int  $maxDepth          how many levels of <sitemapindex> are followed below the root
-     * @param int  $maxSitemaps       documents fetched per {@see read()} call, root included
-     * @param int  $maxXmlBytes       size cap of one (uncompressed) document
-     * @param bool $allowForeignHosts follow nested sitemaps on other origins (CDN-hosted sitemaps); off by default
-     *                                because a sitemap then decides which hosts this server fetches from
+     * @param int                        $maxDepth          how many levels of <sitemapindex> are followed below the root
+     * @param int                        $maxSitemaps       documents fetched per {@see read()} call, root included
+     * @param int                        $maxXmlBytes       size cap of one (uncompressed) document
+     * @param bool                       $allowForeignHosts follow nested sitemaps on other origins (CDN-hosted sitemaps); off by
+     *                                                      default because a sitemap then decides which hosts this server fetches from
+     * @param SpoolMode                  $spool             where documents are kept while parsing ({@see SpoolMode})
+     * @param string|null                $spoolDir          temp directory for {@see SpoolMode::Disk} / Auto (default: `sys_get_temp_dir()`)
+     * @param int                        $fetchRetries      extra attempts after a network failure or 5xx while fetching a document
+     * @param (callable(int): void)|null $sleep             replaces `sleep()` between attempts (tests)
      */
     public function __construct(
         private readonly TransportInterface $transport,
@@ -51,7 +66,15 @@ final class SitemapReader
         private readonly int $maxSitemaps = self::MAX_SITEMAPS,
         private readonly int $maxXmlBytes = self::MAX_XML_BYTES,
         private readonly bool $allowForeignHosts = false,
-    ) {}
+        private readonly SpoolMode $spool = SpoolMode::Auto,
+        private readonly ?string $spoolDir = null,
+        private readonly int $fetchRetries = 2,
+        ?callable $sleep = null,
+    ) {
+        $this->sleep = $sleep === null ? static function (int $seconds): void {
+            sleep($seconds);
+        } : $sleep(...);
+    }
 
     /**
      * @param DateTimeImmutable|null $changedSince      only entries whose <lastmod> is newer (entries without lastmod are skipped)
@@ -77,7 +100,7 @@ final class SitemapReader
      */
     public function parse(string $xml, string $source = '', ?DateTimeImmutable $changedSince = null): Generator
     {
-        $file = self::spool($xml, $source);
+        $file = $this->spoolString($xml, $source);
         try {
             foreach ($this->entries($file, $source) as [$kind, $loc, $lastmod]) {
                 if ($kind === 'url') {
@@ -139,7 +162,8 @@ final class SitemapReader
     }
 
     /**
-     * GET $url into a temp file: streamed when the transport supports it, buffered once otherwise.
+     * GET $url into a spool: streamed when the transport supports it, buffered once otherwise. A network failure
+     * or a 5xx is retried ($fetchRetries times, 1/2/4 s apart); any other status fails at once.
      *
      * @return resource
      *
@@ -147,26 +171,40 @@ final class SitemapReader
      */
     private function fetch(string $url)
     {
-        $file = self::temp($url);
-        try {
-            if ($this->transport instanceof StreamingTransportInterface) {
-                $response = $this->transport->download($url, $file);
-            } else {
-                $response = $this->transport->get($url);
-                if ($response->body !== '') {
-                    self::write($file, $response->body, $url);
+        $attempt = 0;
+        while (true) {
+            ++$attempt;
+            $file = $this->spool($url);
+            try {
+                if ($this->transport instanceof StreamingTransportInterface) {
+                    $response = $this->transport->download($url, $file);
+                } else {
+                    $response = $this->transport->get($url);
+                    if ($response->body !== '') {
+                        self::write($file, $response->body, $url);
+                    }
                 }
+                if ($response->status === 200) {
+                    return $file;
+                }
+                $error = new TransportException(\sprintf('Sitemap %s returned HTTP %d.', $url, $response->status));
+                $retryable = $response->status >= 500;
+            } catch (TransportException $e) {
+                $error = $e;
+                $retryable = true;
+            } catch (Throwable $e) {
+                self::close($file);
+
+                throw $e;
             }
-            if ($response->status !== 200) {
-                throw new TransportException(\sprintf('Sitemap %s returned HTTP %d.', $url, $response->status));
-            }
-        } catch (Throwable $e) {
             self::close($file);
-
-            throw $e;
+            $delay = self::RETRY_DELAYS[min($attempt, \count(self::RETRY_DELAYS)) - 1];
+            if (!$retryable || $attempt > $this->fetchRetries) {
+                throw $error;
+            }
+            $this->logger->info('indexnow: fetching sitemap {url} failed ({error}), retrying in {delay}s (attempt {attempt} of {max})', ['url' => $url, 'error' => $error->getMessage(), 'delay' => $delay, 'attempt' => $attempt, 'max' => $this->fetchRetries + 1]);
+            ($this->sleep)($delay);
         }
-
-        return $file;
     }
 
     /**
@@ -183,21 +221,18 @@ final class SitemapReader
         if (!class_exists(XMLReader::class)) {
             throw new TransportException('SitemapReader needs ext-xmlreader.');
         }
-        $file = $this->gunzip($file, $source);
-        $size = self::sizeOf($file);
-        if ($size > $this->maxXmlBytes) {
-            throw new TransportException(\sprintf('Sitemap %s: %d bytes exceeds the %d byte limit.', $source, $size, $this->maxXmlBytes));
-        }
-        $path = self::pathOf($file, $source);
+        $inflated = $this->gunzip($file, $source); // the gzip spool is closed by gunzip(); the inflated one is ours to close
+        $owned = $inflated !== $file;
         $previous = libxml_use_internal_errors(true);
-        $reader = @XMLReader::open($path, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);
-        if (!$reader instanceof XMLReader) {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-
-            throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
-        }
         try {
+            $size = self::sizeOf($inflated);
+            if ($size > $this->maxXmlBytes) {
+                throw new TransportException(\sprintf('Sitemap %s: %d bytes exceeds the %d byte limit.', $source, $size, $this->maxXmlBytes));
+            }
+            $reader = @XMLReader::open(Spool::uri($inflated), 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);
+            if (!$reader instanceof XMLReader) {
+                throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
+            }
             $reader->setParserProperty(XMLReader::SUBST_ENTITIES, false);
             $reader->setParserProperty(XMLReader::LOADDTD, false);
             $kind = null;
@@ -238,12 +273,22 @@ final class SitemapReader
             }
             $error = libxml_get_last_error();
             if ($error !== false && $error->level >= LIBXML_ERR_ERROR) {
-                throw new TransportException(\sprintf('Sitemap %s: invalid XML at line %d: %s', $source, $error->line, trim($error->message)));
+                $message = trim($error->message);
+                if (str_contains($message, 'Premature end') || str_contains($message, 'Extra content at the end')) {
+                    throw new TransportException(\sprintf('Sitemap %s ends early at line %d (truncated download or broken sitemap): %s', $source, $error->line, $message));
+                }
+
+                throw new TransportException(\sprintf('Sitemap %s: invalid XML at line %d: %s', $source, $error->line, $message));
             }
         } finally {
-            $reader->close();
+            if (isset($reader) && $reader instanceof XMLReader) {
+                $reader->close();
+            }
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
+            if ($owned) {
+                Spool::close($inflated);
+            }
         }
     }
 
@@ -270,7 +315,7 @@ final class SitemapReader
 
             throw new TransportException(\sprintf('Sitemap %s is gzip-compressed but ext-zlib is not available.', $source));
         }
-        $out = self::temp($source);
+        $out = $this->spool($source);
         try {
             $context = inflate_init(ZLIB_ENCODING_GZIP);
             if ($context === false) {
@@ -359,18 +404,18 @@ final class SitemapReader
     }
 
     /**
-     * @return resource an anonymous temp file, removed when closed
+     * @return resource
      *
      * @throws TransportException
      */
-    private static function temp(string $source)
+    private function spool(string $source)
     {
-        $file = @tmpfile();
-        if ($file === false) {
-            throw new TransportException(\sprintf('Sitemap %s: cannot create a temp file in %s.', $source, sys_get_temp_dir()));
-        }
-
-        return $file;
+        return Spool::create($this->spool, $this->spoolDir, $source, function (string $problem): void {
+            if (!$this->spoolWarned) {
+                $this->spoolWarned = true;
+                $this->logger->warning('indexnow: {problem}: sitemaps are spooled in memory (at most the size cap per document); set the spool directory or mount a writable temp dir', ['problem' => $problem]);
+            }
+        });
     }
 
     /**
@@ -378,9 +423,9 @@ final class SitemapReader
      *
      * @throws TransportException
      */
-    private static function spool(string $content, string $source)
+    private function spoolString(string $content, string $source)
     {
-        $file = self::temp($source);
+        $file = $this->spool($source);
         try {
             if ($content !== '') {
                 self::write($file, $content, $source);
@@ -419,27 +464,9 @@ final class SitemapReader
 
     /**
      * @param resource $file
-     *
-     * @throws TransportException
-     */
-    private static function pathOf($file, string $source): string
-    {
-        fflush($file);
-        $path = stream_get_meta_data($file)['uri'] ?? '';
-        if ($path === '') {
-            throw new TransportException(\sprintf('Sitemap %s: the temp file has no path.', $source));
-        }
-
-        return $path;
-    }
-
-    /**
-     * @param resource $file
      */
     private static function close($file): void
     {
-        if (\is_resource($file)) {
-            fclose($file);
-        }
+        Spool::close($file);
     }
 }
