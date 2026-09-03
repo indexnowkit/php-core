@@ -140,11 +140,26 @@ final class Psr18Transport implements StreamingTransportInterface
                 $options['connect_timeout'] = $timeout;
             }
 
-            /** @var ClientInterface */
-            return new $guzzle($options);
+            return self::instantiate($guzzle, $options);
         }
 
         return Psr18ClientDiscovery::find();
+    }
+
+    /**
+     * @param class-string         $class
+     * @param array<string, mixed> $options
+     *
+     * @throws ConfigurationException when the class is not a PSR-18 client (a Guzzle older than 7)
+     */
+    private static function instantiate(string $class, array $options): ClientInterface
+    {
+        $client = new $class($options);
+        if (!$client instanceof ClientInterface) {
+            throw new ConfigurationException(\sprintf('%s is not a PSR-18 client; install a PSR-18 implementation (guzzlehttp/guzzle ^7, symfony/http-client + nyholm/psr7).', $class));
+        }
+
+        return $client;
     }
 
     private function send(RequestInterface $request, int $bodyLimit, bool $post): Response

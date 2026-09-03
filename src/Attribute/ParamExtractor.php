@@ -28,7 +28,27 @@ final class ParamExtractor
 {
     public const SELF = 'self';
 
+    /** @var array<class-string<SubjectReaderInterface>, SubjectReaderInterface> */
+    private static array $readers = [];
+
     private function __construct() {}
+
+    /**
+     * Registers a reader for objects the DSL cannot see into (Eloquent attributes, CMS fields). One instance per
+     * class: registering the same class again replaces it. Adapters call this once, at boot.
+     */
+    public static function registerReader(SubjectReaderInterface $reader): void
+    {
+        self::$readers[$reader::class] = $reader;
+    }
+
+    /**
+     * @param class-string<SubjectReaderInterface> $class
+     */
+    public static function unregisterReader(string $class): void
+    {
+        unset(self::$readers[$class]);
+    }
 
     /**
      * @param array<string, string|ParamValue> $params routeParam => source
@@ -41,10 +61,16 @@ final class ParamExtractor
     {
         $out = [];
         foreach ($params as $name => $param) {
-            $out[$name] = self::coerce($name, self::resolve($subject, $param, $locale, $host), $subject);
+            // `self` is route model binding by definition: the object goes to the router bridge as it is.
+            $out[$name] = self::isSelf($param) ? $subject : self::coerce($name, self::resolve($subject, $param, $locale, $host), $subject);
         }
 
         return $out;
+    }
+
+    private static function isSelf(string|ParamValue $param): bool
+    {
+        return $param === self::SELF || ($param instanceof Accessor && $param->path === self::SELF);
     }
 
     /**
@@ -64,7 +90,8 @@ final class ParamExtractor
     }
 
     /**
-     * Accessor DSL: "self" | dotted path | method | get/is/has-prefixed method | property (also private).
+     * Accessor DSL: "self" | dotted path | registered {@see SubjectReaderInterface} | method | get/is/has-prefixed
+     * method | property (also private).
      *
      * @throws ConfigurationException when nothing matches
      */
@@ -83,6 +110,11 @@ final class ParamExtractor
             }
 
             return $value;
+        }
+        foreach (self::$readers as $reader) {
+            if ($reader->has($subject, $accessor)) {
+                return $reader->read($subject, $accessor);
+            }
         }
         $ucfirst = ucfirst($accessor);
         foreach ([$accessor, 'get' . $ucfirst, 'is' . $ucfirst, 'has' . $ucfirst] as $method) {
@@ -156,7 +188,9 @@ final class ParamExtractor
 
     /**
      * Route parameters must be scalar. Stringable and BackedEnum values are accepted so value objects work
-     * unchanged; a date without new Formatted(...) is the one mistake worth naming explicitly.
+     * unchanged; a date without new Formatted(...) is the one mistake worth naming explicitly. An object a
+     * registered reader supports (an Eloquent model, which is Stringable through its JSON form) stays an object:
+     * a model in a route parameter means route model binding.
      *
      * @throws ConfigurationException
      */
@@ -170,6 +204,13 @@ final class ParamExtractor
         }
         if ($value instanceof DateTimeInterface) {
             throw new ConfigurationException(\sprintf('Param "%s" of %s is a %s; wrap it in new Formatted("...", "Y-m-d").', $name, $subject::class, $value::class));
+        }
+        if (\is_object($value)) {
+            foreach (self::$readers as $reader) {
+                if ($reader->supports($value)) {
+                    return $value;
+                }
+            }
         }
         if ($value instanceof Stringable) {
             return (string) $value;

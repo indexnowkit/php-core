@@ -297,7 +297,7 @@ What is covered by the promise and what is not: [docs/bc.md](docs/bc.md).
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), laravel (planned) |
+| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (planned) |
 | Python | `indexnowkit`, `indexnowkit-django` (planned) |
 

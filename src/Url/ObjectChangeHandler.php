@@ -12,6 +12,7 @@ use IndexNowKit\Attribute\Param\Call;
 use IndexNowKit\Attribute\Param\Equals;
 use IndexNowKit\Attribute\Param\Formatted;
 use IndexNowKit\Attribute\Param\ParamValue;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleEvent;
 use IndexNowKit\Attribute\RuleSet;
 use IndexNowKit\Attribute\RuleSource;
@@ -96,11 +97,18 @@ final class ObjectChangeHandler
      * $changeSet, so the engine drops the page that now answers 404. Only route rules and only fields the object
      * can be reset to (readonly properties are skipped with a debug line); the object is restored afterwards.
      *
-     * @param array<string, array{0: mixed, 1: mixed}> $changeSet field => [old, new]
+     * Adapters whose objects cannot be reset by reflection (Eloquent attributes) pass $previous: a copy of the
+     * object in its pre-update state, on which the old URLs are resolved instead. $selfFields names the fields a
+     * `self` route parameter depends on (the model's route key), so a changed slug behind `params: ['post' => 'self']`
+     * counts as a rename too.
+     *
+     * @param array<string, array{0: mixed, 1: mixed}> $changeSet  field => [old, new]
+     * @param object|null                              $previous   the object as it was before the update; null = rebuild it by reflection
+     * @param list<string>                             $selfFields fields a `self` parameter reads (route key); [] = `self` never renames
      *
      * @return list<ResolvedUrl>
      */
-    public function renamed(object $subject, array $changeSet): array
+    public function renamed(object $subject, array $changeSet, ?object $previous = null, array $selfFields = []): array
     {
         if ($changeSet === []) {
             return [];
@@ -112,7 +120,7 @@ final class ObjectChangeHandler
             if ($rule->source !== RuleSource::Route || !$rule->listensTo(Event::Deleted)) {
                 continue;
             }
-            $fields = self::routeFields($rule, $changed);
+            $fields = self::routeFields($rule, $changed, $selfFields);
             if ($fields !== []) {
                 $rules[] = $rule;
                 $dependent = [...$dependent, ...$fields];
@@ -122,7 +130,7 @@ final class ObjectChangeHandler
             return [];
         }
         try {
-            return $this->previousUrls($subject, $changeSet, $rules, array_values(array_unique($dependent)));
+            return $this->previousUrls($subject, $changeSet, $rules, array_values(array_unique($dependent)), $previous);
         } catch (Throwable $e) {
             // Never into the ORM's flush: the page keeps its new URL, the old one is not announced as deleted.
             $this->logger->error('indexnow: cannot resolve the previous URLs of {class}: {error}', ['class' => $subject::class, 'error' => $e->getMessage(), 'exception' => $e]);
@@ -138,21 +146,28 @@ final class ObjectChangeHandler
      *
      * @return list<ResolvedUrl>
      */
-    private function previousUrls(object $subject, array $changeSet, array $rules, array $dependent): array
+    private function previousUrls(object $subject, array $changeSet, array $rules, array $dependent, ?object $previous): array
     {
-        $restore = self::apply($subject, array_map(static fn(array $pair): mixed => $pair[0], $changeSet), $dependent);
-        if ($restore === null) {
-            $this->logger->debug('indexnow: cannot rebuild the previous state of {class} (a field the URL depends on is readonly, uninitialized or not a property), old URLs are not announced as deleted', ['class' => $subject::class]);
-
-            return [];
-        }
-        try {
+        if ($previous !== null) {
             $old = [];
             foreach ($rules as $rule) {
-                $old = [...$old, ...$this->resolver->resolveRule($subject, $rule, Event::Deleted, false)];
+                $old = [...$old, ...$this->resolver->resolveRule($previous, $rule, Event::Deleted, false)];
             }
-        } finally {
-            $restore();
+        } else {
+            $restore = self::apply($subject, array_map(static fn(array $pair): mixed => $pair[0], $changeSet), $dependent);
+            if ($restore === null) {
+                $this->logger->debug('indexnow: cannot rebuild the previous state of {class} (a field the URL depends on is readonly, uninitialized or not a property), old URLs are not announced as deleted', ['class' => $subject::class]);
+
+                return [];
+            }
+            try {
+                $old = [];
+                foreach ($rules as $rule) {
+                    $old = [...$old, ...$this->resolver->resolveRule($subject, $rule, Event::Deleted, false)];
+                }
+            } finally {
+                $restore();
+            }
         }
         if ($old === []) {
             return [];
@@ -168,13 +183,15 @@ final class ObjectChangeHandler
     }
 
     /**
-     * Changed fields the rule's route parameters (or host) read, directly or as the root of a dotted path.
+     * Changed fields the rule's route parameters (or host) read, directly or as the root of a dotted path; a `self`
+     * parameter reads $selfFields.
      *
      * @param list<string> $changed
+     * @param list<string> $selfFields
      *
      * @return list<string>
      */
-    private static function routeFields(UrlRule $rule, array $changed): array
+    private static function routeFields(UrlRule $rule, array $changed, array $selfFields = []): array
     {
         $fields = [];
         $sources = array_values($rule->params);
@@ -192,7 +209,8 @@ final class ObjectChangeHandler
                 continue;
             }
             $root = explode('.', $path, 2)[0];
-            $fields = [...$fields, ...array_values(array_intersect(UrlRule::fieldCandidates($root), $changed))];
+            $candidates = $root === ParamExtractor::SELF ? $selfFields : UrlRule::fieldCandidates($root);
+            $fields = [...$fields, ...array_values(array_intersect($candidates, $changed))];
         }
 
         return array_values(array_unique($fields));

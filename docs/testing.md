@@ -173,6 +173,22 @@ self::assertSame([], $transport->posts);
 Prefer it in application test suites where you care that a change *would* have been announced; prefer `FakeTransport`
 where you care about the exact payload.
 
+## Conformance kits for adapters
+
+Two abstract PHPUnit cases turn docs/spec/03 into runnable scenarios against *your* wiring:
+
+- `Testing\Conformance\CoreConformanceTestCase` (C01, C03, C04, C06, C09–C12, C14, C19, C20): return the facade your
+  container built and the `FakeTransport` it is wired to; optionally a second configured host for C04.
+- `Testing\Conformance\OrmConformanceTestCase` (A01–A21, plus A05b/A05c): implement the driver — the transaction verbs
+  of your data layer (`begin()`, `commit()`, `rollback()`), the end of a unit of work (`flush()`, `collectedCount()`),
+  and fixtures with fixed rule shapes (`createPost()`, `createMultiPost()`, `createCategorizedPost()`, `createTag()`,
+  `attachTag()`, `bulkUpdateTitle()`, …). The docblock of the class lists the rules every fixture must carry; the URL
+  conventions (`postUrl()`, `ampUrl()`, `categoryUrl()`, `homeUrl()`) are overridable.
+
+`indexnowkit/doctrine` (`tests/OrmConformanceTest.php`) and `indexnowkit/laravel` (`tests/Conformance/`) are the
+reference drivers. A scenario that does not apply to your framework is documented in your README, not skipped
+silently.
+
 ## Notes for adapter authors
 
 - Assert on rules and events through `ObjectChangeHandler::createdEvents()`, `updatedEvents()` and

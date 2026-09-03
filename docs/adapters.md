@@ -125,6 +125,7 @@ try {
 | rules registered in code, per class or per object | `Attribute\RuleRegistry` |
 | your own metadata source | implement `Attribute\AttributeReaderInterface` |
 | the object knows its own URL | `#[IndexNowUrl]` on the method, or `Url\CallableUrlResolver` |
+| attributes behind `__get()` / an array (Eloquent, CMS records) | implement `Attribute\SubjectReaderInterface`, register it once with `ParamExtractor::registerReader()` |
 
 `RuleRegistry` decorates any reader, so a CMS adapter keeps attribute support for free:
 
@@ -233,8 +234,9 @@ final class IndexNowObserver
 }
 ```
 
-Register it so its callbacks run **after** the surrounding transaction commits, which in Laravel means
-`ShouldHandleEventsAfterCommit`. If your framework has no such marker, use the next section.
+Register it so its URLs are handed over only **after** the surrounding transaction commits: resolve synchronously
+(the old state is live), hand off through the framework's after-commit hook (`Connection::afterCommit()` in Laravel).
+If your framework has no such hook, use the next section.
 
 ## 8. Commit safety
 
@@ -254,8 +256,10 @@ Entries are held in a `WeakMap`, so a forgotten scope does not leak. `hasPending
 for diagnostics.
 
 Where the real commit signal comes from differs per framework: a DBAL driver middleware (Doctrine),
-`ShouldHandleEventsAfterCommit` (Laravel), `transaction.on_commit` (Django). When the framework offers none,
-document the limitation instead of guessing. Satisfies A01, A02, A05.
+`Connection::afterCommit()` (Laravel — its transaction manager already drops callbacks of a rolled-back savepoint, so
+the Laravel adapter needs no staging of its own; `ShouldHandleEventsAfterCommit` is *not* used, because a deferred
+`updated` handler runs after `syncOriginal()` and loses the old values), `transaction.on_commit` (Django). When the
+framework offers none, document the limitation instead of guessing. Satisfies A01, A02, A05.
 
 ## 9. The unit of work
 
@@ -401,8 +405,9 @@ Use `IndexNowKit\Testing` (`FakeTransport`, `ArrayLogger`, `FrozenClock`, `Recor
 [testing.md](testing.md). Assert classification through `ObjectChangeHandler::*Events()` before any URL exists, and
 delivery through `RecordingDispatcher`.
 
-Then work through the conformance scenarios: C01–C22 for anything that talks to the protocol, A01–A14 for an ORM
-adapter, H01–H06 for a framework adapter. Declare in your README which scenarios do not apply to your framework and
+Then work through the conformance scenarios with the shipped kits (`Testing\Conformance\CoreConformanceTestCase`,
+`OrmConformanceTestCase`, see [testing.md](testing.md)): C01–C22 for anything that talks to the protocol, A01–A21 for
+an ORM adapter, H01–H06 for a framework adapter. Declare in your README which scenarios do not apply to your framework and
 why — A13 (bulk operations bypass hooks) is a documented limitation everywhere, not a failure.
 
 ## 17. Packaging
@@ -427,6 +432,10 @@ Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowki
 | key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` |
 | diagnostics | — | `src/Command/*`, `src/DataCollector/*` |
 | standalone wiring | `src/IndexNowDoctrine.php` | — |
+
+`indexnowkit/laravel` is the second ORM adapter and the reference for observer-style hooks: `src/Eloquent/IndexNowObserver.php`
+(synchronous observer + `afterCommit()`), `src/Eloquent/EloquentSubjectReader.php` (`SubjectReaderInterface`),
+`src/Url/LaravelRouteUrlResolver.php`, `src/Queue/SubmitUrlsJob.php`, `src/IndexNowKitServiceProvider.php`.
 
 ## 19. Compatibility
 

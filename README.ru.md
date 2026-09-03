@@ -301,7 +301,7 @@ SemVer. До 1.0 минорные версии могут содержать л�
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), laravel (в планах) |
+| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (в планах) |
 | Python | `indexnowkit`, `indexnowkit-django` (в планах) |
 

@@ -3,6 +3,29 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.2.2] — 2026-09-04
+
+### Added
+
+- **`Attribute\SubjectReaderInterface`** and `ParamExtractor::registerReader()` / `unregisterReader()`: an adapter
+  teaches the accessor DSL to read objects the DSL cannot see into (Eloquent attributes behind `__get()`, CMS fields).
+  Readers are consulted before the property/getter lookup; a reader also declares which objects it `supports()`.
+- **Route model binding for Stringable models.** `ParamExtractor::extract()` passes a `self` parameter and any object a
+  registered reader supports to the router bridge as an object, even when the class is `Stringable` (Eloquent models
+  serialize to JSON through `__toString()`); other `Stringable` value objects are still cast to string.
+- **`ObjectChangeHandler::renamed($subject, $changeSet, ?object $previous = null, array $selfFields = [])`.** Adapters
+  whose objects cannot be reset by reflection pass a copy in the pre-update state; `$selfFields` names the fields a
+  `self` route parameter depends on (the model's route key), so a changed slug behind `params: ['post' => 'self']`
+  counts as a rename.
+- **`Testing\Conformance\OrmConformanceTestCase`**: the ORM conformance scenarios A01–A21 (+A05b/A05c) of
+  docs/spec/03 as an abstract PHPUnit case driven through a small adapter driver (fixtures, begin/commit/rollback,
+  flush). `indexnowkit/doctrine` and `indexnowkit/laravel` run it; see [docs/testing.md](docs/testing.md).
+
+### Fixed
+
+- `Psr18Transport::discover()` instantiates Guzzle through a checked helper and reports a non-PSR-18 Guzzle (older
+  than 7) as a `ConfigurationException` instead of a type error.
+
 ## [0.2.1] — 2026-09-04
 
 ### Fixed
@@ -233,4 +256,5 @@ Initial release: protocol client, batching, debounce, throttle, `#[IndexNow]` at
 
 [0.2.0]: https://github.com/indexnowkit/php-core/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/indexnowkit/php-core/releases/tag/0.1.0
+[0.2.2]: https://github.com/indexnowkit/php-core/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/indexnowkit/php-core/compare/0.2.0...0.2.1

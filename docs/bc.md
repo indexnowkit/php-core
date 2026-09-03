@@ -10,7 +10,7 @@ This page exists because "public API" is ambiguous for a library whose main audi
 | Tier | What it means | Examples |
 |---|---|---|
 | **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `SitemapReader`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Sitemap\SitemapSourceInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Sitemap\SitemapSourceInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
@@ -33,8 +33,9 @@ The same holds for the constructors of `Config`, `Client`, `Submitter`, `Attribu
 `SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
 `Sitemap\Spool` is public for `create()`, `probeDisk()`, `uri()` and `close()`; its `stream_*` methods are the PHP stream-wrapper
 protocol and `@internal`.
-`RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` are public static helpers in the same "call" tier: adapters
-call them to compile their own declarations; their signatures only grow by appended optional parameters.
+`RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` (`extract()`, `read()`, `condition()`, `registerReader()`,
+`unregisterReader()`) are public static helpers in the same "call" tier: adapters call them to compile their own declarations and to
+plug in a `SubjectReaderInterface`; their signatures only grow by appended optional parameters.
 
 The shipped default implementations are in the "call" tier as well: construct them with named arguments and their public
 methods stay. That is `Http\LazyTransport` (the default `IndexNowKit::$transport`), `Http\Psr18Transport`,
@@ -106,7 +107,9 @@ class, or on `Result::$reason`, never on message text.
 - Log message texts. They are documented in [operations.md](operations.md) so you can grep them, and they are
   improved between versions. Alert on `Reason` values and log **levels**, not on wording.
 - Anything under `tests/`, including fixtures and the mock server. The published test doubles live in
-  `IndexNowKit\Testing` and **are** covered.
+  `IndexNowKit\Testing` and **are** covered, including the conformance kits `Testing\Conformance\CoreConformanceTestCase`
+  and `OrmConformanceTestCase`: their abstract driver methods only grow by appended methods with a default
+  implementation, and a scenario is only added, never removed, in a minor.
 - The exact set of `Result` objects a single `submit()` call returns. Grouping by host and batching are
   implementation details of throughput; use `Result::allUrls()`, `Result::retryableUrls()` and
   `Result::urlsWhere()` instead of indexing into the list.
