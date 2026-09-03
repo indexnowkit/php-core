@@ -200,7 +200,7 @@ final class ObjectChangeHandler
 
     /**
      * Sets $values on the object and returns the closure that restores the current values. Fields that are not
-     * writable properties (missing, readonly, static, uninitialized, hook-only on PHP 8.4) are skipped, unless the
+     * writable properties (missing, readonly, static, uninitialized) are skipped, unless the
      * URL depends on them ($required): then null, nothing is touched. A setter that throws restores the fields
      * already changed before rethrowing.
      *
@@ -250,16 +250,12 @@ final class ObjectChangeHandler
     }
 
     /**
-     * Readable now and writable back to the same value later: initialized, not readonly, not static, backed by
-     * storage (a PHP 8.4 property with only a get hook has none).
+     * Readable now and writable back to the same value later: initialized, not readonly, not static. A PHP 8.4
+     * property with only a get hook passes here and fails in setValue(), which apply() turns into a restore.
      */
     private static function isRestorable(ReflectionProperty $property, object $subject): bool
     {
-        if ($property->isReadOnly() || $property->isStatic() || !$property->isInitialized($subject)) {
-            return false;
-        }
-
-        return !method_exists($property, 'isVirtual') || !$property->isVirtual();
+        return !$property->isReadOnly() && !$property->isStatic() && $property->isInitialized($subject);
     }
 
     /**
