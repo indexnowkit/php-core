@@ -10,7 +10,7 @@ This page exists because "public API" is ambiguous for a library whose main audi
 | Tier | What it means | Examples |
 |---|---|---|
 | **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `SitemapReader`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Sitemap\SitemapSourceInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
@@ -20,7 +20,7 @@ both directions.
 
 ## Named arguments
 
-`IndexNowKit::create()` takes eleven optional arguments after `$config` and will take more. **Parameter names are part of the
+`IndexNowKit::create()` takes twelve optional arguments after `$config` and will take more. **Parameter names are part of the
 promise; the order is not.** New parameters are appended, never inserted, and every call should use named
 arguments:
 

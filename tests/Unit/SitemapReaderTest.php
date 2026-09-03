@@ -184,6 +184,50 @@ final class SitemapReaderTest extends TestCase
         iterator_to_array((new SitemapReader(new FakeTransport()))->parse('<?xml version="1.0"?><urlset ' . self::NS . '><url><loc>https://www.example.com/a</loc></url><url><loc>https://www.exam'), false);
     }
 
+    public function testLocalFilesAreReadWithoutTheTransport(): void
+    {
+        $dir = sys_get_temp_dir() . '/indexnowkit-local-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        file_put_contents($dir . '/part.xml.gz', (string) gzencode(self::URLSET));
+        file_put_contents($dir . '/index.xml', '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>' . $dir . '/part.xml.gz</loc></sitemap><sitemap><loc>https://www.example.com/remote.xml</loc></sitemap></sitemapindex>');
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/remote.xml', new Response(200, '<?xml version="1.0"?><urlset ' . self::NS . '><url><loc>https://www.example.com/remote</loc></url></urlset>'));
+        $logger = new ArrayLogger();
+
+        $entries = iterator_to_array((new SitemapReader($t, logger: $logger))->read($dir . '/index.xml'), false);
+        self::assertCount(3, $entries, 'the local gzip part is read; the remote part is skipped');
+        self::assertSame([], $t->gets);
+        self::assertStringContainsString('give the index by URL, or allow foreign hosts', implode("\n", $logger->messages('warning')));
+
+        $entries = iterator_to_array((new SitemapReader($t))->read('file://' . $dir . '/index.xml', allowForeignHosts: true), false);
+        self::assertCount(4, $entries, 'with foreign hosts allowed the remote part is fetched');
+
+        try {
+            iterator_to_array((new SitemapReader($t))->read($dir . '/missing.xml'), false);
+            self::fail('a missing file is an error');
+        } catch (TransportException $e) {
+            self::assertStringContainsString('no such file', $e->getMessage());
+        }
+        unlink($dir . '/part.xml.gz');
+        unlink($dir . '/index.xml');
+        rmdir($dir);
+    }
+
+    public function testTextSitemapsYieldOneUrlPerLineWithoutLastmod(): void
+    {
+        $logger = new ArrayLogger();
+        $reader = new SitemapReader(new FakeTransport(), logger: $logger);
+        $text = "\xEF\xBB\xBFhttps://www.example.com/a\r\n\n# comment\nhttps://www.example.com/b\nnot a url\n";
+
+        $entries = iterator_to_array($reader->parse($text), false);
+        self::assertSame(['https://www.example.com/a', 'https://www.example.com/b'], array_map(static fn($e): string => $e->url, $entries));
+        self::assertNull($entries[0]->lastmod);
+        self::assertStringContainsString('line 5 is not an http(s) URL', implode("\n", $logger->messages('warning')));
+
+        self::assertSame([], iterator_to_array($reader->parse($text, '', new DateTimeImmutable('-1 day')), false), 'no lastmod: nothing is "changed since"');
+        self::assertCount(2, iterator_to_array($reader->parse((string) gzencode($text)), false), 'gzip text sitemaps too');
+    }
+
     public function testNestedSitemapOnAnotherPortOrSchemeIsSkipped(): void
     {
         $logger = new ArrayLogger();

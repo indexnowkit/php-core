@@ -13,10 +13,13 @@ use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Dispatch\DispatcherInterface;
 use IndexNowKit\Dispatch\SyncDispatcher;
 use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Http\LazyTransport;
 use IndexNowKit\Http\Psr18Transport;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Sitemap\SitemapReader;
+use IndexNowKit\Sitemap\SitemapSourceInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\GuardedUrlResolver;
@@ -37,7 +40,12 @@ final class IndexNowKit
 {
     private readonly GuardedUrlResolver $resolver;
     private readonly ObjectChangeHandler $changes;
+    private ?SitemapSourceInterface $sitemap;
 
+    /**
+     * @param TransportInterface|null     $transport the transport submissions go through; {@see sitemap()} reuses it
+     * @param SitemapSourceInterface|null $sitemap   a custom sitemap source; default: {@see SitemapReader} over $transport
+     */
     public function __construct(
         public readonly Config $config,
         public readonly SubmitterInterface $submitter,
@@ -47,9 +55,12 @@ final class IndexNowKit
         public readonly AttributeReaderInterface $attributes = new AttributeReader(),
         ?UrlResolverInterface $resolver = null,
         private readonly LoggerInterface $logger = new NullLogger(),
+        public readonly ?TransportInterface $transport = null,
+        ?SitemapSourceInterface $sitemap = null,
     ) {
         $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
         $this->changes = new ObjectChangeHandler($attributes, $this->resolver, $logger);
+        $this->sitemap = $sitemap;
     }
 
     /**
@@ -73,6 +84,7 @@ final class IndexNowKit
         ?AttributeReaderInterface $attributes = null,
         ?SubmitterInterface $submitter = null,
         ?CollectorInterface $collector = null,
+        ?SitemapSourceInterface $sitemap = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
@@ -84,11 +96,26 @@ final class IndexNowKit
         } else {
             $normalizer ??= new UrlNormalizer($config->baseUrl);
             $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
-            $client = new Client($transport ?? Psr18Transport::discover(timeout: $config->httpTimeout), $keys, $config, $logger, $throttle, $normalizer);
+            $transport ??= new LazyTransport(static fn(): TransportInterface => Psr18Transport::discover(timeout: $config->httpTimeout));
+            $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);
             $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
         }
 
-        return new self($config, $submitter, $collector ?? new Collector($logger), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
+        return new self($config, $submitter, $collector ?? new Collector($logger), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $sitemap);
+    }
+
+    /**
+     * The sitemap source: the one given, else a {@see SitemapReader} over the submission transport (discovered
+     * lazily when the facade was built around a custom submitter). Read it in batches:
+     *
+     *   foreach (chunk($kit->sitemap()->read($url, new DateTimeImmutable('-1 day')), $kit->config->batchMaxUrls) as $urls) $kit->submit($urls);
+     */
+    public function sitemap(): SitemapSourceInterface
+    {
+        return $this->sitemap ??= new SitemapReader(
+            $this->transport ?? new LazyTransport(fn(): TransportInterface => Psr18Transport::discover(timeout: $this->config->httpTimeout)),
+            logger: $this->logger,
+        );
     }
 
     /**

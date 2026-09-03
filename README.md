@@ -224,7 +224,9 @@ temp file, or memory on a read-only filesystem (`spool: SpoolMode::Auto|Disk|Mem
 failure or 5xx while fetching a document is retried (`fetchRetries:`, default 2, 1/2/4 s apart), a truncated
 download is reported as such. Indexes are followed on the origin of the root sitemap only (`allowForeignHosts:
 true`, or the same-named `read()` argument, follows CDN-hosted parts), with caps on depth, document count and
-document size.
+document size. The root may also be a local path or `file://` URL, and text sitemaps (one URL per line) are read
+like XML ones. `IndexNowKit::sitemap()` returns the reader built over the facade's transport (or the
+`SitemapSourceInterface` you passed to `create(sitemap:)`), and `$kit->transport` is the transport itself.
 
 ## Testing
 

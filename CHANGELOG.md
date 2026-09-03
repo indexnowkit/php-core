@@ -96,6 +96,14 @@ downstream piece — event classification, guards, locales, deletion semantics, 
   `TransportException`s ("response truncated, N of M bytes received", "connection lost after N bytes") instead of
   a silently short document or a foreign `RuntimeException`.
 - `Testing\FakeTransport::onGet()` takes several responses, consumed in order (the last one repeats).
+- `Sitemap\SitemapSourceInterface`: what a `sitemap` command reads from; `SitemapReader` implements it, adapters
+  type their command against it so applications can decorate or replace the source.
+- `SitemapReader` reads local files (`/path/sitemap.xml`, `file://`) without the transport, and text sitemaps
+  (one URL per line, sitemaps.org) next to XML ones. A local index follows local parts; URL parts need
+  `allowForeignHosts`.
+- `IndexNowKit::sitemap()` returns the sitemap source (the one passed to `create(sitemap:)`, else a `SitemapReader`
+  over the facade's transport); `IndexNowKit::$transport` exposes that transport. `create()` wraps the discovered
+  transport in `LazyTransport`, so a facade that submits nothing never discovers a client.
 - `Testing\FakeTransport`, `ArrayLogger`, `FrozenClock` and `RecordingDispatcher` are part of the published package.
 - `Config::OPTIONS` and `Config::unknownOptions()` for typo detection in adapter config; `strict_hosts`;
   per-host `base_url` (`hosts: {host: {key, key_location, base_url}}`) and `Config::baseUrlFor()` for URL generation

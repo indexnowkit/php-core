@@ -358,8 +358,10 @@ Ship four commands. They are what turns "it does not work" into a self-service a
 | `check` | `Check\Checker` → `CheckReport` → `CheckItem` (levels `Ok`, `Warning`, `Error`); `run(liveProbe:, onlyHost:)` |
 | `submit <url>...` | `SubmitterInterface::submit()`, rendering `Result` rows |
 | `submit-entity <class> <id>` | `IndexNowKit::explain()` for a `--explain` table, `submit()` otherwise |
-| `sitemap [url]` | `Sitemap\SitemapReader::read($url, $changedSince, $allowForeignHosts)`, submitted in batches of `Config::$batchMaxUrls` |
+| `sitemap [url]` | `Sitemap\SitemapSourceInterface::read($url, $changedSince)` (the shipped `SitemapReader` adds `$allowForeignHosts`, local files and text sitemaps), submitted in batches of `Config::$batchMaxUrls` |
 
+Type the command against `SitemapSourceInterface` and expose the reader under an alias of it, so an application can
+decorate the source (filter, rewrite) or replace it (another format, a database) without touching your command.
 The sitemap command should stream: read the generator, submit every `batch.max_urls` URLs, fold results into
 counts (the Symfony bundle's `ResultSummary` is the reference), and never collect the URL list into an array.
 Expose the reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`,

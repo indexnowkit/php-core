@@ -18,7 +18,9 @@ use Throwable;
 use XMLReader;
 
 /**
- * Streams <loc> entries of a sitemap or sitemap index (recursively), gzip aware.
+ * Streams <loc> entries of a sitemap or sitemap index (recursively), gzip aware; text sitemaps (one URL per
+ * line) too. The root may be a URL or a local file (`/var/www/public/sitemap.xml`, `file://...`): a sitemap the
+ * application writes to disk is read without going through the web server.
  *
  * Memory stays flat whatever the sitemap size: every document is spooled ({@see Spool}: a temp file, or memory on a
  * read-only filesystem, streamed straight from the network when the transport implements
@@ -33,7 +35,7 @@ use XMLReader;
  * network access are disabled in the XML parser. A failing nested sitemap is logged and skipped; a failing root
  * sitemap throws.
  */
-final class SitemapReader
+final class SitemapReader implements SitemapSourceInterface
 {
     public const MAX_XML_BYTES = 52_428_800;
     public const MAX_SITEMAPS = 1000;
@@ -77,6 +79,7 @@ final class SitemapReader
     }
 
     /**
+     * @param string                 $sitemap           URL, or a local path / `file://` URL
      * @param DateTimeImmutable|null $changedSince      only entries whose <lastmod> is newer (entries without lastmod are skipped)
      * @param bool|null              $allowForeignHosts per-call override of the constructor default
      *
@@ -84,11 +87,11 @@ final class SitemapReader
      *
      * @throws TransportException when the root sitemap cannot be fetched or parsed
      */
-    public function read(string $sitemapUrl, ?DateTimeImmutable $changedSince = null, ?bool $allowForeignHosts = null): Generator
+    public function read(string $sitemap, ?DateTimeImmutable $changedSince = null, ?bool $allowForeignHosts = null): Generator
     {
         $fetched = 0;
 
-        return $this->readNested($sitemapUrl, $sitemapUrl, $changedSince, 0, $fetched, $allowForeignHosts ?? $this->allowForeignHosts);
+        return $this->readNested($sitemap, $sitemap, $changedSince, 0, $fetched, $allowForeignHosts ?? $this->allowForeignHosts);
     }
 
     /**
@@ -123,7 +126,7 @@ final class SitemapReader
     private function readNested(string $url, string $root, ?DateTimeImmutable $changedSince, int $depth, int &$fetched, bool $allowForeignHosts): Generator
     {
         ++$fetched;
-        $file = $this->fetch($url);
+        $file = self::localPath($url) !== null ? $this->open($url) : $this->fetch($url);
         try {
             foreach ($this->entries($file, $url) as [$kind, $loc, $lastmod]) {
                 if ($kind === 'url') {
@@ -142,11 +145,20 @@ final class SitemapReader
 
                     return;
                 }
-                if (!self::isHttpUrl($loc)) {
+                if (self::localPath($root) !== null) {
+                    // A local index: its parts are local files next to it, or URLs the transport may fetch when allowed.
+                    if (self::localPath($loc) === null && !self::isHttpUrl($loc)) {
+                        $this->logger->warning('indexnow: sitemap {url} is neither a local file nor an http(s) URL, skipping', ['url' => $loc]);
+                        continue;
+                    }
+                    if (self::localPath($loc) === null && !$allowForeignHosts) {
+                        $this->logger->warning('indexnow: local sitemap index {root} references {url}; give the index by URL, or allow foreign hosts to fetch its parts', ['url' => $loc, 'root' => $root]);
+                        continue;
+                    }
+                } elseif (!self::isHttpUrl($loc)) {
                     $this->logger->warning('indexnow: sitemap {url} is not an http(s) URL, skipping', ['url' => $loc]);
                     continue;
-                }
-                if (!$allowForeignHosts && !self::sameOrigin($loc, $root)) {
+                } elseif (!$allowForeignHosts && !self::sameOrigin($loc, $root)) {
                     $this->logger->warning('indexnow: sitemap {url} is not on the host of {root}, skipping (allow foreign hosts to follow it)', ['url' => $loc, 'root' => $root]);
                     continue;
                 }
@@ -159,6 +171,42 @@ final class SitemapReader
         } finally {
             self::close($file);
         }
+    }
+
+    /**
+     * A local sitemap file, opened read-only: XMLReader reads it through the spool wrapper like any other spool.
+     *
+     * @return resource
+     *
+     * @throws TransportException
+     */
+    private function open(string $sitemap)
+    {
+        $path = (string) self::localPath($sitemap);
+        if (!is_file($path)) {
+            throw new TransportException(\sprintf('Sitemap %s: no such file.', $sitemap));
+        }
+        $file = @fopen($path, 'rb');
+        if ($file === false) {
+            throw new TransportException(\sprintf('Sitemap %s: cannot open the file for reading.', $sitemap));
+        }
+
+        return $file;
+    }
+
+    /**
+     * Filesystem path behind an absolute path, a relative path to an existing file, or a `file://` URL; null for URLs.
+     */
+    private static function localPath(string $sitemap): ?string
+    {
+        if (str_starts_with($sitemap, 'file://')) {
+            return rawurldecode(substr($sitemap, 7));
+        }
+        if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $sitemap) === 1) {
+            return null;
+        }
+
+        return str_starts_with($sitemap, '/') || str_starts_with($sitemap, '.') || is_file($sitemap) ? $sitemap : null;
     }
 
     /**
@@ -229,6 +277,11 @@ final class SitemapReader
             if ($size > $this->maxXmlBytes) {
                 throw new TransportException(\sprintf('Sitemap %s: %d bytes exceeds the %d byte limit.', $source, $size, $this->maxXmlBytes));
             }
+            if (self::isText($inflated)) {
+                yield from $this->textEntries($inflated, $source);
+
+                return;
+            }
             $reader = @XMLReader::open(Spool::uri($inflated), 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);
             if (!$reader instanceof XMLReader) {
                 throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
@@ -289,6 +342,49 @@ final class SitemapReader
             if ($owned) {
                 Spool::close($inflated);
             }
+        }
+    }
+
+    /**
+     * A text sitemap (sitemaps.org: one absolute URL per line, UTF-8, no markup) starts with something other than `<`.
+     *
+     * @param resource $file
+     */
+    private static function isText($file): bool
+    {
+        rewind($file);
+        $head = fread($file, 512);
+        rewind($file);
+        if ($head === false || $head === '') {
+            return false;
+        }
+        $head = ltrim(str_starts_with($head, "\xEF\xBB\xBF") ? substr($head, 3) : $head);
+
+        return $head !== '' && $head[0] !== '<';
+    }
+
+    /**
+     * Text sitemaps carry no lastmod, so they contribute nothing to a changedSince run (logged once).
+     *
+     * @param resource $file
+     *
+     * @return Generator<int, array{0: string, 1: string, 2: string}>
+     */
+    private function textEntries($file, string $source): Generator
+    {
+        rewind($file);
+        $line = 0;
+        while (($raw = fgets($file)) !== false) {
+            ++$line;
+            $url = trim($line === 1 && str_starts_with($raw, "\xEF\xBB\xBF") ? substr($raw, 3) : $raw);
+            if ($url === '' || str_starts_with($url, '#')) {
+                continue;
+            }
+            if (!self::isHttpUrl($url)) {
+                $this->logger->warning('indexnow: text sitemap {source} line {line} is not an http(s) URL, skipping: {url}', ['source' => $source, 'line' => $line, 'url' => $url]);
+                continue;
+            }
+            yield ['url', $url, ''];
         }
     }
 
