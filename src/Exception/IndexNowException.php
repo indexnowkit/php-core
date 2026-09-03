@@ -6,4 +6,7 @@ namespace IndexNowKit\Exception;
 
 use Throwable;
 
+/**
+ * Marker implemented by every exception of this library.
+ */
 interface IndexNowException extends Throwable {}

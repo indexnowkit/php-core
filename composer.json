@@ -1,32 +1,62 @@
 {
     "name": "indexnowkit/core",
-    "description": "Framework-agnostic IndexNow client for PHP: batching, debounce, retry policy, key handling. Notify Yandex, Bing, Naver, Seznam and Yep about changed URLs.",
+    "description": "IndexNow client for PHP: notify Yandex, Bing, Naver, Seznam and Yep about changed URLs. Batching, debounce, throttle, retry policy, key file handling, sitemap reader. Framework-agnostic, PSR-18/PSR-3/PSR-16.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["indexnow", "seo", "yandex", "bing", "naver", "seznam", "search-engine", "sitemap", "psr-18"],
-    "homepage": "https://indexnowkit.dev",
+    "keywords": ["indexnow", "seo", "search-engine", "yandex", "bing", "naver", "seznam", "sitemap", "psr-18", "indexing"],
+    "homepage": "https://github.com/indexnowkit/php",
+    "authors": [
+        {"name": "Igor Pinchuk", "email": "i.pinchuk.work@gmail.com"}
+    ],
+    "support": {
+        "issues": "https://github.com/indexnowkit/php/issues",
+        "source": "https://github.com/indexnowkit/php/tree/main/packages/core",
+        "docs": "https://github.com/indexnowkit/php/blob/main/packages/core/README.md",
+        "security": "https://github.com/indexnowkit/php/blob/main/SECURITY.md"
+    },
     "require": {
         "php": "^8.2",
+        "ext-filter": "*",
+        "ext-json": "*",
+        "psr/clock": "^1.0",
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
         "psr/http-message": "^1.1 || ^2.0",
         "psr/log": "^2.0 || ^3.0",
         "psr/simple-cache": "^1.0 || ^2.0 || ^3.0",
-        "psr/clock": "^1.0",
         "php-http/discovery": "^1.20"
     },
+    "require-dev": {
+        "nyholm/psr7": "^1.8",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpunit/phpunit": "^11.5",
+        "symfony/cache": "^6.4 || ^7.0",
+        "symfony/http-client": "^6.4 || ^7.0"
+    },
     "suggest": {
-        "symfony/http-client": "PSR-18 client (with nyholm/psr7) used by default discovery",
-        "guzzlehttp/guzzle": "Alternative PSR-18 client",
-        "symfony/property-access": "Property-path support in #[IndexNow(params: ...)]"
+        "symfony/http-client": "PSR-18 client configured automatically with http.timeout (with nyholm/psr7)",
+        "guzzlehttp/guzzle": "Alternative PSR-18 client, also configured automatically",
+        "nyholm/psr7": "PSR-17 factories",
+        "ext-intl": "UTS #46 IDN handling (a pure-PHP punycode encoder is used otherwise)",
+        "ext-xmlreader": "Required by Sitemap\\SitemapReader",
+        "ext-zlib": "Reading gzip-compressed sitemaps",
+        "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl"
     },
     "autoload": {
         "psr-4": {"IndexNowKit\\": "src/"}
     },
+    "autoload-dev": {
+        "psr-4": {"IndexNowKit\\Tests\\": "tests/"}
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
     "config": {
+        "sort-packages": true,
         "allow-plugins": {"php-http/discovery": false}
     },
     "extra": {
-        "branch-alias": {"dev-main": "0.1-dev"}
+        "branch-alias": {"dev-main": "0.2-dev"}
     }
 }

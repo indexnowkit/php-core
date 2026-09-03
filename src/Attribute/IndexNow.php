@@ -27,6 +27,8 @@ final readonly class IndexNow
      * @param list<string|Event>           $events   subset of created/updated/deleted
      * @param list<string>                 $fields   for updates, submit only when one of these fields changed (empty = any)
      * @param list<string>|string          $locales  'current' | 'all' | explicit list (adapters with localized routes)
+     *
+     * @throws ConfigurationException without route/resolver or with an unknown event name
      */
     public function __construct(
         public ?string $route = null,

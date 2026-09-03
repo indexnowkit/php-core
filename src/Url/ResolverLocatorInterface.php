@@ -9,5 +9,8 @@ namespace IndexNowKit\Url;
  */
 interface ResolverLocatorInterface
 {
+    /**
+     * @throws \IndexNowKit\Exception\ConfigurationException when $id is unknown
+     */
     public function get(string $id): UrlResolverInterface;
 }

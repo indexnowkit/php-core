@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Check;
 
+/**
+ * Ordered list of ok / warning / error lines produced by Checker.
+ */
 final class CheckReport
 {
     /** @var list<array{level: 'ok'|'warning'|'error', message: string}> */

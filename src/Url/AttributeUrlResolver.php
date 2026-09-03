@@ -20,6 +20,9 @@ final class AttributeUrlResolver implements UrlResolverInterface
         private readonly ?ResolverLocatorInterface $locator = null,
     ) {}
 
+    /**
+     * @throws ConfigurationException when the attribute needs a locator or router that was not configured
+     */
     public function resolve(object $subject, Event $event): iterable
     {
         $attribute = $this->reader->read($subject);

@@ -10,6 +10,8 @@ use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Key\KeyGenerator;
 use IndexNowKit\ResultStatus;
+use IndexNowKit\Retry\RetryingSubmitter;
+use IndexNowKit\Retry\RetryPolicy;
 use IndexNowKit\Tests\Support\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Tests\Support\FakeTransport;
@@ -158,6 +160,31 @@ final class CoreConformanceTest extends TestCase
         self::assertCount(1, $t->posts);
         self::assertTrue($results[0]->retryable);
         self::assertSame(30, $results[0]->retryAfter);
+    }
+
+    #[TestDox('C13 429 with Retry-After, retried in-process -> two POSTs, ends ok, sleeper called with the retry delay')]
+    public function testC13RetryingSubmitterBacksOffThenSucceeds(): void
+    {
+        $t = (new FakeTransport())->willRespond(new Response(429, 'slow', 2), new Response(200));
+        $sleeps = [];
+        $submitter = new RetryingSubmitter(
+            Factory::submitter($t),
+            new RetryPolicy(),
+            new ArrayLogger(),
+            static function (int $seconds) use (&$sleeps): void {
+                $sleeps[] = $seconds;
+            },
+        );
+
+        $results = $submitter->submit(['/a']);
+
+        self::assertCount(2, $t->posts);
+        self::assertSame([2], $sleeps);
+        self::assertCount(1, $results);
+        self::assertSame(ResultStatus::Ok, $results[0]->status);
+        foreach ($results as $result) {
+            self::assertFalse($result->retryable);
+        }
     }
 
     #[TestDox('C14 transport failure -> failed, retryable, no exception')]

@@ -7,6 +7,9 @@ namespace IndexNowKit\Url;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
+/**
+ * In-memory registry of resolvers by id; class names implementing UrlResolverInterface are instantiated on demand.
+ */
 final class ArrayResolverLocator implements ResolverLocatorInterface
 {
     /** @var array<string, UrlResolverInterface> */
@@ -30,6 +33,9 @@ final class ArrayResolverLocator implements ResolverLocatorInterface
         $this->resolvers[$id] = $resolver instanceof UrlResolverInterface ? $resolver : new CallableUrlResolver($resolver);
     }
 
+    /**
+     * @throws ConfigurationException when nothing is registered under $id and it is not a UrlResolverInterface class
+     */
     public function get(string $id): UrlResolverInterface
     {
         if (isset($this->resolvers[$id])) {

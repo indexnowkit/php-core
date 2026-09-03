@@ -6,6 +6,9 @@ namespace IndexNowKit\Sitemap;
 
 use DateTimeImmutable;
 
+/**
+ * One <url> of a sitemap.
+ */
 final readonly class SitemapEntry
 {
     public function __construct(public string $url, public ?DateTimeImmutable $lastmod) {}

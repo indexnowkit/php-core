@@ -6,6 +6,9 @@ namespace IndexNowKit\Url;
 
 use IndexNowKit\Event;
 
+/**
+ * Wraps a closure `fn(object, Event): iterable<string>|string|null` as a resolver.
+ */
 final class CallableUrlResolver implements UrlResolverInterface
 {
     /** @var callable(object, Event): (iterable<string>|string|null) */
@@ -19,7 +22,7 @@ final class CallableUrlResolver implements UrlResolverInterface
         $this->callable = $callable;
     }
 
-    public function resolve(object $subject, Event $event) : iterable
+    public function resolve(object $subject, Event $event): iterable
     {
         $result = ($this->callable)($subject, $event);
         if ($result === null) {

@@ -8,6 +8,8 @@ use IndexNowKit\Exception\ConfigurationException;
 
 /**
  * Reads attribute "params" values from an object: property, getter, is/has-method, or "self".
+ *
+ * @internal used by AttributeUrlResolver and PublishGuard
  */
 final class ParamExtractor
 {
@@ -16,6 +18,8 @@ final class ParamExtractor
     /**
      * @param array<string, string> $params routeParam => accessor
      * @return array<string, mixed>
+     *
+     * @throws ConfigurationException when an accessor cannot be read
      */
     public static function extract(object $subject, array $params): array
     {
@@ -27,6 +31,9 @@ final class ParamExtractor
         return $out;
     }
 
+    /**
+     * @throws ConfigurationException when the accessor is neither a method (with get/is/has prefixes) nor a property
+     */
     public static function read(object $subject, string $accessor): mixed
     {
         if ($accessor === self::SELF) {
