@@ -147,13 +147,15 @@ final class Psr18Transport implements StreamingTransportInterface
     }
 
     /**
-     * @param class-string         $class
      * @param array<string, mixed> $options
      *
-     * @throws ConfigurationException when the class is not a PSR-18 client (a Guzzle older than 7)
+     * @throws ConfigurationException when the class is missing or not a PSR-18 client (a Guzzle older than 7)
      */
     private static function instantiate(string $class, array $options): ClientInterface
     {
+        if (!class_exists($class)) {
+            throw new ConfigurationException(\sprintf('%s is not installed.', $class));
+        }
         $client = new $class($options);
         if (!$client instanceof ClientInterface) {
             throw new ConfigurationException(\sprintf('%s is not a PSR-18 client; install a PSR-18 implementation (guzzlehttp/guzzle ^7, symfony/http-client + nyholm/psr7).', $class));
