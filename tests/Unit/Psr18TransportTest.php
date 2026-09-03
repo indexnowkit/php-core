@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Psr18Client;
 
 /**
- * Integration with the PHP mock server (tools/mock-server/router.php) through a real PSR-18 client.
+ * Integration with the PHP mock server (packages/core/tests/Support/mock-server/router.php) through a real PSR-18 client.
  */
 #[Group('integration')]
 final class Psr18TransportTest extends TestCase

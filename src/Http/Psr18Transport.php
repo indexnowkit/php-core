@@ -164,9 +164,13 @@ final class Psr18Transport implements TransportInterface
         if (preg_match('/^\d+$/', $header) === 1) {
             return min((int) $header, self::MAX_RETRY_AFTER);
         }
-        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::RFC7231, $header) ?: (strtotime($header) !== false ? new DateTimeImmutable('@' . strtotime($header)) : null);
-        if ($date === null) {
-            return null;
+        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::RFC7231, $header);
+        if ($date === false) {
+            $timestamp = strtotime($header);
+            if ($timestamp === false) {
+                return null;
+            }
+            $date = new DateTimeImmutable('@' . $timestamp);
         }
 
         return max(0, min($date->getTimestamp() - time(), self::MAX_RETRY_AFTER));

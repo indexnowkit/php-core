@@ -4,19 +4,50 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use IndexNowKit\Dispatch\CallableDispatcher;
 use IndexNowKit\Event;
 use IndexNowKit\IndexNow;
+use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Tests\Support\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Tests\Support\FakeTransport;
+use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Url\CallableUrlResolver;
+use IndexNowKit\Url\UrlNormalizerInterface;
 use PHPUnit\Framework\TestCase;
 
 #[IndexNowAttribute(resolver: 'any', when: 'published')]
 final class FacadePost
 {
     public function __construct(public string $slug, public bool $published = true) {}
+}
+
+#[IndexNowAttribute(route: 'x', when: 'badAccessor')]
+final class BadWhenPost {}
+
+final class RecordingThrottle implements ThrottleInterface
+{
+    public int $calls = 0;
+
+    public function acquire(): void
+    {
+        ++$this->calls;
+    }
+}
+
+final class MappingNormalizer implements UrlNormalizerInterface
+{
+    public function normalize(string $url): string
+    {
+        return 'https://custom.example.com/mapped';
+    }
+
+    public function hostOf(string $normalizedUrl): string
+    {
+        return 'custom.example.com';
+    }
 }
 
 final class FacadeTest extends TestCase
@@ -49,5 +80,45 @@ final class FacadeTest extends TestCase
         $inx->flush();
 
         self::assertSame(['https://www.example.com/a', 'https://www.example.com/b'], $received);
+    }
+
+    public function testFlushOnEmptyCollectorDoesNothing(): void
+    {
+        $called = false;
+        $inx = IndexNow::create(Factory::config(), new FakeTransport(), dispatcher: new CallableDispatcher(static function () use (&$called): void {
+            $called = true;
+        }));
+
+        $inx->flush();
+
+        self::assertFalse($called);
+    }
+
+    public function testUrlsForNeverThrowsWhenTheWhenAccessorIsMissing(): void
+    {
+        $logger = new ArrayLogger();
+        $inx = IndexNow::create(Factory::config(), new FakeTransport(), logger: $logger);
+
+        $urls = $inx->urlsFor(new BadWhenPost(), Event::Updated);
+
+        self::assertSame([], $urls);
+        self::assertCount(1, $logger->messages('error'));
+    }
+
+    public function testCreateAcceptsCustomKeysThrottleNormalizerAndAttributeReader(): void
+    {
+        $t = new FakeTransport();
+        $keys = new StaticKeyProvider('customkey1234', ['custom.example.com' => 'hostkey12345']);
+        $throttle = new RecordingThrottle();
+        $normalizer = new MappingNormalizer();
+        $attributes = new AttributeReader();
+
+        $inx = IndexNow::create(Factory::config(), $t, keys: $keys, throttle: $throttle, normalizer: $normalizer, attributes: $attributes);
+        $inx->submit(['/whatever']);
+
+        self::assertSame(['host' => 'custom.example.com', 'key' => 'hostkey12345', 'urlList' => ['https://custom.example.com/mapped']], $t->posts[0]['body']);
+        self::assertSame(1, $throttle->calls);
+        self::assertSame($attributes, $inx->attributes);
+        self::assertSame($keys, $inx->keys);
     }
 }

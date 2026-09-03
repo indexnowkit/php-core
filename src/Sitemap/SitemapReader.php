@@ -120,11 +120,14 @@ final class SitemapReader
     {
         $xml = self::gunzip($xml, $source);
         $previous = libxml_use_internal_errors(true);
-        $reader = new XMLReader();
+        $reader = XMLReader::XML($xml, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);
+        if (!$reader instanceof XMLReader) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+
+            throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
+        }
         try {
-            if (!$reader->XML($xml, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT)) {
-                throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
-            }
             $reader->setParserProperty(XMLReader::SUBST_ENTITIES, false);
             $reader->setParserProperty(XMLReader::LOADDTD, false);
             $kind = null;
@@ -198,7 +201,11 @@ final class SitemapReader
 
     private static function entry(string $loc, string $lastmodRaw, ?DateTimeImmutable $changedSince): ?SitemapEntry
     {
-        $lastmod = $lastmodRaw !== '' ? (DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $lastmodRaw) ?: self::parseDate($lastmodRaw)) : null;
+        $lastmod = null;
+        if ($lastmodRaw !== '') {
+            $atom = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $lastmodRaw);
+            $lastmod = $atom === false ? self::parseDate($lastmodRaw) : $atom;
+        }
         if ($changedSince !== null && ($lastmod === null || $lastmod < $changedSince)) {
             return null;
         }

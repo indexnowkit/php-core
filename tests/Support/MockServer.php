@@ -25,7 +25,7 @@ final class MockServer
     public static function start(array $keys = [], string $host = '127.0.0.1'): self
     {
         $port = self::freePort();
-        $router = \dirname(__DIR__, 4) . '/tools/mock-server/router.php';
+        $router = __DIR__ . '/mock-server/router.php';
         $cmd = \sprintf('MOCK_KEYS=%s exec php -S %s:%d %s', escapeshellarg(implode(',', $keys)), $host, $port, escapeshellarg($router));
         $process = proc_open($cmd, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
         if (!\is_resource($process)) {

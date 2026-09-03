@@ -41,6 +41,9 @@ final class ConfigValidationTest extends TestCase
         yield 'environment production without key' => [['environment' => 'PRODUCTION']];
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     #[DataProvider('invalidConfigProvider')]
     public function testRejectsInvalidConfig(array $data): void
     {

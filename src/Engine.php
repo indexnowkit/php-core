@@ -10,7 +10,7 @@ use IndexNowKit\Exception\ConfigurationException;
  * Known IndexNow endpoints. "api" is the shared endpoint that fans out to every participating engine,
  * so it is the right default; name engines explicitly only to reach a single one.
  */
-enum Engine : string
+enum Engine: string
 {
     case Api = 'api';
     case Yandex = 'yandex';
@@ -19,7 +19,7 @@ enum Engine : string
     case Seznam = 'seznam';
     case Yep = 'yep';
 
-    public function endpoint() : string
+    public function endpoint(): string
     {
         return match ($this) {
             self::Api => 'https://api.indexnow.org/indexnow',
@@ -37,7 +37,7 @@ enum Engine : string
      *
      * @throws ConfigurationException
      */
-    public static function resolveEndpoint(string $value) : string
+    public static function resolveEndpoint(string $value): string
     {
         $value = trim($value);
         $case = self::tryFrom(strtolower($value));
@@ -59,7 +59,7 @@ enum Engine : string
     /**
      * Human-readable name for logs and results: enum value for known endpoints, host for custom ones.
      */
-    public static function labelFor(string $endpoint) : string
+    public static function labelFor(string $endpoint): string
     {
         foreach (self::cases() as $case) {
             if ($case->endpoint() === $endpoint) {
@@ -67,6 +67,8 @@ enum Engine : string
             }
         }
 
-        return (string) (parse_url($endpoint, PHP_URL_HOST) ?: $endpoint);
+        $host = parse_url($endpoint, PHP_URL_HOST);
+
+        return \is_string($host) && $host !== '' ? $host : $endpoint;
     }
 }

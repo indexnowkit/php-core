@@ -53,11 +53,11 @@ final class ParamExtractor
         $ucfirst = ucfirst($accessor);
         foreach ([$accessor, 'get' . $ucfirst, 'is' . $ucfirst, 'has' . $ucfirst] as $method) {
             if (method_exists($subject, $method)) {
-                return $subject->$method();
+                return $subject->$method(); // @phpstan-ignore method.dynamicName
             }
         }
         if (property_exists($subject, $accessor)) {
-            return (fn() => $this->$accessor)->call($subject);
+            return (fn() => $this->$accessor)->call($subject); // @phpstan-ignore property.dynamicName
         }
 
         throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no property, getter or method found.', $accessor, $subject::class));

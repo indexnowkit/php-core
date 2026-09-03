@@ -127,7 +127,7 @@ final class Checker
             }
         }
 
-        return array_values(array_unique(array_map('strtolower', array_filter($hosts))));
+        return array_values(array_unique(array_map('strtolower', array_filter($hosts, static fn(string $h): bool => $h !== ''))));
     }
 
     private static function maskUrl(string $text, string $key): string

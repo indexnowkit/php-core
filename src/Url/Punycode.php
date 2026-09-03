@@ -128,7 +128,8 @@ final class Punycode
         }
         $points = [];
         foreach ($chars as $char) {
-            $bytes = array_values(unpack('C*', $char) ?: []);
+            $unpacked = unpack('C*', $char);
+            $bytes = $unpacked === false ? [0] : array_values($unpacked);
             $points[] = match (\count($bytes)) {
                 1 => $bytes[0] >= 0x41 && $bytes[0] <= 0x5A ? $bytes[0] + 0x20 : $bytes[0],
                 2 => (($bytes[0] & 0x1F) << 6) | ($bytes[1] & 0x3F),

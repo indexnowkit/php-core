@@ -179,7 +179,7 @@ final readonly class Config
             'batch' => $get('BATCH_MAX_URLS') !== null ? ['max_urls' => $get('BATCH_MAX_URLS')] : null,
             'debounce' => $get('DEBOUNCE_PER_URL') !== null ? ['per_url' => $get('DEBOUNCE_PER_URL')] : null,
             'throttle' => $get('THROTTLE_PER_MINUTE') !== null ? ['max_requests_per_minute' => $get('THROTTLE_PER_MINUTE')] : null,
-            'http' => array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT')], static fn($v) => $v !== null) ?: null,
+            'http' => ($http = array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT')], static fn($v) => $v !== null)) === [] ? null : $http,
         ], static fn($v) => $v !== null));
     }
 
@@ -347,7 +347,7 @@ final readonly class Config
         if ($value === null || $value === '') {
             return $default;
         }
-        if (!is_numeric($value) || (int) $value != $value) {
+        if (!is_numeric($value) || (string) (int) $value !== ltrim((string) $value, '+')) {
             throw new ConfigurationException(\sprintf('"%s" must be an integer, got "%s".', $option, \is_scalar($value) ? (string) $value : get_debug_type($value)));
         }
 
