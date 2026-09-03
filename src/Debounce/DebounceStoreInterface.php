@@ -11,6 +11,8 @@ interface DebounceStoreInterface
 {
     /**
      * @param list<string> $urls
+     * @param int          $ttlSeconds the configured window, as a hint; stores that persist the expiry may ignore it
+     *
      * @return list<string> subset of $urls that were submitted less than $ttlSeconds ago
      */
     public function filterRecent(array $urls, int $ttlSeconds): array;

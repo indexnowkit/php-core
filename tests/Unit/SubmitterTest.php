@@ -123,13 +123,17 @@ final class SubmitterTest extends TestCase
         self::assertSame(['https://blocked.example.com/b'], $t->posts[2]['body']['urlList']);
     }
 
-    public function testDisabledConfigReturnsEmptyAndLogsDebug(): void
+    public function testDisabledConfigReturnsSkippedResultsAndLogsDebug(): void
     {
         $t = new FakeTransport();
         $logger = new ArrayLogger();
         $submitter = Factory::submitter($t, Factory::config(['enabled' => false]), $logger);
 
-        self::assertSame([], $submitter->submit(['/a']));
+        $results = $submitter->submit(['/a']);
+        self::assertCount(1, $results);
+        self::assertSame(ResultStatus::Skipped, $results[0]->status);
+        self::assertSame('disabled', $results[0]->error);
+        self::assertSame(['https://www.example.com/a'], $results[0]->urls);
         self::assertCount(0, $t->posts);
         self::assertCount(1, $logger->messages('debug'));
     }

@@ -35,11 +35,6 @@ final class Submitter implements SubmitterInterface
         $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl);
     }
 
-    /**
-     * Called with every Result (also skipped ones), after the batch was sent. Exceptions are logged and swallowed.
-     *
-     * @param callable(Result): void $listener
-     */
     public function addListener(callable $listener): void
     {
         $this->listeners[] = $listener;
@@ -54,18 +49,19 @@ final class Submitter implements SubmitterInterface
         if (!$this->config->enabled) {
             $this->logger->debug('indexnow: disabled, dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => $normalized]);
 
-            return [];
+            return $this->skipped($normalized, 'disabled');
         }
 
+        $results = [];
         $ttl = $this->config->debouncePerUrl;
         if ($ttl > 0 && !$this->config->dryRun) {
-            $normalized = $this->withoutRecent($normalized, $ttl);
-            if ($normalized === []) {
-                return [];
-            }
+            $fresh = $this->withoutRecent($normalized, $ttl);
+            $results = $this->skipped(array_values(array_diff($normalized, $fresh)), 'debounced');
+            $normalized = $fresh;
         }
-
-        $results = $this->client->submitAll($normalized);
+        if ($normalized !== []) {
+            $results = [...$results, ...$this->client->submitAll($normalized)];
+        }
         foreach ($results as $result) {
             $this->notify($result);
         }
@@ -121,6 +117,27 @@ final class Submitter implements SubmitterInterface
         $skip = array_fill_keys($recent, true);
 
         return array_values(array_filter($urls, static fn(string $url): bool => !isset($skip[$url])));
+    }
+
+    /**
+     * One Skipped result per host, so callers can tell "nothing sent" reasons apart.
+     *
+     * @param list<string> $urls
+     *
+     * @return list<Result>
+     */
+    private function skipped(array $urls, string $reason): array
+    {
+        $byHost = [];
+        foreach ($urls as $url) {
+            $byHost[$this->normalizer->hostOf($url)][] = $url;
+        }
+        $results = [];
+        foreach ($byHost as $host => $hostUrls) {
+            $results[] = new Result('none', $host, $hostUrls, ResultStatus::Skipped, error: $reason);
+        }
+
+        return $results;
     }
 
     private function notify(Result $result): void

@@ -16,6 +16,20 @@ final class RetryPolicyTest extends TestCase
         return new Result('api', 'h.example.com', ['/a'], ResultStatus::Failed, 429, 'rate limited', retryable: true, retryAfter: $retryAfter);
     }
 
+    private static function serverError(?int $httpCode = 503): Result
+    {
+        return new Result('api', 'h.example.com', ['/a'], ResultStatus::Failed, $httpCode, 'server error', retryable: true);
+    }
+
+    public function testServerErrorsAndNetworkFailuresUseTheShortBase(): void
+    {
+        $policy = new RetryPolicy();
+        self::assertSame(5, $policy->delayAfter([self::serverError()], 1));
+        self::assertSame(10, $policy->delayAfter([self::serverError(null)], 2), 'network failure (no HTTP code)');
+        self::assertSame(60, $policy->delayAfter([self::serverError(), self::retryable()], 1), 'a 429 in the batch wins');
+        self::assertSame(3, (new RetryPolicy(serverErrorDelay: 3))->delayAfter([self::serverError()], 1));
+    }
+
     private static function notRetryable(): Result
     {
         return new Result('api', 'h.example.com', ['/a'], ResultStatus::Failed, 400, 'bad request');

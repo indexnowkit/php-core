@@ -6,7 +6,8 @@ contain breaking changes, listed under "Changed".
 ## 0.2.0 — unreleased
 
 ### Added
-- `Retry\RetryPolicy` (backoff honouring `Retry-After`) and `Retry\RetryingSubmitter` for in-process retries (conformance C13).
+- `Retry\RetryPolicy` (backoff honouring `Retry-After`; 60 s base after 429, 5 s after 5xx/network) and
+  `Retry\RetryingSubmitter` for in-process retries (conformance C13).
 - `Url\GuardedUrlResolver`: attribute subscription, `when` guard and resolver in one never-throwing place; `IndexNow::resolver()`.
 - Interfaces for every swappable piece: `SubmitterInterface`, `Url\UrlNormalizerInterface`, `Throttle\ThrottleInterface`,
   `Attribute\AttributeReaderInterface`; `IndexNow::create()` accepts a key provider, throttle, normalizer and attribute reader.
@@ -14,7 +15,10 @@ contain breaking changes, listed under "Changed".
   (non-production without a key switches `dry_run` on), full `INDEXNOW_*` environment coverage (`HOSTS`, `BATCH_MAX_URLS`,
   `THROTTLE_PER_MINUTE`, `USER_AGENT`, `SERVE_KEY_FILE`, `ENV`).
 - `Result::$endpoint`, `Result::urlsOf()`, `KeyProviderInterface::managedHosts()`, `KeyGenerator::generate(hex: false)`.
-- `Client` reports unmanaged hosts and JSON encoding failures as `Result` objects, escalates repeated 403s to `critical` once.
+- `Client` reports unmanaged hosts and JSON encoding failures as `Result` objects, escalates repeated 403s to `critical` once;
+  `Submitter` reports disabled and debounced URLs as `skipped` results (`error`: `disabled` / `debounced`) instead of `[]`.
+- `Attribute\ChangeClassifier`: the `when`-transition and `fields` logic shared by every ORM adapter.
+- `SubmitterInterface::addListener()`, `IndexNow::create(submitter:, collector:)`; `dispatch` is validated as an identifier.
 - `Psr18Transport::discover(timeout:)` configures symfony/http-client or Guzzle with the timeout and without redirects;
   `Retry-After` HTTP-date support.
 - `UrlNormalizer`: dot-segment removal, protocol-relative URLs, IPv6 hosts, host/label length limits.

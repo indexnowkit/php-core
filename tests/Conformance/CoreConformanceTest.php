@@ -106,7 +106,10 @@ final class CoreConformanceTest extends TestCase
 
         $submitter->submit(['/a']);
         $clock->advance(100);
-        self::assertSame([], $submitter->submit(['/a']), 'C07: debounced');
+        $debounced = $submitter->submit(['/a']);
+        self::assertCount(1, $debounced, 'C07: debounced');
+        self::assertSame(ResultStatus::Skipped, $debounced[0]->status);
+        self::assertSame('debounced', $debounced[0]->error);
         self::assertCount(1, $t->posts);
 
         $clock->advance(600);
@@ -211,7 +214,9 @@ final class CoreConformanceTest extends TestCase
         $t = new FakeTransport();
         $results = Factory::submitter($t, Factory::config(['enabled' => false]))->submit(['/a']);
 
-        self::assertSame([], $results);
+        self::assertCount(1, $results);
+        self::assertSame(ResultStatus::Skipped, $results[0]->status);
+        self::assertSame('disabled', $results[0]->error);
         self::assertCount(0, $t->posts);
     }
 

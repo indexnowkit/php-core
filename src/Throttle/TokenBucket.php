@@ -31,17 +31,17 @@ final class TokenBucket implements ThrottleInterface
      */
     public function __construct(
         private readonly int $perMinute,
-            ? ClockInterface $clock = null,
-            ? callable $sleeper = null,
-            private readonly LoggerInterface $logger = new NullLogger(),
-                ) {
-                $this->clock = $clock ?? new SystemClock();
-                $this->tokens = (float) $perMinute;
-                $this->lastRefill = $this->nowMicro();
-                $this->sleeper = $sleeper ?? static fn(int $us) => usleep($us);
-            }
+        ?ClockInterface $clock = null,
+        ?callable $sleeper = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+        $this->clock = $clock ?? new SystemClock();
+        $this->tokens = (float) $perMinute;
+        $this->lastRefill = $this->nowMicro();
+        $this->sleeper = $sleeper ?? static fn(int $us) => usleep($us);
+    }
 
-    public function acquire() : void
+    public function acquire(): void
     {
         if ($this->perMinute <= 0) {
             return;
@@ -57,7 +57,7 @@ final class TokenBucket implements ThrottleInterface
         $this->tokens = max(0.0, $this->tokens - 1.0);
     }
 
-    private function refill(float $extraSeconds = 0.0) : void
+    private function refill(float $extraSeconds = 0.0): void
     {
         $now = $this->nowMicro() + $extraSeconds;
         $elapsed = max(0.0, $now - $this->lastRefill);
@@ -65,7 +65,7 @@ final class TokenBucket implements ThrottleInterface
         $this->lastRefill = $now;
     }
 
-    private function nowMicro() : float
+    private function nowMicro(): float
     {
         return (float) $this->clock->now()->format('U.u');
     }

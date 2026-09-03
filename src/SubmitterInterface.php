@@ -26,4 +26,12 @@ interface SubmitterInterface
      * @return list<string>
      */
     public function prepare(iterable $urls): array;
+
+    /**
+     * Called with every Result (also skipped ones) right after it is produced. Exceptions thrown by a listener are
+     * logged and swallowed. Decorators forward listeners to the decorated submitter.
+     *
+     * @param callable(Result): void $listener
+     */
+    public function addListener(callable $listener): void;
 }

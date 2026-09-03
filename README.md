@@ -49,7 +49,8 @@ INDEXNOW_KEY=6f3c9a...          # 8-128 characters, [A-Za-z0-9-]
 INDEXNOW_BASE_URL=https://www.example.com
 ```
 
-`submit()` never throws for remote problems: every engine × host × batch yields a `Result` and a log line.
+`submit()` never throws for remote problems: every engine × host × batch yields a `Result` and a log line, and
+URLs that were not sent (debounced, disabled, dry-run, unknown host) yield a `skipped` result that says why.
 
 ## The key file
 
@@ -137,7 +138,7 @@ $config = $config->with(dryRun: true);   // immutable copies by constructor argu
 | `failed` | 403 | no | key file not reachable or does not match |
 | `failed` | 422 | no | URLs do not belong to the host / `keyLocation` invalid |
 | `failed` | 429, 5xx, network | yes | temporary, `retryAfter` filled when the engine said so |
-| `skipped` | — | no | `dry_run`, or no key for the host (`error` says which) |
+| `skipped` | — | no | nothing sent: `dry_run`, `disabled`, `debounced`, or no key for the host (`error` says which) |
 
 `Result` also carries `engine`, `endpoint`, `host`, `urls`, `error`. `Result::urlsOf($results)` collects the URLs of
 retryable results. Register listeners for metrics or auditing; a throwing listener is logged and ignored:
@@ -157,7 +158,7 @@ The core does not retry on its own inside a web request. Two options:
 ```php
 use IndexNowKit\Retry\{RetryPolicy, RetryingSubmitter};
 
-// CLI, cron, workers: retry in-process with backoff (Retry-After, else 60 s, 120 s; 3 attempts)
+// CLI, cron, workers: retry in-process with backoff (Retry-After; else 60 s → 120 s after 429, 5 s → 10 s after 5xx/network; 3 attempts)
 $submitter = new RetryingSubmitter($indexNow->submitter, new RetryPolicy(maxAttempts: 3, baseDelay: 60));
 $submitter->submit($urls);
 
@@ -248,7 +249,7 @@ from a database or a tenant registry.
 | `Debounce\DebounceStoreInterface` | `MemoryDebounceStore` | `Psr16DebounceStore`, or your own |
 | `Throttle\ThrottleInterface` | `TokenBucket` | `NullThrottle`, a shared limiter |
 | `Dispatch\DispatcherInterface` | `SyncDispatcher` | `CallableDispatcher` for a queue, `NullDispatcher` |
-| `SubmitterInterface` | `Submitter` | decorate (`RetryingSubmitter`), record, mock |
+| `SubmitterInterface` | `Submitter` | decorate (`RetryingSubmitter`), record, mock; pass it to `IndexNow::create(submitter:)` |
 | `Attribute\AttributeReaderInterface` | `AttributeReader` | cache attributes in your framework's metadata |
 
 Everything can be passed to `IndexNow::create()`, or assembled by hand: `Client` → `Submitter` → `Collector` +

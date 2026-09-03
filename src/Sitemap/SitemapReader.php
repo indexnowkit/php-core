@@ -118,6 +118,9 @@ final class SitemapReader
      */
     private function entries(string $xml, string $source): Generator
     {
+        if (!class_exists(XMLReader::class)) {
+            throw new TransportException('SitemapReader needs ext-xmlreader.');
+        }
         $xml = self::gunzip($xml, $source);
         $previous = libxml_use_internal_errors(true);
         $reader = XMLReader::XML($xml, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);

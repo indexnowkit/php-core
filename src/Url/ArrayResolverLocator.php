@@ -6,6 +6,7 @@ namespace IndexNowKit\Url;
 
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
+use ReflectionClass;
 
 /**
  * In-memory registry of resolvers by id; class names implementing UrlResolverInterface are instantiated on demand.
@@ -42,6 +43,10 @@ final class ArrayResolverLocator implements ResolverLocatorInterface
             return $this->resolvers[$id];
         }
         if (class_exists($id) && is_subclass_of($id, UrlResolverInterface::class)) {
+            if (((new ReflectionClass($id))->getConstructor()?->getNumberOfRequiredParameters() ?? 0) > 0) {
+                throw new ConfigurationException(\sprintf('IndexNow URL resolver %s has constructor dependencies; register an instance with set().', $id));
+            }
+
             return $this->resolvers[$id] = new $id();
         }
 

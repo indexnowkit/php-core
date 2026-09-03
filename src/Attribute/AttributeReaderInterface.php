@@ -12,5 +12,5 @@ interface AttributeReaderInterface
     /**
      * @param class-string|object $classOrObject
      */
-    public function read(string | object $classOrObject) : ? IndexNow;
+    public function read(string | object $classOrObject): ?IndexNow;
 }

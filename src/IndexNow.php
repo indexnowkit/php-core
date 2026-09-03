@@ -49,7 +49,8 @@ final class IndexNow
 
     /**
      * Default graph: PSR-18 discovery (with http.timeout), in-memory debounce, token-bucket throttle,
-     * synchronous dispatch. Every piece can be replaced.
+     * synchronous dispatch. Every piece can be replaced; a custom $submitter (e.g. RetryingSubmitter) makes
+     * $transport/$debounce/$throttle irrelevant. Parameter order is part of the BC promise: use named arguments.
      *
      * @throws ConfigurationException when no HTTP client can be discovered
      */
@@ -64,15 +65,19 @@ final class IndexNow
         ?ThrottleInterface $throttle = null,
         ?UrlNormalizerInterface $normalizer = null,
         ?AttributeReaderInterface $attributes = null,
+        ?SubmitterInterface $submitter = null,
+        ?Collector $collector = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
         $normalizer ??= new UrlNormalizer($config->baseUrl);
-        $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
-        $client = new Client($transport ?? Psr18Transport::discover(timeout: $config->httpTimeout), $keys, $config, $logger, $throttle, $normalizer);
-        $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
+        if ($submitter === null) {
+            $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
+            $client = new Client($transport ?? Psr18Transport::discover(timeout: $config->httpTimeout), $keys, $config, $logger, $throttle, $normalizer);
+            $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
+        }
 
-        return new self($config, $submitter, new Collector(), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
+        return new self($config, $submitter, $collector ?? new Collector(), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
     }
 
     /**

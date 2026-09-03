@@ -56,4 +56,9 @@ final class RetryingSubmitter implements SubmitterInterface
     {
         return $this->inner->prepare($urls);
     }
+
+    public function addListener(callable $listener): void
+    {
+        $this->inner->addListener($listener);
+    }
 }

@@ -21,6 +21,8 @@ final class ThrowingSubmitter implements SubmitterInterface
     {
         return [];
     }
+
+    public function addListener(callable $listener): void {}
 }
 
 final class RecordingSubmitter implements SubmitterInterface
@@ -41,6 +43,8 @@ final class RecordingSubmitter implements SubmitterInterface
     {
         return [];
     }
+
+    public function addListener(callable $listener): void {}
 }
 
 final class SyncDispatcherTest extends TestCase

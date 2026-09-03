@@ -17,7 +17,7 @@ final class KeyValidator
 
     private function __construct() {}
 
-    public static function isValid(string $key) : bool
+    public static function isValid(string $key): bool
     {
         return preg_match(self::PATTERN, $key) === 1;
     }
@@ -25,7 +25,7 @@ final class KeyValidator
     /**
      * @throws ConfigurationException
      */
-    public static function assertValid(string $key) : void
+    public static function assertValid(string $key): void
     {
         if (!self::isValid($key)) {
             throw new ConfigurationException(\sprintf('IndexNow key "%s" is invalid: %d-%d characters from [A-Za-z0-9-] required.', self::mask($key), self::MIN_LENGTH, self::MAX_LENGTH));
@@ -35,7 +35,7 @@ final class KeyValidator
     /**
      * Keys are public (served at /{key}.txt) but must not be logged verbatim: first 4 characters, rest masked.
      */
-    public static function mask(string $key) : string
+    public static function mask(string $key): string
     {
         return \strlen($key) <= 4 ? str_repeat('*', \strlen($key)) : substr($key, 0, 4) . str_repeat('*', min(8, \strlen($key) - 4));
     }

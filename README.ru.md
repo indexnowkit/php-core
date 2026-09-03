@@ -43,7 +43,8 @@ INDEXNOW_BASE_URL=https://www.example.com
 ```
 
 `submit()` никогда не бросает исключений из-за удалённых проблем: на каждую комбинацию движок × host × батч
-возвращается `Result` и пишется строка в лог.
+возвращается `Result` и пишется строка в лог, а неотправленные URL (дебаунс, `enabled: false`, dry-run, чужой host)
+дают результат `skipped` с причиной.
 
 ## Файл ключа
 
@@ -132,7 +133,7 @@ $config = $config->with(dryRun: true);   // неизменяемые копии 
 | `failed` | 403 | нет | файл ключа недоступен или не совпадает |
 | `failed` | 422 | нет | URL не принадлежат host / `keyLocation` некорректен |
 | `failed` | 429, 5xx, сеть | да | временно; `retryAfter` заполнен, если движок его прислал |
-| `skipped` | — | нет | `dry_run` или нет ключа для host (`error` объясняет) |
+| `skipped` | — | нет | ничего не отправлено: `dry_run`, `disabled`, `debounced` или нет ключа для host (`error` объясняет) |
 
 В `Result` также есть `engine`, `endpoint`, `host`, `urls`, `error`. `Result::urlsOf($results)` собирает URL
 повторяемых результатов. Слушатели пригодятся для метрик и аудита; исключение в слушателе логируется и не мешает
@@ -153,7 +154,7 @@ $indexNow->submitter->addListener(fn (IndexNowKit\Result $r) => $metrics->increm
 ```php
 use IndexNowKit\Retry\{RetryPolicy, RetryingSubmitter};
 
-// CLI, cron, воркеры: повтор в том же процессе с backoff (Retry-After, иначе 60 с, 120 с; 3 попытки)
+// CLI, cron, воркеры: повтор в том же процессе с backoff (Retry-After; иначе 60 с → 120 с после 429, 5 с → 10 с после 5xx/сети; 3 попытки)
 $submitter = new RetryingSubmitter($indexNow->submitter, new RetryPolicy(maxAttempts: 3, baseDelay: 60));
 $submitter->submit($urls);
 

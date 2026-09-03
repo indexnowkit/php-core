@@ -87,6 +87,9 @@ final readonly class Config
         if ($engines === []) {
             throw new ConfigurationException('"engines" must contain at least one engine.');
         }
+        if (preg_match('/^[a-z0-9_-]+$/i', $dispatch) !== 1) {
+            throw new ConfigurationException(\sprintf('"dispatch" must be a short identifier such as sync, queue or none, got "%s".', $dispatch));
+        }
         if ($userAgent !== null && preg_match('/[\r\n]/', $userAgent) === 1) {
             throw new ConfigurationException('"http.user_agent" must not contain line breaks.');
         }
