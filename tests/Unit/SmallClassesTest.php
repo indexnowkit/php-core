@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Clock\SystemClock;
+use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Exception\IndexNowException;
+use IndexNowKit\Exception\InvalidArgumentException;
+use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Version;
 use PHPUnit\Framework\TestCase;
@@ -31,5 +35,14 @@ final class SmallClassesTest extends TestCase
     {
         self::assertMatchesRegularExpression('/^\d+\.\d+/', Version::get());
         self::assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', Version::VERSION);
+    }
+
+    public function testArgumentExceptionsShareTheKitHierarchy(): void
+    {
+        foreach ([new ConfigurationException('x'), new InvalidUrlException('x')] as $exception) {
+            self::assertInstanceOf(InvalidArgumentException::class, $exception);
+            self::assertInstanceOf(\InvalidArgumentException::class, $exception);
+            self::assertInstanceOf(IndexNowException::class, $exception);
+        }
     }
 }

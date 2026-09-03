@@ -10,6 +10,9 @@ use IndexNowKit\Exception\ConfigurationException;
  * Finds the URL rules of a class or object. The default implementation compiles #[IndexNow] attributes;
  * adapters for frameworks without attributes (CMS post types, closure registries) implement it themselves
  * or register rules at runtime with {@see RuleRegistry}.
+ *
+ * "May grow" interface (docs/bc.md): a method may be appended in a minor. Pin `^0.2.0` if you implement it
+ * from scratch; decorating the shipped implementation is safe.
  */
 interface AttributeReaderInterface
 {

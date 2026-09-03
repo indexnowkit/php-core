@@ -9,6 +9,9 @@ namespace IndexNowKit\Url;
  *
  * Locale expansion is separate from generation so the core can re-extract params per locale (a localized
  * slug lives in a per-locale translation) and so a rule can pin a host.
+ *
+ * "May grow" interface (docs/bc.md): a method may be appended in a minor. There is no shipped implementation to
+ * decorate, so adapters pin `^0.2.0` and read the changelog before upgrading.
  */
 interface RouteUrlResolverInterface
 {

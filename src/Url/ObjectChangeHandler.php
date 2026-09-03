@@ -121,9 +121,28 @@ final class ObjectChangeHandler
         if ($rules === []) {
             return [];
         }
-        $restore = self::apply($subject, array_map(static fn(array $pair): mixed => $pair[0], $changeSet), array_values(array_unique($dependent)));
+        try {
+            return $this->previousUrls($subject, $changeSet, $rules, array_values(array_unique($dependent)));
+        } catch (Throwable $e) {
+            // Never into the ORM's flush: the page keeps its new URL, the old one is not announced as deleted.
+            $this->logger->error('indexnow: cannot resolve the previous URLs of {class}: {error}', ['class' => $subject::class, 'error' => $e->getMessage(), 'exception' => $e]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @param array<string, array{0: mixed, 1: mixed}> $changeSet
+     * @param list<UrlRule>                            $rules
+     * @param list<string>                             $dependent
+     *
+     * @return list<ResolvedUrl>
+     */
+    private function previousUrls(object $subject, array $changeSet, array $rules, array $dependent): array
+    {
+        $restore = self::apply($subject, array_map(static fn(array $pair): mixed => $pair[0], $changeSet), $dependent);
         if ($restore === null) {
-            $this->logger->debug('indexnow: cannot rebuild the previous state of {class} (a field the URL depends on is readonly or not a property), old URLs are not announced as deleted', ['class' => $subject::class]);
+            $this->logger->debug('indexnow: cannot rebuild the previous state of {class} (a field the URL depends on is readonly, uninitialized or not a property), old URLs are not announced as deleted', ['class' => $subject::class]);
 
             return [];
         }
@@ -181,7 +200,9 @@ final class ObjectChangeHandler
 
     /**
      * Sets $values on the object and returns the closure that restores the current values. Fields that are not
-     * writable properties are skipped, unless the URL depends on them ($required): then null, nothing is touched.
+     * writable properties (missing, readonly, static, uninitialized, hook-only on PHP 8.4) are skipped, unless the
+     * URL depends on them ($required): then null, nothing is touched. A setter that throws restores the fields
+     * already changed before rethrowing.
      *
      * @param array<string, mixed> $values   field => previous value
      * @param list<string>         $required fields that must be applied for the old URL to be right
@@ -193,7 +214,7 @@ final class ObjectChangeHandler
         $properties = [];
         foreach (array_keys($values) as $field) {
             $property = self::property($subject::class, $field);
-            if ($property === null || $property->isReadOnly() || $property->isStatic()) {
+            if ($property === null || !self::isRestorable($property, $subject)) {
                 if (\in_array($field, $required, true)) {
                     return null;
                 }
@@ -202,16 +223,43 @@ final class ObjectChangeHandler
             $properties[$field] = $property;
         }
         $current = [];
-        foreach ($properties as $field => $property) {
-            $current[$field] = $property->isInitialized($subject) ? $property->getValue($subject) : null;
-            $property->setValue($subject, $values[$field]);
+        try {
+            foreach ($properties as $field => $property) {
+                $value = $property->getValue($subject);
+                $property->setValue($subject, $values[$field]);
+                $current[$field] = $value;
+            }
+        } catch (Throwable $e) {
+            self::restore($subject, $properties, $current);
+
+            throw $e;
         }
 
-        return static function () use ($subject, $properties, $current): void {
-            foreach ($properties as $field => $property) {
-                $property->setValue($subject, $current[$field]);
-            }
-        };
+        return static fn() => self::restore($subject, $properties, $current);
+    }
+
+    /**
+     * @param array<string, ReflectionProperty> $properties
+     * @param array<string, mixed>              $values
+     */
+    private static function restore(object $subject, array $properties, array $values): void
+    {
+        foreach ($values as $field => $value) {
+            $properties[$field]->setValue($subject, $value);
+        }
+    }
+
+    /**
+     * Readable now and writable back to the same value later: initialized, not readonly, not static, backed by
+     * storage (a PHP 8.4 property with only a get hook has none).
+     */
+    private static function isRestorable(ReflectionProperty $property, object $subject): bool
+    {
+        if ($property->isReadOnly() || $property->isStatic() || !$property->isInitialized($subject)) {
+            return false;
+        }
+
+        return !method_exists($property, 'isVirtual') || !$property->isVirtual();
     }
 
     /**

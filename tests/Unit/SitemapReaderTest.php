@@ -352,4 +352,19 @@ final class SitemapReaderTest extends TestCase
         self::assertSame([], $entries, 'the unexpanded entity leaves <loc> empty, so no entry is yielded');
         self::assertSame([], $t->gets, 'the external entity URL must never be fetched');
     }
+
+    public function testControlCharactersInARejectedLocAreEscapedInTheWarning(): void
+    {
+        $logger = new ArrayLogger();
+        $t = new FakeTransport();
+        $index = '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>https://other.example.com/x&#10;[CRITICAL] forged line</loc></sitemap></sitemapindex>';
+        $t->onGet('https://www.example.com/sitemap.xml', new Response(200, $index));
+
+        $entries = iterator_to_array((new SitemapReader($t, logger: $logger))->read('https://www.example.com/sitemap.xml'), false);
+
+        self::assertSame([], $entries);
+        $warning = implode('|', $logger->messages('warning'));
+        self::assertStringNotContainsString("\n", $warning);
+        self::assertStringContainsString('https://other.example.com/x\n[CRITICAL] forged line', $warning, 'the newline is escaped, the value is still recognizable');
+    }
 }

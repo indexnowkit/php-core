@@ -15,7 +15,7 @@
         "psr-18",
         "indexing"
     ],
-    "homepage": "https://github.com/indexnowkit/php",
+    "homepage": "https://github.com/indexnowkit/php-core",
     "authors": [
         {
             "name": "Igor Pinchuk",
@@ -24,9 +24,9 @@
     ],
     "support": {
         "issues": "https://github.com/indexnowkit/php/issues",
-        "source": "https://github.com/indexnowkit/php/tree/main/packages/core",
-        "docs": "https://github.com/indexnowkit/php/blob/main/packages/core/README.md",
-        "security": "https://github.com/indexnowkit/php/blob/main/SECURITY.md"
+        "source": "https://github.com/indexnowkit/php-core",
+        "docs": "https://github.com/indexnowkit/php-core/blob/main/README.md",
+        "security": "https://github.com/indexnowkit/php-core/blob/main/SECURITY.md"
     },
     "require": {
         "php": "^8.2",
@@ -82,7 +82,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.2-dev"
+            "dev-main": "0.2.x-dev"
         }
     }
 }

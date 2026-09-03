@@ -7,6 +7,12 @@ sitemap поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки �
 
 [English version](README.md)
 
+[![Packagist](https://img.shields.io/packagist/v/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
+[![Downloads](https://img.shields.io/packagist/dt/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
+[![CI](https://github.com/indexnowkit/php/actions/workflows/ci.yml/badge.svg)](https://github.com/indexnowkit/php/actions)
+[![Conformance](https://img.shields.io/badge/conformance-core%2022%2F22-brightgreen)](https://github.com/indexnowkit/spec)
+![PHP](https://img.shields.io/badge/php-%5E8.2-777bb4)
+
 ## Кто получит уведомление
 
 **Яндекс, Bing (и DuckDuckGo через Bing), Naver, Seznam, Yep** — все поисковики, реализующие IndexNow. Один запрос на
@@ -250,7 +256,7 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 | `Http\TransportInterface` | `Psr18Transport::discover()` | использовать свой HTTP-стек (`LazyTransport` откладывает его создание) |
 | `Key\KeyProviderInterface` | `StaticKeyProvider` | брать ключи из базы, по тенанту |
 | `Url\UrlNormalizerInterface` | `UrlNormalizer` | убирать трекинг-параметры, задавать политику слеша, маппить хосты |
-| `Url\UrlResolverInterface` | `AttributeUrlResolver` | превращать объекты в URL по-своему |
+| `Url\UrlResolverInterface` | `NullUrlResolver` — соберите `AttributeUrlResolver` и передайте его как `resolver:` | превращать объекты в URL по-своему |
 | `Url\RouteUrlResolverInterface` | — (даёт адаптер) | подключить роутер своего фреймворка |
 | `Attribute\AttributeReaderInterface` | `AttributeReader` | `RuleRegistry` для правил в рантайме или свой источник метаданных |
 | `Collector\CollectorInterface` | `Collector` | надёжный outbox, буфер на тенанта |
@@ -269,7 +275,7 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 атрибут или настройка резолвера), `InvalidUrlException` (URL, который нельзя отправить, — перехватывается
 `Submitter` и отбрасывается с предупреждением), `InvalidArgumentException` (программные ошибки) и
 `Http\Exception\TransportException` (сетевой сбой, превращаемый `Client` в повторяемый `Result`; наружу его отдают
-только `SitemapReader` и `Checker`). Из хуков жизненного цикла не вылетает ничего — контракт ошибок описан в
+только `SitemapReader`; `Checker` превращает его в строку отчёта). Из хуков жизненного цикла не вылетает ничего — контракт ошибок описан в
 [docs/adapters.md](docs/adapters.md).
 
 ## Ограничения

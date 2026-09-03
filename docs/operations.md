@@ -19,7 +19,7 @@ dedicated channel — `indexnow` in the Symfony bundle — so `tail -f var/log/p
 | `warning` | `indexnow: {engine} rate limited (429) for {host}, retry after {retry_after}s` |
 | `warning` | `indexnow: {engine} server error {status} for {host}` |
 | `warning` | `indexnow: {engine} transport error for {host}: {error}` |
-| `error` | `indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run "indexnow check").` |
+| `error` | `indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run the check command of your adapter, e.g. indexnow:check).` |
 | `error` | `indexnow: {engine} rejected the request as malformed (400): {body}` |
 | `error` | `indexnow: {engine} unexpected status {status} for {host}: {body}` |
 | `error` | `indexnow: {engine} HTTP client failure for {host}: {error}` |
@@ -42,7 +42,7 @@ logs). Keys are masked everywhere, including inside response bodies and exceptio
 | `warning` | `indexnow: debounce store unavailable, submitting without de-duplication: {error}` |
 | `warning` | `indexnow: debounce store failed after a successful submission, URLs may be re-sent within {ttl}s: {error}` |
 | `debug` | `indexnow: debounced {count} URL(s) submitted within the last {ttl}s` |
-| `error` | `indexnow: result listener failed: {error}` / `indexnow: result event listener failed: {error}` |
+| `error` | `indexnow: result listener {listener} failed: {error}` / `indexnow: result event listener failed: {error}` |
 
 `disabled` is at `info` on purpose: it is the most common "nothing is happening at all" state, and `debug` is
 filtered out in most production setups.
@@ -68,10 +68,10 @@ Turn the `indexnow` channel to `debug` while diagnosing: the four debug lines ab
 
 | Level | Message |
 |---|---|
-| `warning` | `indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (no kernel.terminate?)` |
-| `debug` | `indexnow: discarding {count} staged URL(s), transaction rolled back` |
+| `warning` | `indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (request end hook not run?)` |
+| `debug` | `indexnow: discarding {count} staged URL(s), transaction rolled back` / `..., savepoint rolled back` |
 | `debug` | `indexnow: throttle limit of {per_minute} requests/min reached, waiting {wait_ms} ms` |
-| `error` | `indexnow: sync dispatch failed: {error}` / `indexnow: dispatch failed: {error}` |
+| `error` | `indexnow: sync dispatch of {count} URL(s) failed, they are lost: {error}` / `indexnow: dispatch of {count} URL(s) failed, they are lost: {error}` |
 
 ## Metrics
 

@@ -73,7 +73,7 @@ Config::fromArray([
 | `logging.forbidden_escalation` | `forbiddenEscalation` | `5` | consecutive 403s per host before the log escalates to `critical` |
 | `logging.levels` | `logLevels` / `logLevel()` | `{}` | per-outcome PSR-3 level overrides; events and defaults in `Config::LOG_EVENTS` |
 | `retry.max_attempts`, `retry.base_delay`, `retry.multiplier`, `retry.max_delay`, `retry.server_error_delay` | `retryPolicy()` | `3`, `60`, `2.0`, `3600`, `5` | the `RetryPolicy` for queue handlers and `RetryingSubmitter` |
-| `resolver.max_via_depth`, `resolver.max_via_fanout` | `resolverMaxViaDepth`, `resolverMaxViaFanout` | `3`, `100` | limits of `via:` traversal in `AttributeUrlResolver` |
+| `resolver.max_via_depth`, `resolver.max_via_fanout` | `resolverMaxViaDepth`, `resolverMaxViaFanout` | `3`, `100` | limits of `via:` traversal in `AttributeUrlResolver`. `IndexNowKit::create()` does not build that resolver: the adapter that does passes `resolverMaxViaDepth`, `resolverMaxViaFanout` and `localeHosts` to it |
 | `collector.max_urls` | `collectorMaxUrls` | `0` | `IndexNowKit::collect()` flushes early at this size; `0` = only on `flush()` |
 | `collector.detect_leaks` | `collectorDetectLeaks` | `true` | shutdown warning about collected, never flushed URLs |
 

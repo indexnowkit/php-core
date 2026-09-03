@@ -144,6 +144,15 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 - `Psr18Transport::discover(timeout:)` configures symfony/http-client or Guzzle with the timeout and without
   redirects; `Retry-After` HTTP-date support.
 - `UrlNormalizer`: dot-segment removal, protocol-relative URLs, IPv6 hosts, host and label length limits.
+- `TransactionStaging` understands savepoints: `savepoint()`, `release()` and `rollbackTo()` open, fold and drop
+  frames on top of the transaction. An adapter reports them (the Doctrine middleware does) so a nested transaction
+  rolled back to its savepoint never leaks its URLs into the outer COMMIT (conformance A05).
+- `SitemapReader::__construct(maxXmlBytes:)` replaces the fixed size cap; `Engine` endpoints are canonicalized and
+  endpoints carrying credentials rejected; `hosts` entries are validated (a key per host, `key_location` on that
+  host).
+- `IndexNowKit::create()` throws `ConfigurationException` when `submitter:` is combined with `transport:`,
+  `debounce:`, `throttle:` or `normalizer:`: those build the default pipeline and used to be silently ignored.
+- `RuleCompiler` rejects a class rule and an `#[IndexNowUrl]` method sharing a rule name at compile time.
 
 ### Changed
 
@@ -176,6 +185,9 @@ downstream piece — event classification, guards, locales, deletion semantics, 
   results carrying a `Reason` instead of returning nothing.
 - `UrlNormalizer` rejects non-http(s) schemes, credentials and control characters instead of producing broken URLs.
 - Pure-PHP punycode no longer needs ext-mbstring.
+- `ConfigurationException` extends `Exception\InvalidArgumentException` (itself a `\InvalidArgumentException`) like
+  `InvalidUrlException`, so one catch covers the kit's argument errors.
+- `IndexNowKit::urlsFor()` and `explain()` default `$event` to `Event::Updated`, like `submitEntity()`.
 
 ### Deprecated
 
@@ -198,6 +210,15 @@ downstream piece — event classification, guards, locales, deletion semantics, 
   hosts (now reported and skipped; `Config` rejects a `key_location` that is not on the host it serves).
 - A non-PSR exception from the HTTP client became an uncaught error carrying the key in its stack trace; it is now a
   `failed`, retryable `Result` with a masked message.
+- `ObjectChangeHandler::renamed()` never throws: a previous value the property rejects, an uninitialized or hook-only
+  property, or a failing resolver is logged and the old URL is not announced; fields already changed are restored.
+- `SitemapReader` escapes control characters of a rejected `<loc>` before logging it, so a hostile sitemap cannot
+  forge log lines; `UrlNormalizer` does the same for rejected URLs.
+- A custom `UrlResolverInterface` is called once per event, not once per `#[IndexNow]` rule.
+- `Client` continues without throttling when the throttle throws, instead of failing the submission.
+- `LazyTransport` reports a failed client discovery as `TransportException`, like every other transport.
+- `AttributeReader::read()` / `rules()` throw `ConfigurationException` for an unknown class instead of a bare
+  `ReflectionException`.
 
 ## 0.1.0 — 2026-09-03
 

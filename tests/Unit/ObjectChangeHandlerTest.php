@@ -13,6 +13,7 @@ use IndexNowKit\Url\AttributeUrlResolver;
 use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\ObjectChangeHandler;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 #[IndexNowAttribute(urls: ['/x'], when: 'isPublished', fields: ['title'])]
 final class ObjectChangeHandlerPost
@@ -41,6 +42,12 @@ final class ObjectChangeHandlerSluggedPost
 final class ObjectChangeHandlerFrozenPost
 {
     public function __construct(public readonly string $slug) {}
+}
+
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'])]
+final class ObjectChangeHandlerLazyPost
+{
+    public string $slug;
 }
 
 final class ObjectChangeHandlerCategory
@@ -108,6 +115,23 @@ final class ObjectChangeHandlerTest extends TestCase
         $frozen = new ObjectChangeHandlerFrozenPost('new');
         self::assertSame([], $handler->renamed($frozen, ['slug' => ['old', 'new']]));
         self::assertStringContainsString('cannot rebuild', implode("\n", $logger->messages('debug')));
+    }
+
+    public function testRenamedNeverThrowsWhenThePreviousStateCannotBeApplied(): void
+    {
+        $reader = new AttributeReader();
+        $logger = new ArrayLogger();
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+
+        $lazy = (new ReflectionClass(ObjectChangeHandlerLazyPost::class))->newInstanceWithoutConstructor();
+        self::assertSame([], $handler->renamed($lazy, ['slug' => ['old', 'new']]), 'an uninitialized typed property cannot be restored: skipped, not a TypeError in flush');
+        self::assertStringContainsString('cannot rebuild', implode("\n", $logger->messages('debug')));
+
+        $post = new ObjectChangeHandlerSluggedPost('new', category: new ObjectChangeHandlerCategory('tech'));
+        self::assertSame([], $handler->renamed($post, ['slug' => ['old', 'new'], 'category' => ['tech', $post->category]]), 'a previous value the property type rejects');
+        self::assertStringContainsString('cannot resolve the previous URLs', implode("\n", $logger->messages('error')));
+        self::assertSame('new', $post->slug, 'fields changed before the failure are restored');
+        self::assertSame('tech', $post->category->slug);
     }
 
     public function testCreatedEventsReturnsOneRuleEventWhenTheRuleApplies(): void

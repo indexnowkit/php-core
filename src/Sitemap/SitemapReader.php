@@ -40,6 +40,8 @@ final class SitemapReader implements SitemapSourceInterface
     public const MAX_XML_BYTES = 52_428_800;
     public const MAX_SITEMAPS = 1000;
 
+    private const LOG_VALUE_LENGTH = 300;
+
     private const CHUNK = 65536;
 
     /** Seconds before the second, third, ... fetch attempt. */
@@ -119,6 +121,16 @@ final class SitemapReader implements SitemapSourceInterface
     }
 
     /**
+     * Sitemap content in a log line: control characters escaped (no forged lines), long values cut.
+     */
+    private static function loggable(string $value): string
+    {
+        $value = addcslashes($value, "\x00..\x1f\x7f");
+
+        return \strlen($value) > self::LOG_VALUE_LENGTH ? substr($value, 0, self::LOG_VALUE_LENGTH) . '…' : $value;
+    }
+
+    /**
      * @return Generator<int, SitemapEntry>
      *
      * @throws TransportException
@@ -136,8 +148,9 @@ final class SitemapReader implements SitemapSourceInterface
                     }
                     continue;
                 }
+                $shown = self::loggable($loc);
                 if ($depth + 1 >= $this->maxDepth + 1) {
-                    $this->logger->warning('indexnow: sitemap {url} nested deeper than {depth}, skipping', ['url' => $loc, 'depth' => $this->maxDepth]);
+                    $this->logger->warning('indexnow: sitemap {url} nested deeper than {depth}, skipping', ['url' => $shown, 'depth' => $this->maxDepth]);
                     continue;
                 }
                 if ($fetched >= $this->maxSitemaps) {
@@ -148,24 +161,24 @@ final class SitemapReader implements SitemapSourceInterface
                 if (self::localPath($root) !== null) {
                     // A local index: its parts are local files next to it, or URLs the transport may fetch when allowed.
                     if (self::localPath($loc) === null && !self::isHttpUrl($loc)) {
-                        $this->logger->warning('indexnow: sitemap {url} is neither a local file nor an http(s) URL, skipping', ['url' => $loc]);
+                        $this->logger->warning('indexnow: sitemap {url} is neither a local file nor an http(s) URL, skipping', ['url' => $shown]);
                         continue;
                     }
                     if (self::localPath($loc) === null && !$allowForeignHosts) {
-                        $this->logger->warning('indexnow: local sitemap index {root} references {url}; give the index by URL, or allow foreign hosts to fetch its parts', ['url' => $loc, 'root' => $root]);
+                        $this->logger->warning('indexnow: local sitemap index {root} references {url}; give the index by URL, or allow foreign hosts to fetch its parts', ['url' => $shown, 'root' => $root]);
                         continue;
                     }
                 } elseif (!self::isHttpUrl($loc)) {
-                    $this->logger->warning('indexnow: sitemap {url} is not an http(s) URL, skipping', ['url' => $loc]);
+                    $this->logger->warning('indexnow: sitemap {url} is not an http(s) URL, skipping', ['url' => $shown]);
                     continue;
                 } elseif (!$allowForeignHosts && !self::sameOrigin($loc, $root)) {
-                    $this->logger->warning('indexnow: sitemap {url} is not on the host of {root}, skipping (allow foreign hosts to follow it)', ['url' => $loc, 'root' => $root]);
+                    $this->logger->warning('indexnow: sitemap {url} is not on the host of {root}, skipping (allow foreign hosts to follow it)', ['url' => $shown, 'root' => $root]);
                     continue;
                 }
                 try {
                     yield from $this->readNested($loc, $root, $changedSince, $depth + 1, $fetched, $allowForeignHosts);
                 } catch (TransportException $e) {
-                    $this->logger->warning('indexnow: skipping nested sitemap {url}: {error}', ['url' => $loc, 'error' => $e->getMessage()]);
+                    $this->logger->warning('indexnow: skipping nested sitemap {url}: {error}', ['url' => $shown, 'error' => $e->getMessage()]);
                 }
             }
         } finally {

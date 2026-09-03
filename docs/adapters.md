@@ -168,6 +168,7 @@ guarded resolution, and never throws: an invalid rule set or a failing resolver 
 
 ```php
 $changes = $indexNow->changes();                 // or new ObjectChangeHandler($reader, $guarded, $logger)
+$guarded = $indexNow->resolver();                // the GuardedUrlResolver behind it, for explain() and resolveRule()
 
 $changes->created($model);                       // list<ResolvedUrl>
 $changes->updated($model, $changedFields, $changeSet);

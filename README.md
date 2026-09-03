@@ -94,7 +94,8 @@ guidance is in [docs/operations.md](docs/operations.md).
 | `failed` | — or other | `unexpected` | see below | a misbehaving HTTP client (retryable) or a status no engine should return (not) |
 | `skipped` | — | `disabled` `dry_run` `debounced` `no_key` `invalid_url` | no | nothing was sent |
 
-`Reason` is the stable identifier for metrics and alerts, `Result::$error` the human sentence. Decide whether to
+`Reason` is the stable identifier for metrics and alerts, `Result::$error` the human sentence;
+`Reason::translationKey()` (`indexnowkit.reason.<value>`) names the message for a UI. Decide whether to
 retry from `Result::$retryable`, not from the reason. `Result` also carries `engine`, `endpoint`, `host`, `urls`,
 `httpCode` and `metricLabels()`; `Result::retryableUrls($results)` collects what is worth retrying.
 
@@ -253,7 +254,7 @@ More recipes in [docs/testing.md](docs/testing.md).
 | `Http\TransportInterface` | `Psr18Transport::discover()` | use your own HTTP stack (`LazyTransport` defers building it) |
 | `Key\KeyProviderInterface` | `StaticKeyProvider` | keys from a database, per tenant |
 | `Url\UrlNormalizerInterface` | `UrlNormalizer` | strip tracking parameters, enforce trailing slashes, map hosts |
-| `Url\UrlResolverInterface` | `AttributeUrlResolver` | turn objects into URLs your way |
+| `Url\UrlResolverInterface` | `NullUrlResolver` — build an `AttributeUrlResolver` and pass it as `resolver:` | turn objects into URLs your way |
 | `Url\RouteUrlResolverInterface` | — (adapter-provided) | bridge your framework's router |
 | `Attribute\AttributeReaderInterface` | `AttributeReader` | `RuleRegistry` for runtime rules, or your own metadata source |
 | `Collector\CollectorInterface` | `Collector` | a durable outbox, a per-tenant buffer |
@@ -270,7 +271,7 @@ Pass any of them to `IndexNowKit::create()` by name, or assemble the graph by ha
 All exceptions implement `IndexNowKit\Exception\IndexNowException`: `ConfigurationException` (invalid `Config`,
 attribute or resolver setup), `InvalidUrlException` (a URL that cannot be submitted, caught by `Submitter` and
 dropped with a warning), `InvalidArgumentException` (programming errors) and `Http\Exception\TransportException`
-(network failure, turned into a retryable `Result` by `Client`; only `SitemapReader` and `Checker` expose it).
+(network failure, turned into a retryable `Result` by `Client`; only `SitemapReader` exposes it; `Checker` turns it into an error line).
 Nothing throws out of a lifecycle hook — see the error contract in [docs/adapters.md](docs/adapters.md).
 
 ## Limitations

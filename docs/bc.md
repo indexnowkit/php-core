@@ -16,7 +16,8 @@ This page exists because "public API" is ambiguous for a library whose main audi
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
 one directly, pin `^0.2.0` rather than `^0.2` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
-both directions.
+both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` have no shipped implementation to
+decorate (one per framework adapter): pin `^0.2.0` and read the changelog.
 
 ## Named arguments
 
@@ -28,12 +29,19 @@ arguments:
 IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $resolver);
 ```
 
-The same holds for the constructors of `Config`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`,
+The same holds for the constructors of `Config`, `Client`, `Submitter`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`,
 `SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
 `Sitemap\Spool` is public for `create()`, `probeDisk()`, `uri()` and `close()`; its `stream_*` methods are the PHP stream-wrapper
 protocol and `@internal`.
 `RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` are public static helpers in the same "call" tier: adapters
 call them to compile their own declarations; their signatures only grow by appended optional parameters.
+
+The shipped default implementations are in the "call" tier as well: construct them with named arguments and their public
+methods stay. That is `Http\LazyTransport` (the default `IndexNowKit::$transport`), `Http\Psr18Transport`,
+`Key\StaticKeyProvider`, `Url\UrlNormalizer`, `Url\ArrayResolverLocator`, `Url\CallableUrlResolver`, `Url\NullUrlResolver`,
+`Attribute\AttributeReader`, `Attribute\ChangeClassifier`, `Collector\Collector`, `Debounce\{MemoryDebounceStore, Psr16DebounceStore,
+NullDebounceStore}`, `Throttle\NullThrottle`, `Dispatch\{SyncDispatcher, CallableDispatcher, NullDispatcher}` and
+`Clock\SystemClock`.
 
 `Config::with()` takes constructor parameter names as keys and rejects unknown ones with a message listing what it
 accepts. Renaming a `Config` property is therefore a breaking change and appears in the changelog.
@@ -83,12 +91,14 @@ not disappear.
 
 Every exception implements `Exception\IndexNowException`, so `catch (IndexNowException $e)` is the stable form.
 `ConfigurationException`, `InvalidUrlException`, `InvalidArgumentException` and `Http\Exception\TransportException`
-keep their meanings. Exception **messages** are not API: they are written for humans and get improved. Match on the
+keep their meanings. `ConfigurationException` and `InvalidUrlException` extend `Exception\InvalidArgumentException`,
+which extends PHP's `\InvalidArgumentException`, so both `catch (Exception\InvalidArgumentException)` and
+`catch (\InvalidArgumentException)` see them. Exception **messages** are not API: they are written for humans and get improved. Match on the
 class, or on `Result::$reason`, never on message text.
 
 ## What is not covered
 
-- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Attribute\IndexNow::normalizeEvents()`,
+- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`,
   `Collector::reportLeak()` and the writer methods of `Check\CheckReport` (`ok()`, `warning()`, `error()`), which exist for
   `Checker` and for adapter-side checks. Reading a report through `items()` and `hasErrors()` is public.
 - Private and protected members of `final` classes, which is all of them: the library has no inheritance points by

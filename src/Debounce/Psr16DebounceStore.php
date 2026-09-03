@@ -9,6 +9,9 @@ use Psr\SimpleCache\CacheInterface;
 /**
  * Debounce shared across processes through any PSR-16 cache. Keys are `{prefix}sha1(url)`, so they
  * are valid for every backend regardless of URL characters.
+ *
+ * Best effort across processes: filterRecent() and markSubmitted() are two cache calls, so two workers submitting
+ * the same URL in the same instant can both pass. The engines de-duplicate; the window only saves requests.
  */
 final class Psr16DebounceStore implements DebounceStoreInterface
 {

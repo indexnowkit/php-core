@@ -167,7 +167,7 @@ final class IndexNowKit
      *
      * @return list<string>
      */
-    public function urlsFor(object $subject, Event $event): array
+    public function urlsFor(object $subject, Event $event = Event::Updated): array
     {
         return $this->resolver->resolve($subject, $event);
     }
@@ -177,7 +177,7 @@ final class IndexNowKit
      *
      * @return list<ResolvedUrl>
      */
-    public function explain(object $subject, Event $event): array
+    public function explain(object $subject, Event $event = Event::Updated): array
     {
         return $this->resolver->explain($subject, $event);
     }

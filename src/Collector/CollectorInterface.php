@@ -8,7 +8,10 @@ use Countable;
 
 /**
  * Per-unit-of-work buffer (HTTP request, console command, queue message) of normalized URLs, flushed once
- * at the end of the unit of work. Replace it for a durable outbox or a per-tenant buffer.
+ * at the end of the unit of work. Decorate {@see Collector} for a durable outbox or a per-tenant buffer.
+ *
+ * "May grow" interface (docs/bc.md): a method may be appended in a minor. Pin `^0.2.0` if you implement it
+ * from scratch; decorating the shipped implementation is safe.
  */
 interface CollectorInterface extends Countable
 {

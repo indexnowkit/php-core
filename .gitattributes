@@ -1,4 +1,4 @@
-# Keep the Packagist dist archive small: sources, README and license only.
+# Keep the Packagist dist archive small: no tests, CI or tooling configuration.
 /.gitattributes        export-ignore
 /.github               export-ignore
 /phpunit.xml.dist      export-ignore

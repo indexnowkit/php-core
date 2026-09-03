@@ -6,6 +6,10 @@ namespace IndexNowKit;
 
 /**
  * Entry point for sending URLs. Never throws for remote failures; see Result::$status.
+ * {@see Submitter} is the shipped implementation; {@see Retry\RetryingSubmitter} shows how to decorate it.
+ *
+ * "May grow" interface (docs/bc.md): a method may be appended in a minor. Pin `^0.2.0` if you implement it
+ * from scratch; decorating the shipped implementation is safe.
  */
 interface SubmitterInterface
 {

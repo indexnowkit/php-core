@@ -180,5 +180,5 @@ where you care about the exact payload.
 - `IndexNowKit::create()` rejects combining a custom `submitter:` with `transport:`, `debounce:`, `throttle:` or
   `normalizer:`, because a custom submitter builds its own pipeline. Pass those to your submitter instead.
 - The repository ships a mock IndexNow server for end-to-end runs:
-  `php -S 127.0.0.1:8089 packages/core/tests/Support/mock-server/router.php`, with scenarios selected by an
+  `php -S 127.0.0.1:8089 tests/Support/mock-server/router.php`, with scenarios selected by an
   `X-Mock-Scenario` header.

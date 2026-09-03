@@ -97,4 +97,73 @@ final class TransactionStagingTest extends TestCase
 
         self::assertSame([], $logger->messages('debug'));
     }
+
+    public function testRolledBackSavepointDropsOnlyWhatWasStagedSinceIt(): void
+    {
+        $delivered = [];
+        $logger = new ArrayLogger();
+        $staging = new TransactionStaging(static function (array $urls) use (&$delivered): void {
+            $delivered = $urls;
+        }, $logger);
+        $scope = new stdClass();
+
+        $staging->stage($scope, ['/outer']);
+        $staging->savepoint($scope, 'SP1');
+        $staging->stage($scope, ['/inner']);
+        $staging->savepoint($scope, 'SP2');
+        $staging->stage($scope, ['/innermost']);
+        self::assertSame(3, $staging->pendingCount($scope));
+
+        $staging->rollbackTo($scope, 'SP1');
+        self::assertSame(1, $staging->pendingCount($scope));
+        self::assertStringContainsString('savepoint rolled back', implode("\n", $logger->messages('debug')));
+
+        $staging->stage($scope, ['/after-rollback']);
+        $staging->release($scope, 'SP1');
+        $staging->commit($scope);
+
+        self::assertSame(['/outer', '/after-rollback'], $delivered);
+    }
+
+    public function testReleasedSavepointFoldsIntoTheEnclosingFrame(): void
+    {
+        $delivered = [];
+        $staging = new TransactionStaging(static function (array $urls) use (&$delivered): void {
+            $delivered = $urls;
+        });
+        $scope = new stdClass();
+
+        $staging->savepoint($scope, 'SP1');
+        $staging->stage($scope, ['/a']);
+        $staging->release($scope, 'SP1');
+        $staging->savepoint($scope, 'SP1');
+        $staging->stage($scope, ['/b']);
+        $staging->rollbackTo($scope, 'SP1');
+        $staging->commit($scope);
+
+        self::assertSame(['/a'], $delivered, 'the re-created savepoint shadows the released one');
+    }
+
+    public function testUnknownSavepointNamesAreIgnoredAndDiscardDropsEveryFrame(): void
+    {
+        $delivered = [];
+        $staging = new TransactionStaging(static function (array $urls) use (&$delivered): void {
+            $delivered = $urls;
+        });
+        $scope = new stdClass();
+
+        $staging->release($scope, 'nope');
+        $staging->rollbackTo($scope, 'nope');
+        $staging->stage($scope, ['/a']);
+        $staging->savepoint($scope, 'SP1');
+        $staging->stage($scope, ['/b']);
+        $staging->release($scope, 'nope');
+        $staging->rollbackTo($scope, 'nope');
+        self::assertSame(2, $staging->pendingCount($scope));
+
+        $staging->discard($scope);
+        self::assertFalse($staging->hasPending($scope));
+        $staging->commit($scope);
+        self::assertSame([], $delivered);
+    }
 }
