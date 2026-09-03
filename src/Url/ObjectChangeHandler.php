@@ -85,7 +85,8 @@ final class ObjectChangeHandler
      */
     public function resolve(object $subject, RuleEvent $ruleEvent): array
     {
-        return $this->resolver->resolveRule($subject, $ruleEvent->rule, $ruleEvent->event);
+        // A classified deletion is resolved from whatever state the object has now (an unpublish left `when` false).
+        return $this->resolver->resolveRule($subject, $ruleEvent->rule, $ruleEvent->event, $ruleEvent->event === Event::Deleted);
     }
 
     /**

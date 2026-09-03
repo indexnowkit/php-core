@@ -354,7 +354,7 @@ final class AttributeUrlResolverTest extends TestCase
         self::assertSame('fr', $router->calls[1]['locale']);
     }
 
-    public function testResolveRuleBypassesWhenForDeletedButNotForUpdated(): void
+    public function testResolveRuleIgnoresWhenOnlyWhenAsked(): void
     {
         $reader = new AttributeReader();
         $resolver = new AttributeUrlResolver($reader, new StubRouter());
@@ -362,7 +362,8 @@ final class AttributeUrlResolverTest extends TestCase
         $rule = $reader->rules(DeletedBypassPost::class)->get('post_show');
         self::assertNotNull($rule);
 
-        $deleted = $resolver->resolveRule($subject, $rule, Event::Deleted);
+        $deleted = $resolver->resolveRule($subject, $rule, Event::Deleted, ignoreWhen: true);
+        self::assertSame([], $resolver->resolveRule($subject, $rule, Event::Deleted), "without ignoreWhen a draft deletion resolves nothing (A18)");
         self::assertSame(['https://example.com/post_show/gone'], array_map(static fn($r) => $r->url, $deleted), '`when` is false, but Deleted still resolves: the page just stopped applying and its URL must be sent so engines recrawl it');
 
         $updated = $resolver->resolveRule($subject, $rule, Event::Updated);

@@ -18,11 +18,14 @@ use IndexNowKit\Exception\ConfigurationException;
  */
 final readonly class UrlRule
 {
+    /** @var array<int, list<string>> */
+    public array $whenFields;
+
     /**
      * @param array<string, string|ParamValue> $params
      * @param list<string>                     $urls
      * @param list<string|ParamValue|Closure>  $when       conjunction: every condition must hold (accessor truthy, Equals, closure)
-     * @param list<string>                     $whenFields fields backing $when (old-state detection)
+     * @param array<int, list<string>>|list<string> $whenFields fields backing each $when condition, keyed by its index; a flat list applies to every condition
      * @param list<string>                     $fields     changed-field filter for updates; [] = any
      * @param list<Event>                      $events
      * @param list<string>|string              $locales
@@ -37,12 +40,17 @@ final readonly class UrlRule
         public ?string $url = null,
         public array $urls = [],
         public array $when = [],
-        public array $whenFields = [],
+        array $whenFields = [],
         public array $fields = [],
         public array $events = [Event::Created, Event::Updated, Event::Deleted],
         public array|string $locales = 'current',
         public string|ParamValue|null $host = null,
-    ) {}
+    ) {
+        $flat = $whenFields !== [] && array_is_list($whenFields) && \is_string($whenFields[0]);
+        /** @var array<int, list<string>> $keyed */
+        $keyed = $flat ? array_fill(0, max(1, \count($when)), array_values(array_filter($whenFields, 'is_string'))) : $whenFields;
+        $this->whenFields = $keyed;
+    }
 
     public function listensTo(Event $event): bool
     {
@@ -93,8 +101,8 @@ final readonly class UrlRule
      */
     public function whenDependsOn(string $field): bool
     {
-        foreach ($this->when as $condition) {
-            if ($this->conditionDependsOn($condition, $field)) {
+        foreach (array_keys($this->when) as $index) {
+            if ($this->conditionDependsOn($index, $field)) {
                 return true;
             }
         }
@@ -106,14 +114,14 @@ final readonly class UrlRule
      * Whether a change of this field may change the outcome of one `when` condition: a declared whenField, or the
      * field the condition's accessor conventionally reads. Closures depend on whenFields only.
      */
-    public function conditionDependsOn(string|ParamValue|Closure $condition, string $field): bool
+    public function conditionDependsOn(int $index, string $field): bool
     {
-        if (\in_array($field, $this->whenFields, true)) {
+        if (\in_array($field, $this->whenFields[$index] ?? [], true)) {
             return true;
         }
-        $accessor = self::accessorOf($condition);
+        $accessor = self::accessorOf($this->when[$index] ?? '');
 
-        return $accessor !== null && \in_array($field, self::fieldCandidates($accessor), true);
+        return $accessor !== null && $accessor !== '' && \in_array($field, self::fieldCandidates($accessor), true);
     }
 
     /**

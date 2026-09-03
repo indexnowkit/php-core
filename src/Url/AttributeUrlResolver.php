@@ -58,17 +58,17 @@ final class AttributeUrlResolver implements UrlResolverInterface
     }
 
     /**
-     * One rule: nothing unless it listens to the event and, for Created/Updated, applies to the object's
-     * current state. Deleted is resolved regardless of `when`: the caller decides that the page went away
-     * (an unpublish transition leaves the object in the `when = false` state, and its URL must still be sent).
+     * One rule: nothing unless it listens to the event and applies to the object's current state. ORM hooks that
+     * already classified an unpublish transition (the object is now in the `when = false` state but its page must be
+     * announced as gone) pass $ignoreWhen = true.
      *
      * @return list<ResolvedUrl>
      *
      * @throws ConfigurationException
      */
-    public function resolveRule(object $subject, UrlRule $rule, Event $event, int $depth = 0): array
+    public function resolveRule(object $subject, UrlRule $rule, Event $event, int $depth = 0, bool $ignoreWhen = false): array
     {
-        if (!$rule->listensTo($event) || ($event !== Event::Deleted && !$rule->appliesTo($subject))) {
+        if (!$rule->listensTo($event) || (!$ignoreWhen && !$rule->appliesTo($subject))) {
             return [];
         }
 

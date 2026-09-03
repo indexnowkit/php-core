@@ -6,6 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\ChangeClassifier;
 use IndexNowKit\Attribute\IndexNow;
+use IndexNowKit\Attribute\IndexNowDefaults;
 use IndexNowKit\Attribute\Param\Equals;
 use IndexNowKit\Attribute\RuleCompiler;
 use IndexNowKit\Event;
@@ -59,5 +60,31 @@ final class WhenConditionTest extends TestCase
         $post->post_status = 'draft';
         // old value unknowable for a closure: a change of a declared whenField is assumed to have flipped the outcome
         self::assertSame(Event::Deleted, ChangeClassifier::classify($rule, $post, ['post_status'], ['post_status' => ['publish', 'draft']]));
+    }
+
+    public function testWhenFieldsOfOneConditionDoNotMakeAnotherConditionUnknown(): void
+    {
+        $post = new class {
+            public bool $published = false;
+            public bool $ampEnabled = false;
+
+            public function isPublished(): bool
+            {
+                return $this->published;
+            }
+
+            public function hasAmp(): bool
+            {
+                return $this->ampEnabled;
+            }
+        };
+        $rule = RuleCompiler::fromAttributes($post::class, [new IndexNow(urls: ['/amp'], when: 'hasAmp', whenFields: ['ampEnabled'])], new IndexNowDefaults(when: 'isPublished'))->rules[0];
+
+        // never published: toggling the AMP flag must not be mistaken for an unpublish (was a pooled-whenFields bug)
+        $post->ampEnabled = true;
+        self::assertNull(ChangeClassifier::classify($rule, $post, ['ampEnabled'], ['ampEnabled' => [false, true]]));
+        $post->ampEnabled = false;
+        self::assertNull(ChangeClassifier::classify($rule, $post, ['ampEnabled'], ['ampEnabled' => [true, false]]));
+        self::assertSame([['ampEnabled']], array_values(array_filter($rule->whenFields)), 'the field belongs to the hasAmp condition only');
     }
 }

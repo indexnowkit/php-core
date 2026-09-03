@@ -49,10 +49,10 @@ final class ChangeClassifier
     /**
      * @param list<string> $changedFields
      */
-    private static function touched(UrlRule $rule, string|ParamValue|Closure $condition, array $changedFields): bool
+    private static function touched(UrlRule $rule, int $index, array $changedFields): bool
     {
         foreach ($changedFields as $field) {
-            if ($rule->conditionDependsOn($condition, $field)) {
+            if ($rule->conditionDependsOn($index, $field)) {
                 return true;
             }
         }
@@ -92,7 +92,7 @@ final class ChangeClassifier
             return true;
         }
         $unknown = false;
-        foreach ($rule->when as $condition) {
+        foreach ($rule->when as $index => $condition) {
             $accessor = UrlRule::accessorOf($condition);
             $key = null;
             foreach ($accessor !== null ? UrlRule::fieldCandidates($accessor) : [] as $candidate) {
@@ -107,7 +107,7 @@ final class ChangeClassifier
                 }
                 continue;
             }
-            if (self::touched($rule, $condition, $changedFields)) {
+            if (self::touched($rule, $index, $changedFields)) {
                 $unknown = true;
                 continue;
             }

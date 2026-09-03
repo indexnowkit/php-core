@@ -83,7 +83,7 @@ formatting a date implicitly is how a URL silently changes shape. Anything else 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `when` | accessor name, `new Equals(path, value)`, or a closure `fn(object): bool` (runtime rules only) | inherit | the page exists only while the condition holds |
-| `whenFields` | list of field names | `[]` | fields backing `when` when its name does not match the field |
+| `whenFields` | list of field names | `[]` | fields backing this rule's own `when` when its name does not match the field (a class-level `when` has its own `whenFields` in `#[IndexNowDefaults]`) |
 | `fields` | list of field names, or `null` | inherit, then `[]` | for updates only: submit when one of these changed; `[]` = any field |
 | `events` | subset of `created`, `updated`, `deleted` (strings or `Event` cases), or `null` | inherit, then all three | which lifecycle events the rule listens to |
 | `locales` | `'current'`, `'all'` or a list, or `null` | inherit, then `'current'` | locale expansion for localized routes |

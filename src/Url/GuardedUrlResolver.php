@@ -42,7 +42,10 @@ final class GuardedUrlResolver implements UrlResolverInterface
     {
         try {
             if ($this->inner instanceof AttributeUrlResolver) {
-                $resolved = $this->inner->explain($subject, $event);
+                $resolved = [];
+                foreach ($this->attributes->rules($subject) as $rule) {
+                    $resolved = [...$resolved, ...$this->resolveRule($subject, $rule, $event)];
+                }
             } else {
                 $rules = $this->attributes->rules($subject);
                 if (!$rules->isEmpty() && !$rules->listensTo($event)) {
@@ -77,17 +80,20 @@ final class GuardedUrlResolver implements UrlResolverInterface
     }
 
     /**
-     * One rule, never throws. With a non-attribute inner resolver the whole object is resolved instead.
+     * One rule, never throws; a failing rule loses its own URLs only. With a non-attribute inner resolver the whole
+     * object is resolved instead.
+     *
+     * @param bool $ignoreWhen resolve even if `when` is false now (an already classified unpublish transition)
      *
      * @return list<ResolvedUrl>
      */
-    public function resolveRule(object $subject, UrlRule $rule, Event $event): array
+    public function resolveRule(object $subject, UrlRule $rule, Event $event, bool $ignoreWhen = false): array
     {
         if (!$this->inner instanceof AttributeUrlResolver) {
             return $this->explain($subject, $event);
         }
         try {
-            return $this->inner->resolveRule($subject, $rule, $event);
+            return $this->inner->resolveRule($subject, $rule, $event, 0, $ignoreWhen);
         } catch (Throwable $e) {
             $this->logger->error('indexnow: cannot resolve URLs for {class} rule "{rule}" ({event}): {error}', ['class' => $subject::class, 'rule' => $rule->name, 'event' => $event->value, 'error' => $e->getMessage(), 'exception' => $e]);
 

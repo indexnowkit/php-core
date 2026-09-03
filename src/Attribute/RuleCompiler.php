@@ -125,7 +125,7 @@ final class RuleCompiler
             url: $a->url,
             urls: $a->urls,
             when: self::when($defaults, $a->when),
-            whenFields: [...$defaults->whenFields, ...$a->whenFields],
+            whenFields: self::whenFields($defaults, $a->when, $a->whenFields),
             fields: $a->fields ?? $defaults->fields ?? [],
             events: $a->events ?? $defaults->events ?? self::ALL_EVENTS,
             locales: $a->locales ?? $defaults->locales ?? 'current',
@@ -144,7 +144,7 @@ final class RuleCompiler
             source: RuleSource::Url,
             url: $method->getName(),
             when: self::when($defaults, $a->when),
-            whenFields: [...$defaults->whenFields, ...$a->whenFields],
+            whenFields: self::whenFields($defaults, $a->when, $a->whenFields),
             fields: $a->fields ?? $defaults->fields ?? [],
             events: $a->events ?? $defaults->events ?? self::ALL_EVENTS,
             locales: $defaults->locales ?? 'current',
@@ -162,6 +162,29 @@ final class RuleCompiler
         }
 
         return $when;
+    }
+
+    /**
+     * Backing fields stay attached to the condition they belong to (class default vs rule), keyed like when().
+     *
+     * @param list<string> $ownFields
+     *
+     * @return array<int, list<string>>
+     */
+    private static function whenFields(IndexNowDefaults $defaults, string|ParamValue|Closure|null $own, array $ownFields): array
+    {
+        $fields = [];
+        $index = 0;
+        if ($defaults->when !== null) {
+            $fields[$index++] = $defaults->whenFields;
+        }
+        if ($own !== null && ($defaults->when === null || $own !== $defaults->when)) {
+            $fields[$index] = $ownFields;
+        } elseif ($index > 0 && $ownFields !== []) {
+            $fields[0] = array_values(array_unique([...$fields[0], ...$ownFields]));
+        }
+
+        return $fields;
     }
 
     /**
