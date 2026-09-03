@@ -1,5 +1,6 @@
 # CI of the read-only split repository indexnowkit/php-core. Development happens in
-# https://github.com/indexnowkit/php (monorepo), whose CI also covers the Doctrine and Symfony packages.
+# https://github.com/indexnowkit/php (monorepo), whose CI covers all packages together; php-doctrine and
+# php-symfony-bundle carry the same kind of workflow.
 name: CI
 
 on:
