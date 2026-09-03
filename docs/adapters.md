@@ -2,7 +2,7 @@
 
 For someone who has never read this package's source and wants a working framework adapter by the end of the day.
 Every section names the core types involved and the conformance scenarios from
-[docs/spec/03-conformance.md](../../../../docs/spec/03-conformance.md) it satisfies.
+[docs/spec/03-conformance.md](https://github.com/indexnowkit/php/blob/main/docs/spec/03-conformance.md) it satisfies.
 
 ## 1. Is an adapter the right thing?
 
@@ -409,7 +409,7 @@ why — A13 (bulk operations bypass hooks) is a documented limitation everywhere
 Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.2`, keep the framework itself in `require` and the
 optional pieces in `suggest`. Run a version matrix in CI over the framework's supported majors and LTS releases,
 static analysis at the maximum level, and publish EN plus RU READMEs following the family table used here. The
-Definition of Done is in [docs/spec/91-roadmap.md](../../../../docs/spec/91-roadmap.md).
+Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowkit/php/blob/main/docs/spec/91-roadmap.md).
 
 ## 18. Reference adapters
 

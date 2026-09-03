@@ -2,8 +2,8 @@
 
 Сообщайте Яндексу, Bing и остальным поисковикам с поддержкой [IndexNow](https://yandex.ru/support/webmaster/ru/indexing-options/index-now),
 какие URL изменились, из любого PHP-приложения. Батчи, дебаунс, троттлинг, политика повторов, файл ключа и чтение
-sitemap поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки к фреймворку. Адаптеры ([Symfony](../symfony-bundle),
-[Doctrine](../doctrine)) построены на этом пакете; напрямую он нужен для чистого PHP, плагинов CMS и своих фреймворков.
+sitemap поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки к фреймворку. Адаптеры ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle),
+[Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine)) построены на этом пакете; напрямую он нужен для чистого PHP, плагинов CMS и своих фреймворков.
 
 [English version](README.md)
 
@@ -295,11 +295,11 @@ SemVer. До 1.0 минорные версии могут содержать л�
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](../symfony-bundle), [doctrine](../doctrine), laravel (в планах) |
+| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), laravel (в планах) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (в планах) |
 | Python | `indexnowkit`, `indexnowkit-django` (в планах) |
 
-Обоснование архитектуры и межъязыковая модель: [docs/spec](../../../docs/spec).
+Обоснование архитектуры и межъязыковая модель: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
 Conformance-набор: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
 MIT.

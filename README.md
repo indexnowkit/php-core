@@ -2,7 +2,7 @@
 
 Tell Yandex, Bing and the other [IndexNow](https://www.indexnow.org) engines which URLs changed, from any PHP
 application. Batching, debounce, throttling, retry policy, key file handling and a sitemap reader, on top of
-PSR-18 / PSR-17 / PSR-3 / PSR-16 only. Framework adapters ([Symfony](../symfony-bundle), [Doctrine](../doctrine))
+PSR-18 / PSR-17 / PSR-3 / PSR-16 only. Framework adapters ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine))
 build on it; use it directly in plain PHP, a CMS plugin or a custom framework.
 
 [![Packagist](https://img.shields.io/packagist/v/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
@@ -296,11 +296,11 @@ What is covered by the promise and what is not: [docs/bc.md](docs/bc.md).
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](../symfony-bundle), [doctrine](../doctrine), laravel (planned) |
+| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), laravel (planned) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (planned) |
 | Python | `indexnowkit`, `indexnowkit-django` (planned) |
 
-Design rationale and the cross-language model: [docs/spec](../../../docs/spec).
+Design rationale and the cross-language model: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
 Conformance suite: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
 MIT.
