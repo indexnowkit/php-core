@@ -68,6 +68,15 @@ final class GuardedUrlResolver implements UrlResolverInterface
     }
 
     /**
+     * Whether resolveRule() can resolve a single rule; a custom top-level resolver resolves whole objects only,
+     * so callers should de-duplicate (object, event) pairs before calling resolveRule() with it.
+     */
+    public function isRuleAware(): bool
+    {
+        return $this->inner instanceof AttributeUrlResolver;
+    }
+
+    /**
      * One rule, never throws. With a non-attribute inner resolver the whole object is resolved instead.
      *
      * @return list<ResolvedUrl>

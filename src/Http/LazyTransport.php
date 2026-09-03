@@ -6,6 +6,7 @@ namespace IndexNowKit\Http;
 
 use Closure;
 use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Http\Exception\TransportException;
 
 /**
  * Defers building the real transport (PSR-18 discovery, client construction) until the first request, so a
@@ -31,10 +32,18 @@ final class LazyTransport implements TransportInterface
     }
 
     /**
-     * @throws ConfigurationException when the factory cannot build a transport (no PSR-18 client installed)
+     * @throws TransportException when the factory cannot build a transport (no PSR-18 client installed); the
+     *                            ConfigurationException is attached as previous so `indexnow check` can explain it
      */
     public function transport(): TransportInterface
     {
-        return $this->transport ??= ($this->factory)();
+        if ($this->transport !== null) {
+            return $this->transport;
+        }
+        try {
+            return $this->transport = ($this->factory)();
+        } catch (ConfigurationException $e) {
+            throw new TransportException('No HTTP client available: ' . $e->getMessage(), 0, $e);
+        }
     }
 }

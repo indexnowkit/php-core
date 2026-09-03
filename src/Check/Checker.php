@@ -50,6 +50,8 @@ final class Checker
         }
         if ($config->strictHosts) {
             $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped');
+        } elseif ($config->hosts !== [] && $config->key !== null) {
+            $report->warning('hosts map without strict_hosts: URLs of hosts not listed are still sent under the default key. Set strict_hosts: true unless that is intended.');
         }
         if ($config->baseUrl === null) {
             $report->warning('base_url is not set: relative URLs and CLI/worker submissions cannot be resolved. Set INDEXNOW_BASE_URL.');

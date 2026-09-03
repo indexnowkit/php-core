@@ -162,8 +162,32 @@ final class ObjectChangeHandler
     private function resolveAll(object $subject, array $events): array
     {
         $out = [];
-        foreach ($events as $ruleEvent) {
+        foreach ($this->distinct($events) as $ruleEvent) {
             $out = [...$out, ...$this->resolve($subject, $ruleEvent)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * With a custom (whole-object) resolver every rule of an object would trigger the same call: keep one per event.
+     *
+     * @param list<RuleEvent> $events
+     *
+     * @return list<RuleEvent>
+     */
+    public function distinct(array $events): array
+    {
+        if ($this->resolver->isRuleAware()) {
+            return $events;
+        }
+        $seen = [];
+        $out = [];
+        foreach ($events as $ruleEvent) {
+            if (!isset($seen[$ruleEvent->event->value])) {
+                $seen[$ruleEvent->event->value] = true;
+                $out[] = $ruleEvent;
+            }
         }
 
         return $out;

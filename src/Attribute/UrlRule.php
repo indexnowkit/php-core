@@ -93,17 +93,27 @@ final readonly class UrlRule
      */
     public function whenDependsOn(string $field): bool
     {
-        if (\in_array($field, $this->whenFields, true)) {
-            return true;
-        }
         foreach ($this->when as $condition) {
-            $accessor = self::accessorOf($condition);
-            if ($accessor !== null && \in_array($field, self::fieldCandidates($accessor), true)) {
+            if ($this->conditionDependsOn($condition, $field)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether a change of this field may change the outcome of one `when` condition: a declared whenField, or the
+     * field the condition's accessor conventionally reads. Closures depend on whenFields only.
+     */
+    public function conditionDependsOn(string|ParamValue|Closure $condition, string $field): bool
+    {
+        if (\in_array($field, $this->whenFields, true)) {
+            return true;
+        }
+        $accessor = self::accessorOf($condition);
+
+        return $accessor !== null && \in_array($field, self::fieldCandidates($accessor), true);
     }
 
     /**

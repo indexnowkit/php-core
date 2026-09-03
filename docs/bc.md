@@ -20,7 +20,7 @@ both directions.
 
 ## Named arguments
 
-`IndexNowKit::create()` takes twelve optional arguments and will take more. **Parameter names are part of the
+`IndexNowKit::create()` takes eleven optional arguments after `$config` and will take more. **Parameter names are part of the
 promise; the order is not.** New parameters are appended, never inserted, and every call should use named
 arguments:
 
@@ -28,8 +28,10 @@ arguments:
 IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $resolver);
 ```
 
-The same holds for the constructors of `Config`, `AttributeUrlResolver`, `SitemapReader`, `RetryPolicy`,
-`TokenBucket` and `Psr18Transport`: pass anything past the first argument by name.
+The same holds for the constructors of `Config`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`,
+`SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
+`RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` are public static helpers in the same "call" tier: adapters
+call them to compile their own declarations; their signatures only grow by appended optional parameters.
 
 `Config::with()` takes constructor parameter names as keys and rejects unknown ones with a message listing what it
 accepts. Renaming a `Config` property is therefore a breaking change and appears in the changelog.
@@ -64,7 +66,13 @@ These are the values to reference instead of hard-coding, and they are covered b
 `KeyValidator::MAX_LENGTH`, `KeyValidator::ALPHABET`, `KeyValidator::PATTERN`, `KeyFileResponder::PATH_PATTERN`,
 `KeyFileResponder::CONTENT_TYPE`, `KeyFileResponder::DEFAULT_MAX_AGE`, `Http\Response::MAX_RETRY_AFTER`,
 `Psr18Transport::POST_BODY_LIMIT`, `Psr18Transport::GET_BODY_LIMIT`, `SitemapReader::MAX_XML_BYTES`,
-`SitemapReader::MAX_SITEMAPS`, `UrlNormalizer::MAX_URL_LENGTH`, `Version::VERSION`.
+`SitemapReader::MAX_SITEMAPS`, `UrlNormalizer::MAX_URL_LENGTH`, `UrlNormalizer::MAX_HOST_LENGTH`, `UrlNormalizer::MAX_LABEL_LENGTH`,
+`ParamExtractor::SELF`, `Version::VERSION`.
+
+Enums (`ResultStatus`, `Reason`, `Event`, `Engine`, `Check\CheckLevel`, `Attribute\RuleSource`, `Attribute\Param\Placeholder`)
+and the value objects of the rule model (`Attribute\UrlRule`, `RuleSet`, `RuleEvent`, `Attribute\Param\{Accessor, Value, Formatted,
+Call, Equals}`, `Url\ResolvedUrl`) are public API: their public properties are read by adapters and their constructors only grow
+by appended optional parameters.
 
 Their **values** may change in a minor when the protocol or a safety limit changes; the constants themselves will
 not disappear.
@@ -78,9 +86,9 @@ class, or on `Result::$reason`, never on message text.
 
 ## What is not covered
 
-- Anything marked `@internal` in a docblock. Today that is `IndexNow::normalizeEvents()` and the writer methods of
-  `Check\CheckReport` (`ok()`, `warning()`, `error()`), which exist for `Checker` and for adapter-side checks.
-  Reading a report through `items()` and `hasErrors()` is public.
+- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Attribute\IndexNow::normalizeEvents()`,
+  `Collector::reportLeak()` and the writer methods of `Check\CheckReport` (`ok()`, `warning()`, `error()`), which exist for
+  `Checker` and for adapter-side checks. Reading a report through `items()` and `hasErrors()` is public.
 - Private and protected members of `final` classes, which is all of them: the library has no inheritance points by
   design, only interfaces.
 - Log message texts. They are documented in [operations.md](operations.md) so you can grep them, and they are

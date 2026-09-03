@@ -47,6 +47,20 @@ final class ChangeClassifier
     }
 
     /**
+     * @param list<string> $changedFields
+     */
+    private static function touched(UrlRule $rule, string|ParamValue|Closure $condition, array $changedFields): bool
+    {
+        foreach ($changedFields as $field) {
+            if ($rule->conditionDependsOn($condition, $field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Whether a condition held for the old value of its field: truthiness for accessors, comparison for Equals.
      */
     private static function heldBefore(string|ParamValue|Closure $condition, mixed $oldValue): bool
@@ -77,7 +91,6 @@ final class ChangeClassifier
         if ($rule->when === []) {
             return true;
         }
-        $whenFieldTouched = array_intersect($rule->whenFields, $changedFields) !== [];
         $unknown = false;
         foreach ($rule->when as $condition) {
             $accessor = UrlRule::accessorOf($condition);
@@ -94,7 +107,7 @@ final class ChangeClassifier
                 }
                 continue;
             }
-            if ($whenFieldTouched || ($accessor !== null && array_intersect(UrlRule::fieldCandidates($accessor), $changedFields) !== [])) {
+            if (self::touched($rule, $condition, $changedFields)) {
                 $unknown = true;
                 continue;
             }
