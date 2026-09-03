@@ -56,6 +56,28 @@ final class SitemapReaderTest extends TestCase
         self::assertStringContainsString('not on the host', implode("\n", $logger->messages('warning')));
     }
 
+    public function testNestedSitemapOnAnotherPortOrSchemeIsSkipped(): void
+    {
+        $logger = new ArrayLogger();
+        $t = new FakeTransport();
+        $index = '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>https://www.example.com:9200/s1.xml</loc></sitemap><sitemap><loc>http://www.example.com/s2.xml</loc></sitemap></sitemapindex>';
+        $t->onGet('https://www.example.com/sitemap.xml', new Response(200, $index));
+
+        $entries = iterator_to_array((new SitemapReader($t, logger: $logger))->read('https://www.example.com/sitemap.xml'), false);
+
+        self::assertSame([], $entries);
+        self::assertSame(['https://www.example.com/sitemap.xml'], $t->gets, 'neither the other port nor the http downgrade is fetched');
+        self::assertCount(2, $logger->messages('warning'));
+    }
+
+    public function testDocumentLargerThanTheLimitIsRejected(): void
+    {
+        $reader = new SitemapReader(new FakeTransport(), maxXmlBytes: 100);
+        $this->expectException(\IndexNowKit\Http\Exception\TransportException::class);
+        $this->expectExceptionMessage('exceeds the 100 byte limit');
+        iterator_to_array($reader->parse(str_repeat(' ', 101) . '<urlset/>'), false);
+    }
+
     public function testNested404IsSkippedWithWarningButSiblingsStillRead(): void
     {
         $logger = new ArrayLogger();

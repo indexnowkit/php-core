@@ -257,8 +257,8 @@ final readonly class Config
         $keys = [];
         $locations = [];
         foreach ($hosts as $host => $entry) {
-            if (!\is_string($host) || $host === '' || preg_match('/^[a-z0-9.\-\[\]:]+$/i', $host) !== 1) {
-                throw new ConfigurationException(\sprintf('"hosts" must map host names to keys, got host "%s".', (string) $host));
+            if (!\is_string($host) || $host === '' || preg_match('/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i', $host) !== 1) {
+                throw new ConfigurationException(\sprintf('"hosts" must map bare host names (no scheme, port or path) to keys, got "%s".', (string) $host));
             }
             $host = strtolower($host);
             $key = \is_array($entry) ? ($entry['key'] ?? '') : $entry;

@@ -17,6 +17,7 @@ use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class CountingThrottle implements ThrottleInterface
 {
@@ -111,6 +112,24 @@ final class ClientTest extends TestCase
         $t->willRespond(new Response(403));
         $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
         self::assertSame(5, $levelCount('error'), 'counter reset after a 200, back to error level');
+    }
+
+    public function testNonTransportExceptionFromTheHttpClientBecomesAMaskedResult(): void
+    {
+        $t = (new FakeTransport())->willRespond(new RuntimeException('client exploded while sending ' . Factory::KEY));
+        $logger = new ArrayLogger();
+        $config = Factory::config();
+        $client = new Client($t, StaticKeyProvider::fromConfig($config), $config, $logger, new NullThrottle());
+
+        $results = $client->submitAll(['https://www.example.com/a']);
+
+        self::assertCount(1, $results);
+        self::assertSame(ResultStatus::Failed, $results[0]->status);
+        self::assertTrue($results[0]->retryable);
+        self::assertStringContainsString('RuntimeException', (string) $results[0]->error);
+        self::assertStringNotContainsString(Factory::KEY, (string) $results[0]->error);
+        self::assertStringNotContainsString(Factory::KEY, implode("\n", $logger->messages()));
+        self::assertCount(1, $logger->messages('error'));
     }
 
     public function testJsonEncodingFailureIsFailedResultNotException(): void

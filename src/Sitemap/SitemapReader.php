@@ -18,7 +18,8 @@ use XMLReader;
  * Streams <loc> entries of a sitemap or sitemap index (recursively), gzip aware.
  *
  * Safety: nested sitemaps must live on the same host as the root sitemap (anything else is skipped with a
- * warning), recursion depth and the total number of fetched documents are capped, gzip output is capped,
+ * warning), recursion depth, the total number of fetched documents and the document size ($maxXmlBytes, 50 MiB by
+ * default; peak memory is about twice the document size) are capped, gzip output is capped,
  * external entities and network access are disabled in the XML parser. Documents are parsed with XMLReader
  * so memory stays flat for 50 MB sitemaps. A failing nested sitemap is logged and skipped; a failing root
  * sitemap throws.
@@ -33,6 +34,7 @@ final class SitemapReader
         private readonly int $maxDepth = 3,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly int $maxSitemaps = self::MAX_SITEMAPS,
+        private readonly int $maxXmlBytes = self::MAX_XML_BYTES,
     ) {}
 
     /**
@@ -121,7 +123,10 @@ final class SitemapReader
         if (!class_exists(XMLReader::class)) {
             throw new TransportException('SitemapReader needs ext-xmlreader.');
         }
-        $xml = self::gunzip($xml, $source);
+        $xml = $this->gunzip($xml, $source);
+        if (\strlen($xml) > $this->maxXmlBytes) {
+            throw new TransportException(\sprintf('Sitemap %s: %d bytes exceeds the %d byte limit.', $source, \strlen($xml), $this->maxXmlBytes));
+        }
         $previous = libxml_use_internal_errors(true);
         $reader = XMLReader::XML($xml, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT);
         if (!$reader instanceof XMLReader) {
@@ -183,7 +188,7 @@ final class SitemapReader
     /**
      * @throws TransportException
      */
-    private static function gunzip(string $body, string $source): string
+    private function gunzip(string $body, string $source): string
     {
         if (!str_starts_with($body, "\x1f\x8b")) {
             return $body;
@@ -191,12 +196,12 @@ final class SitemapReader
         if (!\function_exists('gzdecode')) {
             throw new TransportException(\sprintf('Sitemap %s is gzip-compressed but ext-zlib is not available.', $source));
         }
-        $decoded = @gzdecode($body, self::MAX_XML_BYTES + 1);
+        $decoded = @gzdecode($body, $this->maxXmlBytes + 1);
         if ($decoded === false) {
             throw new TransportException(\sprintf('Sitemap %s: cannot gunzip.', $source));
         }
-        if (\strlen($decoded) > self::MAX_XML_BYTES) {
-            throw new TransportException(\sprintf('Sitemap %s: decompressed size exceeds %d bytes.', $source, self::MAX_XML_BYTES));
+        if (\strlen($decoded) > $this->maxXmlBytes) {
+            throw new TransportException(\sprintf('Sitemap %s: decompressed size exceeds %d bytes.', $source, $this->maxXmlBytes));
         }
 
         return $decoded;
@@ -225,6 +230,7 @@ final class SitemapReader
         }
 
         return \in_array(strtolower($a['scheme']), ['http', 'https'], true)
+            && strtolower($a['scheme']) === strtolower($b['scheme'] ?? 'https')
             && strtolower($a['host']) === strtolower($b['host'])
             && ($a['port'] ?? null) === ($b['port'] ?? null)
             && !isset($a['user'], $a['pass']) && !isset($a['user']) && !isset($a['pass']);

@@ -220,7 +220,8 @@ foreach ($reader->read('https://www.example.com/sitemap.xml', changedSince: new 
 $indexNow->submit($urls);
 ```
 
-Sitemap indexes are followed (same host only, 3 levels, 1000 documents), `.gz` is decompressed with a 50 MiB cap,
+Sitemap indexes are followed (same scheme, host and port only, 3 levels, 1000 documents), documents and `.gz` output
+are capped at 50 MiB (constructor `maxXmlBytes`; peak memory is about twice the document size),
 documents are streamed with `XMLReader`, external entities are disabled. A nested sitemap that fails is skipped with a
 warning; a failing root sitemap throws `TransportException`.
 
@@ -236,8 +237,9 @@ Config::fromArray([
 ```
 
 Sub-domains are separate hosts for IndexNow: each needs its own key file. With a `key` and no `hosts`, the same key is
-used for every host you submit (each host still needs the key file). Implement `KeyProviderInterface` to load keys
-from a database or a tenant registry.
+used for every host you submit (each host still needs the key file), so never feed `submit()` URLs from untrusted
+input: a foreign host would be announced under your key (engines reject it, but the request is made). Implement
+`KeyProviderInterface` to load keys from a database or a tenant registry.
 
 ## Limitations
 

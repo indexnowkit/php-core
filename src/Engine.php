@@ -46,9 +46,13 @@ enum Engine: string
         }
         $parts = parse_url($value);
         if (\is_array($parts) && isset($parts['scheme'], $parts['host'])) {
+            if (isset($parts['user']) || isset($parts['pass'])) {
+                throw new ConfigurationException(\sprintf('Custom IndexNow endpoint "%s" must not contain credentials.', $value));
+            }
             $scheme = strtolower($parts['scheme']);
-            if ($scheme === 'https' || ($scheme === 'http' && \in_array($parts['host'], ['localhost', '127.0.0.1', '[::1]'], true))) {
-                return $value;
+            $host = strtolower($parts['host']);
+            if ($scheme === 'https' || ($scheme === 'http' && \in_array($host, ['localhost', '127.0.0.1', '[::1]'], true))) {
+                return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '') . ($parts['path'] ?? '') . (isset($parts['query']) ? '?' . $parts['query'] : '');
             }
             throw new ConfigurationException(\sprintf('Custom IndexNow endpoint "%s" must use https (the key travels in the request body).', $value));
         }
