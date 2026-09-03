@@ -21,7 +21,7 @@ final class SyncDispatcher implements DispatcherInterface
         try {
             $this->submitter->submit($urls);
         } catch (Throwable $e) {
-            $this->logger->error('indexnow: sync dispatch failed: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
+            $this->logger->error('indexnow: sync dispatch of {count} URL(s) failed, they are lost: {error}', ['count' => \count($urls), 'error' => $e->getMessage(), 'exception' => $e, 'urls' => \array_slice($urls, 0, 20)]);
         }
     }
 }

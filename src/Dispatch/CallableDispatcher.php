@@ -29,7 +29,7 @@ final class CallableDispatcher implements DispatcherInterface
         try {
             ($this->callable)($urls);
         } catch (Throwable $e) {
-            $this->logger->error('indexnow: dispatch failed: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
+            $this->logger->error('indexnow: dispatch of {count} URL(s) failed, they are lost: {error}', ['count' => \count($urls), 'error' => $e->getMessage(), 'exception' => $e, 'urls' => \array_slice($urls, 0, 20)]);
         }
     }
 }

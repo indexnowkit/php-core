@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit;
 
+use Closure;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\InvalidUrlException;
@@ -158,6 +159,18 @@ final class Submitter implements SubmitterInterface
         return $results;
     }
 
+    private static function describe(callable $listener): string
+    {
+        if (\is_array($listener)) {
+            return (\is_object($listener[0]) ? $listener[0]::class : $listener[0]) . '::' . $listener[1];
+        }
+        if (\is_string($listener)) {
+            return $listener;
+        }
+
+        return $listener instanceof Closure ? 'closure' : get_debug_type($listener);
+    }
+
     private function notify(Result $result): void
     {
         try {
@@ -169,7 +182,7 @@ final class Submitter implements SubmitterInterface
             try {
                 $listener($result);
             } catch (Throwable $e) {
-                $this->logger->error('indexnow: result listener failed: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
+                $this->logger->error('indexnow: result listener {listener} failed: {error}', ['listener' => self::describe($listener), 'error' => $e->getMessage(), 'exception' => $e]);
             }
         }
     }

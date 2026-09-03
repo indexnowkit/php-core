@@ -6,6 +6,7 @@ namespace IndexNowKit\Collector;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use WeakReference;
 
 /**
  * In-memory collector. Deduplicates, preserves insertion order, flushes once.
@@ -18,7 +19,31 @@ final class Collector implements CollectorInterface
     /** @var array<string, true> */
     private array $urls = [];
 
-    public function __construct(private readonly LoggerInterface $logger = new NullLogger()) {}
+    private bool $drained = false;
+
+    /**
+     * @param bool $detectLeaks log a warning at process shutdown when URLs were collected but never drained
+     *                          (a PHP-FPM request that died before the terminate hook): the only trace such a loss leaves
+     */
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger(), bool $detectLeaks = true)
+    {
+        if ($detectLeaks) {
+            $weak = WeakReference::create($this);
+            register_shutdown_function(static function () use ($weak): void {
+                $weak->get()?->reportLeak();
+            });
+        }
+    }
+
+    /**
+     * @internal shutdown hook
+     */
+    public function reportLeak(): void
+    {
+        if ($this->urls !== [] && !$this->drained) {
+            $this->logger->warning('indexnow: {count} collected URL(s) never flushed before the process ended (fatal error or early exit before the request-end hook?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
+        }
+    }
 
     public function add(iterable $urls): void
     {
@@ -46,6 +71,7 @@ final class Collector implements CollectorInterface
     {
         $urls = array_keys($this->urls);
         $this->urls = [];
+        $this->drained = true;
 
         return $urls;
     }
