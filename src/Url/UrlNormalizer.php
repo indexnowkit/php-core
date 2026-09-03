@@ -21,7 +21,10 @@ final class UrlNormalizer implements UrlNormalizerInterface
 
     private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
 
-    public function __construct(private readonly ?string $baseUrl = null) {}
+    /**
+     * @param int $maxUrlLength bytes; URLs above it are rejected ({@see Config::$maxUrlLength})
+     */
+    public function __construct(private readonly ?string $baseUrl = null, private readonly int $maxUrlLength = self::MAX_URL_LENGTH) {}
 
     public function normalize(string $url): string
     {
@@ -29,8 +32,8 @@ final class UrlNormalizer implements UrlNormalizerInterface
         if ($url === '') {
             throw new InvalidUrlException('Empty URL.');
         }
-        if (\strlen($url) > self::MAX_URL_LENGTH) {
-            throw new InvalidUrlException(\sprintf('URL longer than %d bytes.', self::MAX_URL_LENGTH));
+        if (\strlen($url) > $this->maxUrlLength) {
+            throw new InvalidUrlException(\sprintf('URL longer than %d bytes (max_url_length).', $this->maxUrlLength));
         }
         if (preg_match('/[\x00-\x1F\x7F]/', $url) === 1) {
             throw new InvalidUrlException(\sprintf('URL "%s" contains control characters.', self::excerpt($url)));

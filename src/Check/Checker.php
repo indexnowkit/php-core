@@ -32,8 +32,9 @@ final class Checker
     /**
      * @param bool        $liveProbe POST the site root to every endpoint (real request, even with dry_run on)
      * @param string|null $onlyHost  check this host only (multi-domain setups)
+     * @param string|null $probeUrl  page to probe with (default: https://<host>/; give a real page when the root redirects)
      */
-    public function run(bool $liveProbe = false, ?string $onlyHost = null): CheckReport
+    public function run(bool $liveProbe = false, ?string $onlyHost = null, ?string $probeUrl = null): CheckReport
     {
         $report = new CheckReport();
         $config = $this->config;
@@ -52,6 +53,8 @@ final class Checker
             $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped');
         } elseif ($config->hosts !== [] && $config->key !== null) {
             $report->warning('hosts map without strict_hosts: URLs of hosts not listed are still sent under the default key. Set strict_hosts: true unless that is intended.');
+        } elseif ($config->isProduction() && $config->key !== null && $config->baseUrl !== null) {
+            $report->warning(\sprintf('strict_hosts is off: URLs of any host this application is reached under (a staging copy, an internal hostname) are submitted under the %s key. Set strict_hosts: true unless that is intended.', (string) $config->baseHost()));
         }
         if ($config->baseUrl === null) {
             $report->warning('base_url is not set: relative URLs and CLI/worker submissions cannot be resolved. Set INDEXNOW_BASE_URL.');
@@ -71,13 +74,13 @@ final class Checker
             return $report;
         }
         foreach ($hosts as $host) {
-            $this->checkHost($host, $liveProbe, $report);
+            $this->checkHost($host, $liveProbe, $report, $probeUrl);
         }
 
         return $report;
     }
 
-    private function checkHost(string $host, bool $liveProbe, CheckReport $report): void
+    private function checkHost(string $host, bool $liveProbe, CheckReport $report, ?string $probeUrl): void
     {
         $key = $this->keys->keyFor($host);
         if ($key === null) {
@@ -118,11 +121,14 @@ final class Checker
         }
 
         if ($liveProbe && $this->config->enabled) {
-            $this->probe($host, $key, $report);
+            $this->probe($host, $key, $report, $probeUrl);
         }
     }
 
-    private function probe(string $host, string $key, CheckReport $report): void
+    /**
+     * @param string|null $probeUrl a real page of $host (default: its https root, which a redirecting root makes useless)
+     */
+    private function probe(string $host, string $key, CheckReport $report, ?string $probeUrl): void
     {
         try {
             $config = $this->config->with(dryRun: false);
@@ -132,7 +138,7 @@ final class Checker
             return;
         }
         $client = new Client($this->transport, $this->keys, $config, new NullLogger());
-        $probeUrl = 'https://' . $host . '/';
+        $probeUrl = $probeUrl !== null && strcasecmp((string) parse_url($probeUrl, PHP_URL_HOST), $host) === 0 ? $probeUrl : 'https://' . $host . '/';
         foreach ($this->config->endpoints as $endpoint) {
             $result = $client->submitBatch($endpoint, $host, $key, [$probeUrl]);
             match ($result->status) {

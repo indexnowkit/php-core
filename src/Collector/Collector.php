@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Collector;
 
+use IndexNowKit\Config;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use WeakReference;
@@ -25,7 +26,10 @@ final class Collector implements CollectorInterface
      * @param bool $detectLeaks log a warning at process shutdown when URLs were collected but never drained
      *                          (a PHP-FPM request that died before the terminate hook): the only trace such a loss leaves
      */
-    public function __construct(private readonly LoggerInterface $logger = new NullLogger(), bool $detectLeaks = true)
+    /**
+     * @param int $logUrls URLs listed in a leak/discard log line ({@see Config::$logUrls})
+     */
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger(), bool $detectLeaks = true, private readonly int $logUrls = Config::DEFAULT_LOG_URLS)
     {
         if ($detectLeaks) {
             $weak = WeakReference::create($this);
@@ -41,7 +45,7 @@ final class Collector implements CollectorInterface
     public function reportLeak(): void
     {
         if ($this->urls !== [] && !$this->drained) {
-            $this->logger->warning('indexnow: {count} collected URL(s) never flushed before the process ended (fatal error or early exit before the request-end hook?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
+            $this->logger->warning('indexnow: {count} collected URL(s) never flushed before the process ended (fatal error or early exit before the request-end hook?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, $this->logUrls)]);
         }
     }
 
@@ -79,7 +83,7 @@ final class Collector implements CollectorInterface
     public function reset(): void
     {
         if ($this->urls !== []) {
-            $this->logger->warning('indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (request end hook not run?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
+            $this->logger->warning('indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (request end hook not run?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, $this->logUrls)]);
         }
         $this->urls = [];
     }

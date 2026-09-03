@@ -23,8 +23,6 @@ use Throwable;
  */
 final class Submitter implements SubmitterInterface
 {
-    private const LOG_URLS_LIMIT = 20;
-
     /** @var list<callable(Result): void> */
     private array $listeners = [];
 
@@ -34,14 +32,14 @@ final class Submitter implements SubmitterInterface
      * @param EventDispatcherInterface|null $events receives every Result as an event (PSR-14), in addition to listeners
      */
     public function __construct(
-        private readonly Client $client,
+        private readonly ClientInterface $client,
         private readonly Config $config,
         private readonly DebounceStoreInterface $debounce = new MemoryDebounceStore(),
         private readonly LoggerInterface $logger = new NullLogger(),
         ?UrlNormalizerInterface $normalizer = null,
         private readonly ?EventDispatcherInterface $events = null,
     ) {
-        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl);
+        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
     }
 
     public function addListener(callable $listener): void
@@ -54,7 +52,7 @@ final class Submitter implements SubmitterInterface
         [$normalized, $results] = $this->normalize($urls);
         if ($normalized !== []) {
             if (!$this->config->enabled) {
-                $this->logger->info('indexnow: disabled (enabled: false), dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => \array_slice($normalized, 0, self::LOG_URLS_LIMIT)]);
+                $this->logger->log($this->config->logLevel('disabled'), 'indexnow: disabled (enabled: false), dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => $this->config->logSample($normalized)]);
                 $results = [...$results, ...$this->skipped($normalized, Reason::Disabled)];
                 $normalized = [];
             }
@@ -105,7 +103,7 @@ final class Submitter implements SubmitterInterface
             try {
                 $seen[$this->normalizer->normalize($url)] = true;
             } catch (InvalidUrlException $e) {
-                $this->logger->warning('indexnow: dropping URL: {error}', ['error' => $e->getMessage()]);
+                $this->logger->log($this->config->logLevel('invalid_url'), 'indexnow: dropping URL: {error}', ['error' => $e->getMessage()]);
                 $invalid[] = Result::skipped('', [$url], Reason::InvalidUrl, $e->getMessage());
             }
         }
@@ -132,7 +130,7 @@ final class Submitter implements SubmitterInterface
         if ($recent === []) {
             return $urls;
         }
-        $this->logger->debug('indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl, 'urls' => \array_slice($recent, 0, self::LOG_URLS_LIMIT)]);
+        $this->logger->log($this->config->logLevel('debounced'), 'indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl, 'urls' => $this->config->logSample($recent)]);
         $skip = array_fill_keys($recent, true);
 
         return array_values(array_filter($urls, static fn(string $url): bool => !isset($skip[$url])));

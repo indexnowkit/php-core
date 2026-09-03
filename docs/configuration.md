@@ -61,11 +61,24 @@ Config::fromArray([
 | `serve_key_file` | `serveKeyFile` | `true` | whether an adapter should answer `GET /{key}.txt` |
 | `dry_run` | `dryRun` | `false` | log the request instead of sending it |
 | `environment` | `environment` | `null` | application environment; drives the non-production safety net below |
+| `production_environments` | `productionEnvironments` | `['prod', 'production']` | environment names (case-insensitive) that count as production; replaces the default list |
+| `previous_key` | `previousKey` | `null` | the key before a rotation: still accepted by the key file, never submitted; also `hosts.<host>.previous_key` |
+| `hosts.<host>.engines` | `hostEngines` / `endpointsFor()` | inherit `engines` | engines for one host only |
+| `max_url_length` | `maxUrlLength` | `2048` | URLs above it are skipped as `invalid_url` |
+| `debounce.key_prefix` | `debounceKeyPrefix` | `'indexnowkit_'` | cache key prefix of a shared debounce store |
+| `logging.max_urls` | `logUrls` / `logSample()` | `20` | URLs listed in one log line; `0` = counts only |
+| `logging.forbidden_escalation` | `forbiddenEscalation` | `5` | consecutive 403s per host before the log escalates to `critical` |
+| `logging.levels` | `logLevels` / `logLevel()` | `{}` | per-outcome PSR-3 level overrides; events and defaults in `Config::LOG_EVENTS` |
+| `retry.max_attempts`, `retry.base_delay`, `retry.multiplier`, `retry.max_delay`, `retry.server_error_delay` | `retryPolicy()` | `3`, `60`, `2.0`, `3600`, `5` | the `RetryPolicy` for queue handlers and `RetryingSubmitter` |
+| `resolver.max_via_depth`, `resolver.max_via_fanout` | `resolverMaxViaDepth`, `resolverMaxViaFanout` | `3`, `100` | limits of `via:` traversal in `AttributeUrlResolver` |
+| `collector.max_urls` | `collectorMaxUrls` | `0` | `IndexNowKit::collect()` flushes early at this size; `0` = only on `flush()` |
+| `collector.detect_leaks` | `collectorDetectLeaks` | `true` | shutdown warning about collected, never flushed URLs |
 
 Constants worth referencing instead of hard-coding: `Config::MAX_BATCH_URLS` (10000),
 `Config::DEFAULT_BATCH_MAX_URLS`, `Config::DEFAULT_DEBOUNCE_PER_URL` (600),
 `Config::DEFAULT_THROTTLE_PER_MINUTE` (60), `Config::DEFAULT_HTTP_TIMEOUT` (10.0),
-`Config::PRODUCTION_ENVIRONMENTS` (`['prod', 'production']`).
+`Config::PRODUCTION_ENVIRONMENTS` (`['prod', 'production']`), `Config::DEFAULT_MAX_URL_LENGTH`, `Config::DEFAULT_LOG_URLS`,
+`Config::DEFAULT_FORBIDDEN_ESCALATION`, `Config::DEFAULT_RETRY_*`, `Config::DEFAULT_RESOLVER_MAX_VIA_*`, `Config::LOG_EVENTS`.
 
 ## Environment variables
 
@@ -90,6 +103,10 @@ to read from somewhere else, and a second argument to change the `INDEXNOW_` pre
 | `INDEXNOW_SERVE_KEY_FILE` | `serve_key_file` |
 | `INDEXNOW_DRY_RUN` | `dry_run` |
 | `INDEXNOW_ENV`, else `APP_ENV` | `environment` |
+| `INDEXNOW_PRODUCTION_ENVIRONMENTS` | `production_environments`, comma-separated |
+| `INDEXNOW_MAX_URL_LENGTH` | `max_url_length` |
+| `INDEXNOW_LOG_URLS`, `INDEXNOW_FORBIDDEN_ESCALATION` | `logging.max_urls`, `logging.forbidden_escalation` |
+| `INDEXNOW_RETRY_MAX_ATTEMPTS`, `INDEXNOW_RETRY_BASE_DELAY`, `INDEXNOW_RETRY_MULTIPLIER`, `INDEXNOW_RETRY_MAX_DELAY`, `INDEXNOW_RETRY_SERVER_ERROR_DELAY` | `retry.*` |
 
 ## Hosts, keys and `strict_hosts`
 
@@ -113,7 +130,7 @@ host maps). To load keys from a database or a tenant registry, implement `Key\Ke
 ## The dry-run safety net
 
 `Config::fromArray()` switches `dry_run` on by itself when **all** of these hold: no `key`, no `hosts`, an
-`environment` is given, and it is not in `Config::PRODUCTION_ENVIRONMENTS`. A developer who never sets
+`environment` is given, and it is not in `production_environments` (default `Config::PRODUCTION_ENVIRONMENTS`). A developer who never sets
 `INDEXNOW_KEY` locally therefore gets logging instead of a boot failure, and never reaches the real API.
 
 The reverse case is worth alerting on: `dry_run` on while `environment` says production means nothing is being

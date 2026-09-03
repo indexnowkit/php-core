@@ -46,10 +46,17 @@ final readonly class KeyFileResponder
     }
 
     /**
+     * @param bool $varyHost add `Vary: Host` (multi-domain setups behind one shared cache: the body depends on the host)
+     *
      * @return array<string, string>
      */
-    public static function headers(int $maxAge = self::DEFAULT_MAX_AGE): array
+    public static function headers(int $maxAge = self::DEFAULT_MAX_AGE, bool $varyHost = false): array
     {
-        return ['Content-Type' => self::CONTENT_TYPE, 'Cache-Control' => \sprintf('public, max-age=%d', max(0, $maxAge))];
+        $headers = ['Content-Type' => self::CONTENT_TYPE, 'Cache-Control' => \sprintf('public, max-age=%d', max(0, $maxAge))];
+        if ($varyHost) {
+            $headers['Vary'] = 'Host';
+        }
+
+        return $headers;
     }
 }

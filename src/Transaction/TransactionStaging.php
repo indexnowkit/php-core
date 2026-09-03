@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Transaction;
 
+use IndexNowKit\Config;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use WeakMap;
@@ -26,7 +27,10 @@ final class TransactionStaging
     /**
      * @param (callable(list<string>): void)|null $sink receives URLs once the real COMMIT happened
      */
-    public function __construct(?callable $sink = null, private readonly LoggerInterface $logger = new NullLogger())
+    /**
+     * @param int $logUrls URLs listed in the rollback log line ({@see Config::$logUrls})
+     */
+    public function __construct(?callable $sink = null, private readonly LoggerInterface $logger = new NullLogger(), private readonly int $logUrls = Config::DEFAULT_LOG_URLS)
     {
         $this->sink = $sink;
         $this->pending = new WeakMap();
@@ -70,7 +74,7 @@ final class TransactionStaging
     {
         $urls = $this->take($scope);
         if ($urls !== []) {
-            $this->logger->debug('indexnow: discarding {count} staged URL(s), transaction rolled back', ['count' => \count($urls), 'urls' => \array_slice($urls, 0, 20)]);
+            $this->logger->debug('indexnow: discarding {count} staged URL(s), transaction rolled back', ['count' => \count($urls), 'urls' => \array_slice($urls, 0, $this->logUrls)]);
         }
     }
 

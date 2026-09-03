@@ -22,13 +22,13 @@ use Throwable;
  * Protocol client: groups already-normalized URLs by host, chunks them, throttles and POSTs one batch
  * per endpoint. Never throws on HTTP status codes or network errors, only on programming errors.
  */
-final class Client
+final class Client implements ClientInterface
 {
     /** After this many consecutive 403s for a host the log escalates once to critical. */
-    public const FORBIDDEN_ESCALATION = 5;
+    /** Default of `logging.forbidden_escalation`; the effective value is {@see Config::$forbiddenEscalation}. */
+    public const FORBIDDEN_ESCALATION = Config::DEFAULT_FORBIDDEN_ESCALATION;
 
     private const LOG_BODY_LIMIT = 300;
-    private const LOG_URLS_LIMIT = 20;
 
     /** @var array<string, int> host => consecutive 403 count */
     private array $forbidden = [];
@@ -43,7 +43,7 @@ final class Client
         private readonly ThrottleInterface $throttle = new NullThrottle(),
         ?UrlNormalizerInterface $normalizer = null,
     ) {
-        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl);
+        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
     }
 
     /**
@@ -57,12 +57,12 @@ final class Client
         foreach ($this->groupByHost($normalizedUrls) as $host => $urls) {
             $key = $this->keys->keyFor($host);
             if ($key === null) {
-                $this->logger->warning('indexnow: skipping {count} URL(s) for unmanaged host {host}: no key configured (add it to "hosts" or set base_url)', ['count' => \count($urls), 'host' => $host, 'urls' => \array_slice($urls, 0, self::LOG_URLS_LIMIT)]);
+                $this->logger->log($this->config->logLevel('no_key'), 'indexnow: skipping {count} URL(s) for unmanaged host {host}: no key configured (add it to "hosts" or set base_url)', ['count' => \count($urls), 'host' => $host, 'urls' => $this->config->logSample($urls)]);
                 $results[] = Result::skipped($host, $urls, Reason::NoKey, \sprintf('No IndexNow key configured for host "%s".', $host));
                 continue;
             }
             foreach (array_chunk($urls, max(1, $this->config->batchMaxUrls)) as $chunk) {
-                foreach ($this->config->endpoints as $endpoint) {
+                foreach ($this->config->endpointsFor($host) as $endpoint) {
                     $results[] = $this->submitBatch($endpoint, $host, $key, $chunk);
                 }
             }
@@ -99,7 +99,7 @@ final class Client
         }
 
         if ($this->config->dryRun) {
-            $this->logger->info('indexnow: dry-run POST {endpoint} {body}', ['endpoint' => $endpoint, 'body' => self::maskKey($json, $key)]);
+            $this->logger->log($this->config->logLevel('dry_run'), 'indexnow: dry-run POST {endpoint} {body}', ['endpoint' => $endpoint, 'body' => self::maskKey($json, $key)]);
 
             return Result::skipped($host, $urls, Reason::DryRun, engine: $engine, endpoint: $endpoint);
         }
@@ -113,7 +113,7 @@ final class Client
         try {
             $response = $this->transport->post($endpoint, $json, ['User-Agent' => $this->config->userAgent()]);
         } catch (TransportException $e) {
-            $this->logger->warning('indexnow: {engine} transport error for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key)]);
+            $this->logger->log($this->config->logLevel('transport'), 'indexnow: {engine} transport error for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key)]);
 
             return Result::failed($engine, $host, $urls, Reason::Transport, self::maskKey($e->getMessage(), $key), retryable: true, endpoint: $endpoint);
         } catch (Throwable $e) {
@@ -139,14 +139,14 @@ final class Client
         }
 
         return match (true) {
-            $status === 200 => $this->log('debug', 'indexnow: {engine} accepted {count} URL(s) for {host}', $ctx, Result::ok($engine, $host, $urls, 200, $endpoint)),
-            $status === 202 => $this->log('info', 'indexnow: {engine} accepted {count} URL(s) for {host}, key verification pending (202)', $ctx, Result::ok($engine, $host, $urls, 202, $endpoint)),
-            $status === 400 => $this->log('error', 'indexnow: {engine} rejected the request as malformed (400): {body}', $ctx, $failed(Reason::InvalidRequest)),
+            $status === 200 => $this->log($this->config->logLevel('ok'), 'indexnow: {engine} accepted {count} URL(s) for {host}', $ctx, Result::ok($engine, $host, $urls, 200, $endpoint)),
+            $status === 202 => $this->log($this->config->logLevel('pending'), 'indexnow: {engine} accepted {count} URL(s) for {host}, key verification pending (202)', $ctx, Result::ok($engine, $host, $urls, 202, $endpoint)),
+            $status === 400 => $this->log($this->config->logLevel('invalid_request'), 'indexnow: {engine} rejected the request as malformed (400): {body}', $ctx, $failed(Reason::InvalidRequest)),
             $status === 403 => $this->forbidden($host, $key, $ctx, $failed(Reason::InvalidKey)),
-            $status === 422 => $this->log('warning', 'indexnow: {engine} could not process URLs for {host} (422): URLs do not belong to the host or keyLocation is invalid', $ctx, $failed(Reason::Unprocessable)),
-            $status === 429 => $this->log('warning', 'indexnow: {engine} rate limited (429) for {host}, retry after {retry_after}s', $ctx + ['retry_after' => $retryAfter ?? '?'], $failed(Reason::RateLimited, null, true, $retryAfter)),
-            $status >= 500 => $this->log('warning', 'indexnow: {engine} server error {status} for {host}', $ctx, $failed(Reason::ServerError, \sprintf('Server error (%d)', $status), true, $retryAfter)),
-            default => $this->log('error', 'indexnow: {engine} unexpected status {status} for {host}: {body}', $ctx, $failed(Reason::Unexpected, \sprintf('Unexpected status (%d)', $status))),
+            $status === 422 => $this->log($this->config->logLevel('unprocessable'), 'indexnow: {engine} could not process URLs for {host} (422): URLs do not belong to the host or keyLocation is invalid', $ctx, $failed(Reason::Unprocessable)),
+            $status === 429 => $this->log($this->config->logLevel('rate_limited'), 'indexnow: {engine} rate limited (429) for {host}, retry after {retry_after}s', $ctx + ['retry_after' => $retryAfter ?? '?'], $failed(Reason::RateLimited, null, true, $retryAfter)),
+            $status >= 500 => $this->log($this->config->logLevel('server_error'), 'indexnow: {engine} server error {status} for {host}', $ctx, $failed(Reason::ServerError, \sprintf('Server error (%d)', $status), true, $retryAfter)),
+            default => $this->log($this->config->logLevel('unexpected'), 'indexnow: {engine} unexpected status {status} for {host}: {body}', $ctx, $failed(Reason::Unexpected, \sprintf('Unexpected status (%d)', $status))),
         };
     }
 
@@ -159,12 +159,12 @@ final class Client
         $ctx += ['key' => KeyValidator::mask($key), 'consecutive' => $count];
         $message = 'indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run the check command of your adapter, e.g. indexnow:check).';
         $level = match (true) {
-            $count === self::FORBIDDEN_ESCALATION => 'critical',
-            $count > self::FORBIDDEN_ESCALATION => 'warning',
+            $count === $this->config->forbiddenEscalation => 'critical',
+            $count > $this->config->forbiddenEscalation => 'warning',
             default => 'error',
         };
 
-        return $this->log($level, $count === self::FORBIDDEN_ESCALATION ? $message . ' {consecutive} consecutive failures: submissions for this host are not being indexed.' : $message, $ctx, $result);
+        return $this->log($level, $count === $this->config->forbiddenEscalation ? $message . ' {consecutive} consecutive failures: submissions for this host are not being indexed.' : $message, $ctx, $result);
     }
 
     /**

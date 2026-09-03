@@ -94,14 +94,14 @@ final class IndexNowKit
                 throw new ConfigurationException(\sprintf('IndexNowKit::create(): $%s cannot be combined with a custom $submitter, which builds its own pipeline. Pass them to your submitter instead.', implode(', $', $ignored)));
             }
         } else {
-            $normalizer ??= new UrlNormalizer($config->baseUrl);
+            $normalizer ??= new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
             $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
             $transport ??= new LazyTransport(static fn(): TransportInterface => Psr18Transport::discover(timeout: $config->httpTimeout));
             $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);
             $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
         }
 
-        return new self($config, $submitter, $collector ?? new Collector($logger), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $sitemap);
+        return new self($config, $submitter, $collector ?? new Collector($logger, $config->collectorDetectLeaks, $config->logUrls), $dispatcher ?? new SyncDispatcher($submitter, $logger, $config->logUrls), $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $sitemap);
     }
 
     /**
@@ -148,6 +148,10 @@ final class IndexNowKit
     public function collect(iterable $urls): void
     {
         $this->collector->add($this->submitter->prepare($urls));
+        if ($this->config->collectorMaxUrls > 0 && \count($this->collector->all()) >= $this->config->collectorMaxUrls) {
+            $this->logger->info('indexnow: collector reached {max} URL(s) (collector.max_urls), flushing early', ['max' => $this->config->collectorMaxUrls]);
+            $this->flush();
+        }
     }
 
     public function flush(): void

@@ -101,6 +101,22 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 - `SitemapReader` reads local files (`/path/sitemap.xml`, `file://`) without the transport, and text sitemaps
   (one URL per line, sitemaps.org) next to XML ones. A local index follows local parts; URL parts need
   `allowForeignHosts`.
+- **Configurability round** (`Config`, all with `fromArray()` keys, `fromEnv()` variables and `with()` names):
+  `production_environments` (the safety net and `isProduction()` used to recognise only `prod`/`production`),
+  `max_url_length` (`UrlNormalizer` takes it as a constructor argument), `previous_key` and
+  `hosts.<host>.previous_key` (`StaticKeyProvider::isKnownKey()` accepts the previous key, `previousKeyFor()`),
+  `hosts.<host>.engines` with `Config::endpointsFor($host)` (per-host engines in `Client`), `logging.max_urls`
+  (`Config::logSample()`, one limit instead of a literal 20 in five classes), `logging.forbidden_escalation`,
+  `logging.levels` (`Config::logLevel()`, per-outcome PSR-3 levels in `Client` and `Submitter`; events in
+  `Config::LOG_EVENTS`), `retry.*` with `Config::retryPolicy()`, `resolver.max_via_depth` / `max_via_fanout`,
+  `collector.max_urls` (`IndexNowKit::collect()` flushes early) and `collector.detect_leaks`, `debounce.key_prefix`.
+- `ClientInterface`: `Submitter` depends on it, so the HTTP half can be decorated (per-host policy, metrics).
+- `Checker::run(probeUrl:)`: probe with a real page when the site root redirects.
+- `Checker` warns in production when `strict_hosts` is off and a `base_url` is set: any hostname the app is reached
+  under would be submitted under the production key.
+- `AttributeReader::clear()` for long-running workers and test suites; `RuleCompiler` derives the default event
+  list from `Event::cases()`.
+- `KeyFileResponder::headers($maxAge, varyHost: true)` adds `Vary: Host` for multi-domain setups.
 - `IndexNowKit::sitemap()` returns the sitemap source (the one passed to `create(sitemap:)`, else a `SitemapReader`
   over the facade's transport); `IndexNowKit::$transport` exposes that transport. `create()` wraps the discovered
   transport in `LazyTransport`, so a facade that submits nothing never discovers a client.

@@ -27,9 +27,11 @@ dedicated channel — `indexnow` in the Symfony bundle — so `tail -f var/log/p
 | `error` | `indexnow: throttle failed, sending without rate limiting: {error}` |
 | `critical` | the 403 message plus `{consecutive} consecutive failures: submissions for this host are not being indexed.` |
 
-The 403 escalation is the one line to page on. `Client::FORBIDDEN_ESCALATION` is 5: the fifth consecutive 403 for a
-host is logged once at `critical`, further ones drop back to `warning` so they do not spam, and any non-403 response
-resets the counter. Keys are masked everywhere, including inside response bodies and exception messages.
+The 403 escalation is the one line to page on. `logging.forbidden_escalation` is 5 by default: the fifth consecutive 403
+for a host is logged once at `critical`, further ones drop back to `warning` so they do not spam, and any non-403
+response resets the counter. Every other level in these tables is the default of `logging.levels` (`Config::LOG_EVENTS`)
+and can be raised or lowered per outcome; `logging.max_urls` decides how many URLs a line lists (0 for PII-sensitive
+logs). Keys are masked everywhere, including inside response bodies and exception messages.
 
 ### Submission pipeline (`Submitter`)
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Dispatch;
 
+use IndexNowKit\Config;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Throwable;
@@ -19,7 +20,10 @@ final class CallableDispatcher implements DispatcherInterface
     /**
      * @param callable(list<string>): void $callable
      */
-    public function __construct(callable $callable, private readonly LoggerInterface $logger = new NullLogger())
+    /**
+     * @param int $logUrls URLs listed in the failure log line ({@see Config::$logUrls})
+     */
+    public function __construct(callable $callable, private readonly LoggerInterface $logger = new NullLogger(), private readonly int $logUrls = Config::DEFAULT_LOG_URLS)
     {
         $this->callable = $callable;
     }
@@ -29,7 +33,7 @@ final class CallableDispatcher implements DispatcherInterface
         try {
             ($this->callable)($urls);
         } catch (Throwable $e) {
-            $this->logger->error('indexnow: dispatch of {count} URL(s) failed, they are lost: {error}', ['count' => \count($urls), 'error' => $e->getMessage(), 'exception' => $e, 'urls' => \array_slice($urls, 0, 20)]);
+            $this->logger->error('indexnow: dispatch of {count} URL(s) failed, they are lost: {error}', ['count' => \count($urls), 'error' => $e->getMessage(), 'exception' => $e, 'urls' => \array_slice($urls, 0, $this->logUrls)]);
         }
     }
 }

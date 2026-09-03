@@ -36,6 +36,32 @@ final class ClientTest extends TestCase
     private const HOST = 'www.example.com';
     private const URL = 'https://www.example.com/a';
 
+    public function testPerHostEnginesRouteEachHostToItsOwnEndpoints(): void
+    {
+        $t = new FakeTransport();
+        $config = Factory::config(['hosts' => ['example.ru' => ['key' => 'ru1234567890', 'engines' => ['yandex']]]]);
+
+        $results = $this->client($t, $config)->submitAll(['https://www.example.com/a', 'https://example.ru/b']);
+
+        self::assertCount(2, $results);
+        self::assertSame(['https://api.indexnow.org/indexnow', 'https://yandex.com/indexnow'], array_column($t->posts, 'url'));
+    }
+
+    public function testConfiguredLogLevelsAndEscalationThresholdApply(): void
+    {
+        $t = new FakeTransport();
+        $t->willRespond(new Response(200), new Response(403), new Response(403));
+        $logger = new ArrayLogger();
+        $config = Factory::config(['logging' => ['levels' => ['ok' => 'notice'], 'forbidden_escalation' => 2]]);
+        $client = $this->client($t, $config, $logger);
+
+        $client->submitAll([self::URL]);
+        self::assertCount(1, $logger->messages('notice'), 'ok logged at the configured level');
+        $client->submitAll([self::URL]);
+        $client->submitAll([self::URL]);
+        self::assertCount(1, $logger->messages('critical'), 'the second consecutive 403 escalates with forbidden_escalation: 2');
+    }
+
     private function client(FakeTransport $t, ?Config $config = null, ?ArrayLogger $logger = null, ?ThrottleInterface $throttle = null): Client
     {
         $config ??= Factory::config();

@@ -21,8 +21,6 @@ use ReflectionMethod;
  */
 final class RuleCompiler
 {
-    private const ALL_EVENTS = [Event::Created, Event::Updated, Event::Deleted];
-
     private function __construct() {}
 
     /**
@@ -127,7 +125,7 @@ final class RuleCompiler
             when: self::when($defaults, $a->when),
             whenFields: self::whenFields($defaults, $a->when, $a->whenFields),
             fields: $a->fields ?? $defaults->fields ?? [],
-            events: $a->events ?? $defaults->events ?? self::ALL_EVENTS,
+            events: $a->events ?? $defaults->events ?? Event::cases(),
             locales: $a->locales ?? $defaults->locales ?? 'current',
             host: $a->host,
         );
@@ -146,7 +144,7 @@ final class RuleCompiler
             when: self::when($defaults, $a->when),
             whenFields: self::whenFields($defaults, $a->when, $a->whenFields),
             fields: $a->fields ?? $defaults->fields ?? [],
-            events: $a->events ?? $defaults->events ?? self::ALL_EVENTS,
+            events: $a->events ?? $defaults->events ?? Event::cases(),
             locales: $defaults->locales ?? 'current',
         );
     }

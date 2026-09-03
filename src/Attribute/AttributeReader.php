@@ -28,4 +28,18 @@ final class AttributeReader implements AttributeReaderInterface
 
         return $this->cache[$class] ??= RuleCompiler::compile(new ReflectionClass($class));
     }
+
+    /**
+     * Drop compiled rules (all, or one class): long-running workers that reload classes, test suites.
+     *
+     * @param class-string|null $class
+     */
+    public function clear(?string $class = null): void
+    {
+        if ($class === null) {
+            $this->cache = [];
+        } else {
+            unset($this->cache[$class]);
+        }
+    }
 }

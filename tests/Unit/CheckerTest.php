@@ -17,6 +17,33 @@ use PHPUnit\Framework\TestCase;
 
 final class CheckerTest extends TestCase
 {
+    public function testLiveProbeUsesTheGivenPageOnlyWhenItBelongsToTheHost(): void
+    {
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $config = Factory::config(['environment' => 'dev']);
+        $checker = new Checker($config, StaticKeyProvider::fromConfig($config), $t);
+
+        $checker->run(liveProbe: true, probeUrl: 'https://www.example.com/blog/hello');
+        self::assertSame(['https://www.example.com/blog/hello'], $t->posts[0]['body']['urlList']);
+
+        $checker->run(liveProbe: true, probeUrl: 'https://other.example.net/page');
+        self::assertSame(['https://www.example.com/'], $t->posts[1]['body']['urlList'], 'a page of another host falls back to the root');
+    }
+
+    public function testProductionWithoutStrictHostsIsFlagged(): void
+    {
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $prod = Factory::config(['environment' => 'prod']);
+        $messages = array_map(static fn(CheckItem $i): string => $i->level->value . ' ' . $i->message, (new Checker($prod, StaticKeyProvider::fromConfig($prod), $t))->run()->items());
+        self::assertStringContainsString('warning strict_hosts is off', implode("\n", $messages));
+
+        $dev = Factory::config(['environment' => 'dev']);
+        $messages = array_map(static fn(CheckItem $i): string => $i->message, (new Checker($dev, StaticKeyProvider::fromConfig($dev), $t))->run()->items());
+        self::assertStringNotContainsString('strict_hosts is off', implode("\n", $messages), 'no nag outside production');
+    }
+
     public function testKeyFileOkAndLiveProbe(): void
     {
         $config = Factory::config();

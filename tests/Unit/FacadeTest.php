@@ -143,6 +143,23 @@ final class FacadeTest extends TestCase
         self::assertSame($custom, IndexNowKit::create(Factory::config(), transport: $transport, sitemap: $custom)->sitemap());
     }
 
+    public function testCollectorMaxUrlsFlushesEarly(): void
+    {
+        $batches = [];
+        $kit = IndexNowKit::create(Factory::config(['collector' => ['max_urls' => 2]]), transport: new FakeTransport(), dispatcher: new CallableDispatcher(static function (array $urls) use (&$batches): void {
+            $batches[] = $urls;
+        }));
+
+        $kit->collect(['https://www.example.com/1']);
+        self::assertSame([], $batches);
+        $kit->collect(['https://www.example.com/2']);
+        self::assertCount(1, $batches, 'flushed as soon as the cap was reached');
+        self::assertCount(2, $batches[0]);
+        $kit->collect(['https://www.example.com/3']);
+        $kit->flush();
+        self::assertCount(2, $batches);
+    }
+
     public function testCollectAndFlushGoThroughDispatcher(): void
     {
         $received = [];
