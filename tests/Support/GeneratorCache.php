@@ -16,19 +16,22 @@ final class GeneratorCache implements CacheInterface
     /** @var array<string, mixed> */
     private array $values = [];
 
-    public function get(string $key, mixed $default = null): mixed
+    /** @param string $key */
+    public function get($key, $default = null): mixed
     {
         return $this->values[$key] ?? $default;
     }
 
-    public function set(string $key, mixed $value, null|int|DateInterval $ttl = null): bool
+    /** @param string $key @param null|int|DateInterval $ttl */
+    public function set($key, $value, $ttl = null): bool
     {
         $this->values[$key] = $value;
 
         return true;
     }
 
-    public function delete(string $key): bool
+    /** @param string $key */
+    public function delete($key): bool
     {
         unset($this->values[$key]);
 
@@ -42,7 +45,8 @@ final class GeneratorCache implements CacheInterface
         return true;
     }
 
-    public function getMultiple(iterable $keys, mixed $default = null): iterable
+    /** @param iterable<string> $keys */
+    public function getMultiple($keys, $default = null): iterable
     {
         foreach ($keys as $key) {
             yield $key => $this->values[$key] ?? $default;
@@ -52,7 +56,8 @@ final class GeneratorCache implements CacheInterface
     /**
      * @param iterable<string, mixed> $values
      */
-    public function setMultiple(iterable $values, null|int|DateInterval $ttl = null): bool
+    /** @param iterable<string, mixed> $values @param null|int|DateInterval $ttl */
+    public function setMultiple($values, $ttl = null): bool
     {
         foreach ($values as $key => $value) {
             $this->values[$key] = $value;
@@ -61,7 +66,8 @@ final class GeneratorCache implements CacheInterface
         return true;
     }
 
-    public function deleteMultiple(iterable $keys): bool
+    /** @param iterable<string> $keys */
+    public function deleteMultiple($keys): bool
     {
         foreach ($keys as $key) {
             unset($this->values[$key]);
@@ -70,7 +76,8 @@ final class GeneratorCache implements CacheInterface
         return true;
     }
 
-    public function has(string $key): bool
+    /** @param string $key */
+    public function has($key): bool
     {
         return isset($this->values[$key]);
     }
