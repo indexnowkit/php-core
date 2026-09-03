@@ -16,7 +16,10 @@ final class Version
     public static function get(): string
     {
         if (class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('indexnowkit/core')) {
-            return ltrim((string) InstalledVersions::getPrettyVersion('indexnowkit/core'), 'v');
+            $installed = ltrim((string) InstalledVersions::getPrettyVersion('indexnowkit/core'), 'v');
+            if (preg_match('/^\d+\.\d+/', $installed) === 1) {
+                return $installed; // a tagged release; branch installs (dev-main) fall back to the constant
+            }
         }
 
         return self::VERSION;
