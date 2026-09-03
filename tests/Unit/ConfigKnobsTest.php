@@ -122,6 +122,34 @@ final class ConfigKnobsTest extends TestCase
         self::assertSame([], Config::unknownOptions(['retry' => ['max_attempts' => 1], 'logging' => ['levels' => []], 'resolver' => ['max_via_depth' => 1], 'collector' => ['max_urls' => 1], 'production_environments' => ['x'], 'max_url_length' => 100, 'previous_key' => 'x']));
     }
 
+    public function testEngineAliasesLocaleHostsAndLogBody(): void
+    {
+        $config = Factory::config([
+            'engine_aliases' => ['Corp' => 'https://index.corp.example/indexnow'],
+            'engines' => ['api', 'corp'],
+            'locale_hosts' => ['EN' => 'www.example.com', 'de' => 'Example.DE'],
+            'logging' => ['max_body' => 10],
+            'hosts' => ['example.de' => ['key' => 'de1234567890', 'engines' => ['corp']]],
+        ]);
+
+        self::assertSame(['https://api.indexnow.org/indexnow', 'https://index.corp.example/indexnow'], $config->endpoints);
+        self::assertSame(['https://index.corp.example/indexnow'], $config->endpointsFor('example.de'));
+        self::assertSame(['en' => 'www.example.com', 'de' => 'example.de'], $config->localeHosts);
+        self::assertSame('example.de', $config->hostForLocale('DE'));
+        self::assertNull($config->hostForLocale('fr'));
+        self::assertSame(10, $config->logBody);
+        self::assertSame($config->engineAliases, $config->with(dryRun: true)->engineAliases);
+
+        try {
+            Factory::config(['engine_aliases' => ['yandex' => 'https://x.example/indexnow']]);
+            self::fail('built-in names cannot be aliased');
+        } catch (ConfigurationException $e) {
+            self::assertStringContainsString('engine_aliases', $e->getMessage());
+        }
+        $this->expectException(ConfigurationException::class);
+        Factory::config(['locale_hosts' => ['en' => 'https://www.example.com']]);
+    }
+
     public function testFromEnvReadsTheNewOptions(): void
     {
         $config = Config::fromEnv([

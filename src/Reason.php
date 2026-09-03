@@ -47,6 +47,14 @@ enum Reason: string
     }
 
     /**
+     * Translation key for UIs (`indexnowkit.reason.<value>`); {@see message()} is the English text for logs.
+     */
+    public function translationKey(): string
+    {
+        return 'indexnowkit.reason.' . $this->value;
+    }
+
+    /**
      * Short human sentence for logs and CLI output.
      */
     public function message(): string

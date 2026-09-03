@@ -27,14 +27,19 @@ use Throwable;
  */
 final class Psr18Transport implements StreamingTransportInterface
 {
+    /** Default of $postBodyLimit: a submission response is diagnostics only. */
     public const POST_BODY_LIMIT = 2048;
     public const GET_BODY_LIMIT = 52_428_800;
+    /** Default of $maxRetryAfter. */
     public const MAX_RETRY_AFTER = Response::MAX_RETRY_AFTER;
 
     private const READ_CHUNK = 65536;
 
     /**
-     * @param array<string, string> $extraHeaders sent with every request (tests use X-Mock-Scenario)
+     * @param array<string, string> $extraHeaders  sent with every request (tests use X-Mock-Scenario)
+     * @param int                   $getBodyLimit  bytes of a GET body (sitemaps, key files) before the request fails
+     * @param int                   $postBodyLimit bytes of a POST response kept for diagnostics; the rest is discarded
+     * @param int                   $maxRetryAfter clamp of a parsed Retry-After header, seconds
      */
     public function __construct(
         private readonly ClientInterface $client,
@@ -42,6 +47,8 @@ final class Psr18Transport implements StreamingTransportInterface
         private readonly StreamFactoryInterface $streamFactory,
         private readonly array $extraHeaders = [],
         private readonly int $getBodyLimit = self::GET_BODY_LIMIT,
+        private readonly int $postBodyLimit = self::POST_BODY_LIMIT,
+        private readonly int $maxRetryAfter = self::MAX_RETRY_AFTER,
     ) {}
 
     /**
@@ -76,12 +83,12 @@ final class Psr18Transport implements StreamingTransportInterface
             $request = $request->withHeader($name, $value);
         }
 
-        return $this->send($request, self::POST_BODY_LIMIT);
+        return $this->send($request, $this->postBodyLimit, post: true);
     }
 
     public function get(string $url): Response
     {
-        return $this->send($this->getRequest($url), $this->getBodyLimit);
+        return $this->send($this->getRequest($url), $this->getBodyLimit, post: false);
     }
 
     public function download(string $url, $sink): Response
@@ -98,7 +105,7 @@ final class Psr18Transport implements StreamingTransportInterface
             self::assertComplete($response, $read, $request);
         }
 
-        return new Response($response->getStatusCode(), '', self::retryAfter($response));
+        return new Response($response->getStatusCode(), '', $this->retryAfter($response));
     }
 
     private function getRequest(string $url): RequestInterface
@@ -140,15 +147,15 @@ final class Psr18Transport implements StreamingTransportInterface
         return Psr18ClientDiscovery::find();
     }
 
-    private function send(RequestInterface $request, int $bodyLimit): Response
+    private function send(RequestInterface $request, int $bodyLimit, bool $post): Response
     {
         $response = $this->sendRequest($request);
-        $content = $this->readBody($response->getBody(), $bodyLimit, $request);
-        if ($bodyLimit !== self::POST_BODY_LIMIT) {
+        $content = $this->readBody($response->getBody(), $bodyLimit, $request, $post);
+        if (!$post) {
             self::assertComplete($response, \strlen($content), $request);
         }
 
-        return new Response($response->getStatusCode(), $content, self::retryAfter($response));
+        return new Response($response->getStatusCode(), $content, $this->retryAfter($response));
     }
 
     private function sendRequest(RequestInterface $request): ResponseInterface
@@ -160,7 +167,7 @@ final class Psr18Transport implements StreamingTransportInterface
         }
     }
 
-    private function readBody(StreamInterface $body, int $limit, RequestInterface $request): string
+    private function readBody(StreamInterface $body, int $limit, RequestInterface $request, bool $truncate): string
     {
         if (!$body->isReadable()) {
             return '';
@@ -168,20 +175,21 @@ final class Psr18Transport implements StreamingTransportInterface
         $content = '';
         $this->copyBody($body, $limit, $request, static function (string $chunk) use (&$content): void {
             $content .= $chunk;
-        });
+        }, $truncate);
 
         return $content;
     }
 
     /**
-     * Reads $body in READ_CHUNK pieces and hands each to $write; a body over $limit is truncated (POST diagnostics)
-     * or rejected (GET). A connection that drops mid-body surfaces as a TransportException naming the bytes read.
+     * Reads $body in READ_CHUNK pieces and hands each to $write; a body over $limit is truncated ($truncate, POST
+     * diagnostics) or rejected (GET). A connection that drops mid-body surfaces as a TransportException naming the
+     * bytes read.
      *
      * @param callable(string): void $write
      *
      * @return int bytes read
      */
-    private function copyBody(StreamInterface $body, int $limit, RequestInterface $request, callable $write): int
+    private function copyBody(StreamInterface $body, int $limit, RequestInterface $request, callable $write, bool $truncate = false): int
     {
         $read = 0;
         try {
@@ -199,7 +207,7 @@ final class Psr18Transport implements StreamingTransportInterface
         } catch (Throwable $e) {
             throw new TransportException(\sprintf('%s %s: connection lost after %d bytes: %s', $request->getMethod(), $request->getUri()->getHost(), $read, $e->getMessage()), 0, $e);
         }
-        if ($overflow && $limit !== self::POST_BODY_LIMIT) {
+        if ($overflow && !$truncate) {
             throw new TransportException(\sprintf('%s %s: response body larger than %d bytes.', $request->getMethod(), $request->getUri()->getHost(), $limit));
         }
 
@@ -220,8 +228,8 @@ final class Psr18Transport implements StreamingTransportInterface
     /**
      * Retry-After as delay seconds (RFC 9110 §10.2.3: delta-seconds or HTTP-date), clamped.
      */
-    private static function retryAfter(ResponseInterface $response): ?int
+    private function retryAfter(ResponseInterface $response): ?int
     {
-        return Response::parseRetryAfter($response->getHeaderLine('Retry-After'), self::MAX_RETRY_AFTER);
+        return Response::parseRetryAfter($response->getHeaderLine('Retry-After'), $this->maxRetryAfter);
     }
 }

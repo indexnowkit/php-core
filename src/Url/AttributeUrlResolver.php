@@ -21,6 +21,10 @@ use Stringable;
  */
 final class AttributeUrlResolver implements UrlResolverInterface
 {
+    /**
+     * @param array<string, string> $localeHosts locale => host ({@see Config::$localeHosts}): a rule without `host` generates each
+     *                                           locale on that locale's host
+     */
     public function __construct(
         private readonly AttributeReaderInterface $reader,
         private readonly ?RouteUrlResolverInterface $router = null,
@@ -28,6 +32,7 @@ final class AttributeUrlResolver implements UrlResolverInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly int $maxViaDepth = 3,
         private readonly int $maxViaFanout = 100,
+        private readonly array $localeHosts = [],
     ) {}
 
     /**
@@ -89,9 +94,10 @@ final class AttributeUrlResolver implements UrlResolverInterface
         if ($this->router === null) {
             throw new ConfigurationException(\sprintf('%s rule "%s" uses route "%s" but no router bridge is configured. Use a framework adapter, or url:/resolver: instead of route:.', $subject::class, $rule->name, (string) $rule->route));
         }
-        $host = $rule->host === null ? null : self::stringOrNull(ParamExtractor::resolve($subject, $rule->host));
+        $ruleHost = $rule->host === null ? null : self::stringOrNull(ParamExtractor::resolve($subject, $rule->host));
         $out = [];
         foreach ($this->router->locales($rule->locales) as $locale) {
+            $host = $ruleHost ?? ($locale === null ? null : ($this->localeHosts[strtolower($locale)] ?? null));
             $params = ParamExtractor::extract($subject, $rule->params, $locale, $host);
             $out[] = new ResolvedUrl($this->router->generate((string) $rule->route, $params, $locale, $host), $rule->name, $subject::class, $event, $locale);
         }

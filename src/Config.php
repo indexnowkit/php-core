@@ -45,6 +45,8 @@ final readonly class Config
         'disabled' => 'info', 'debounced' => 'debug', 'invalid_url' => 'warning',
     ];
     private const LOG_LEVELS = ['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug'];
+    /** Bytes of a response body kept in a failure log line. */
+    public const DEFAULT_LOG_BODY = 300;
 
     /** @var list<string> engine names or endpoint URLs as configured */
     public array $engines;
@@ -73,6 +75,12 @@ final readonly class Config
     /** @var array<string, string> lower-cased log event => level (validated PSR-3 level names) */
     public array $logLevels;
 
+    /** @var array<string, string> engine alias => https endpoint, usable in `engines` and `hosts.<host>.engines` */
+    public array $engineAliases;
+
+    /** @var array<string, string> locale => host: rules with `locales` and no `host` generate each locale on its host */
+    public array $localeHosts;
+
     /** @var list<string> lower-cased names of environments treated as production */
     public array $productionEnvironments;
 
@@ -82,7 +90,7 @@ final readonly class Config
         'strict_hosts', 'environment', 'production_environments', 'max_url_length', 'previous_key',
         'batch.max_urls', 'debounce.per_url', 'debounce.key_prefix', 'throttle.max_requests_per_minute',
         'http.timeout', 'http.user_agent',
-        'logging.max_urls', 'logging.forbidden_escalation', 'logging.levels',
+        'logging.max_urls', 'logging.forbidden_escalation', 'logging.levels', 'logging.max_body', 'engine_aliases', 'locale_hosts',
         'retry.max_attempts', 'retry.base_delay', 'retry.multiplier', 'retry.max_delay', 'retry.server_error_delay',
         'resolver.max_via_depth', 'resolver.max_via_fanout', 'collector.max_urls', 'collector.detect_leaks',
     ];
@@ -107,6 +115,9 @@ final readonly class Config
      * @param string                                                                                       $debounceKeyPrefix cache key prefix of the shared debounce store (one per application sharing a pool)
      * @param int                                                                                          $collectorMaxUrls flush the collector as soon as it holds this many URLs (0 = only at request end)
      * @param bool                                                                                         $collectorDetectLeaks warn at shutdown about collected URLs that were never flushed
+     * @param int                                                                                          $logBody bytes of a response body kept in a failure log line
+     * @param array<mixed, mixed>                                                                          $engineAliases short names for custom endpoints: `{corp: 'https://index.corp.example/indexnow'}`
+     * @param array<mixed, mixed>                                                                          $localeHosts locale => host for multi-domain locales: `{en: 'www.example.com', de: 'example.de'}`
      *
      * @throws ConfigurationException
      */
@@ -143,7 +154,15 @@ final readonly class Config
         public string $debounceKeyPrefix = self::DEFAULT_DEBOUNCE_KEY_PREFIX,
         public int $collectorMaxUrls = 0,
         public bool $collectorDetectLeaks = true,
+        public int $logBody = self::DEFAULT_LOG_BODY,
+        array $engineAliases = [],
+        array $localeHosts = [],
     ) {
+        if ($logBody < 0) {
+            throw new ConfigurationException(\sprintf('"logging.max_body" must be >= 0, got %d.', $logBody));
+        }
+        $this->engineAliases = self::normalizeEngineAliases($engineAliases);
+        $this->localeHosts = self::normalizeLocaleHosts($localeHosts);
         if ($previousKey !== null) {
             KeyValidator::assertValid($previousKey);
         }
@@ -214,12 +233,73 @@ final readonly class Config
             throw new ConfigurationException('"strict_hosts" needs at least one known host: set "base_url" or a "hosts" map.');
         }
         $this->engines = array_values($engines);
-        $this->endpoints = array_values(array_unique(array_map(Engine::resolveEndpoint(...), $engines)));
+        $this->endpoints = array_values(array_unique(array_map($this->resolveEngine(...), $engines)));
         $hostEndpoints = [];
         foreach ($this->hostEngines as $host => $hostEngineList) {
-            $hostEndpoints[$host] = array_values(array_unique(array_map(Engine::resolveEndpoint(...), $hostEngineList)));
+            $hostEndpoints[$host] = array_values(array_unique(array_map($this->resolveEngine(...), $hostEngineList)));
         }
         $this->hostEndpoints = $hostEndpoints;
+    }
+
+    /**
+     * Engine name, alias ({@see $engineAliases}) or endpoint URL to its endpoint.
+     *
+     * @throws ConfigurationException
+     */
+    public function resolveEngine(string $engine): string
+    {
+        return Engine::resolveEndpoint($this->engineAliases[strtolower(trim($engine))] ?? $engine);
+    }
+
+    /**
+     * Host of a locale ({@see $localeHosts}), or null when the locale has no host of its own.
+     */
+    public function hostForLocale(?string $locale): ?string
+    {
+        return $locale === null ? null : ($this->localeHosts[strtolower($locale)] ?? null);
+    }
+
+    /**
+     * @param array<mixed, mixed> $aliases
+     *
+     * @return array<string, string>
+     *
+     * @throws ConfigurationException
+     */
+    private static function normalizeEngineAliases(array $aliases): array
+    {
+        $out = [];
+        foreach ($aliases as $name => $endpoint) {
+            if (!\is_string($name) || preg_match('/^[a-z][a-z0-9_-]*$/i', $name) !== 1 || Engine::tryFrom(strtolower($name)) !== null) {
+                throw new ConfigurationException(\sprintf('"engine_aliases" names must be identifiers that are not built-in engines, got "%s".', (string) $name));
+            }
+            if (!\is_string($endpoint) || !self::isAbsoluteHttpUrl($endpoint)) {
+                throw new ConfigurationException(\sprintf('"engine_aliases.%s" must be an endpoint URL.', $name));
+            }
+            $out[strtolower($name)] = Engine::resolveEndpoint($endpoint);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<mixed, mixed> $hosts
+     *
+     * @return array<string, string>
+     *
+     * @throws ConfigurationException
+     */
+    private static function normalizeLocaleHosts(array $hosts): array
+    {
+        $out = [];
+        foreach ($hosts as $locale => $host) {
+            if (!\is_string($locale) || $locale === '' || !\is_string($host) || preg_match('/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i', $host) !== 1) {
+                throw new ConfigurationException(\sprintf('"locale_hosts" must map locales to bare host names, got "%s" => %s.', (string) $locale, \is_scalar($host) ? '"' . (string) $host . '"' : get_debug_type($host)));
+            }
+            $out[strtolower($locale)] = strtolower($host);
+        }
+
+        return $out;
     }
 
     /**
@@ -285,6 +365,10 @@ final readonly class Config
         $collector = self::sub($data, 'collector');
         /** @var array<mixed, mixed> $logLevels */
         $logLevels = \is_array($logging['levels'] ?? null) ? $logging['levels'] : [];
+        /** @var array<mixed, mixed> $engineAliases */
+        $engineAliases = \is_array($data['engine_aliases'] ?? null) ? $data['engine_aliases'] : [];
+        /** @var array<mixed, mixed> $localeHosts */
+        $localeHosts = \is_array($data['locale_hosts'] ?? null) ? $data['locale_hosts'] : [];
         $productionEnvironments = self::list($data['production_environments'] ?? null) ?? self::PRODUCTION_ENVIRONMENTS;
 
         /** @var array<string, string|array{key: string, key_location?: string|null, base_url?: string|null, engines?: list<string>|null, previous_key?: string|null}> $hosts */
@@ -331,6 +415,9 @@ final readonly class Config
             debounceKeyPrefix: self::str($debounce['key_prefix'] ?? null) ?? self::DEFAULT_DEBOUNCE_KEY_PREFIX,
             collectorMaxUrls: self::int($collector['max_urls'] ?? null, 0, 'collector.max_urls'),
             collectorDetectLeaks: (bool) ($collector['detect_leaks'] ?? true),
+            logBody: self::int($logging['max_body'] ?? null, self::DEFAULT_LOG_BODY, 'logging.max_body'),
+            engineAliases: $engineAliases,
+            localeHosts: $localeHosts,
         );
     }
 
@@ -427,6 +514,9 @@ final readonly class Config
             'debounceKeyPrefix' => $this->debounceKeyPrefix,
             'collectorMaxUrls' => $this->collectorMaxUrls,
             'collectorDetectLeaks' => $this->collectorDetectLeaks,
+            'logBody' => $this->logBody,
+            'engineAliases' => $this->engineAliases,
+            'localeHosts' => $this->localeHosts,
         ];
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {

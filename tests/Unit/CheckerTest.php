@@ -14,6 +14,7 @@ use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Tests\Support\Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class CheckerTest extends TestCase
 {
@@ -29,6 +30,32 @@ final class CheckerTest extends TestCase
 
         $checker->run(liveProbe: true, probeUrl: 'https://other.example.net/page');
         self::assertSame(['https://www.example.com/'], $t->posts[1]['body']['urlList'], 'a page of another host falls back to the root');
+    }
+
+    public function testExtraChecksRunAfterTheBuiltInOnesAndNeverThrow(): void
+    {
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $config = Factory::config(['environment' => 'dev']);
+        $ok = new class implements \IndexNowKit\Check\CheckInterface {
+            public function check(\IndexNowKit\Check\CheckReport $report): void
+            {
+                $report->ok('cdn: key file purged');
+            }
+        };
+        $broken = new class implements \IndexNowKit\Check\CheckInterface {
+            public function check(\IndexNowKit\Check\CheckReport $report): void
+            {
+                throw new RuntimeException('tenant table unreachable');
+            }
+        };
+
+        $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t, [$ok, $broken]))->run();
+        $messages = array_map(static fn(CheckItem $i): string => $i->level->value . ' ' . $i->message, $report->items());
+
+        self::assertContains('ok cdn: key file purged', $messages);
+        self::assertStringContainsString('error ' . $broken::class . ' failed: tenant table unreachable', implode("\n", $messages));
+        self::assertTrue($report->hasErrors());
     }
 
     public function testProductionWithoutStrictHostsIsFlagged(): void

@@ -28,7 +28,6 @@ final class Client implements ClientInterface
     /** Default of `logging.forbidden_escalation`; the effective value is {@see Config::$forbiddenEscalation}. */
     public const FORBIDDEN_ESCALATION = Config::DEFAULT_FORBIDDEN_ESCALATION;
 
-    private const LOG_BODY_LIMIT = 300;
 
     /** @var array<string, int> host => consecutive 403 count */
     private array $forbidden = [];
@@ -131,7 +130,7 @@ final class Client implements ClientInterface
      */
     private function interpret(string $endpoint, string $engine, string $host, array $urls, int $status, string $body, ?int $retryAfter, string $key): Result
     {
-        $ctx = ['engine' => $engine, 'host' => $host, 'count' => \count($urls), 'status' => $status, 'body' => self::maskKey(substr($body, 0, self::LOG_BODY_LIMIT), $key)];
+        $ctx = ['engine' => $engine, 'host' => $host, 'count' => \count($urls), 'status' => $status, 'body' => self::maskKey(substr($body, 0, $this->config->logBody), $key)];
         $failed = fn(Reason $reason, ?string $error = null, bool $retryable = false, ?int $after = null): Result => Result::failed($engine, $host, $urls, $reason, $error, $status, $retryable, $after, $endpoint);
 
         if ($status !== 403) {

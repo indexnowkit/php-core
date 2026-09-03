@@ -31,6 +31,36 @@ final class ObjectChangeHandlerInvalidPost {}
 #[IndexNowAttribute(route: 'nope')]
 final class ObjectChangeHandlerRoutedPost {}
 
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug', 'cat' => 'category.slug'], when: 'published')]
+final class ObjectChangeHandlerSluggedPost
+{
+    public function __construct(public string $slug, public bool $published = true, public ?ObjectChangeHandlerCategory $category = null) {}
+}
+
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'])]
+final class ObjectChangeHandlerFrozenPost
+{
+    public function __construct(public readonly string $slug) {}
+}
+
+final class ObjectChangeHandlerCategory
+{
+    public function __construct(public string $slug) {}
+}
+
+final class ObjectChangeHandlerRouter implements \IndexNowKit\Url\RouteUrlResolverInterface
+{
+    public function locales(array|string $locales): array
+    {
+        return [null];
+    }
+
+    public function generate(string $route, array $params, ?string $locale = null, ?string $host = null): string
+    {
+        return 'https://www.example.com/' . $route . '/' . implode('/', array_map('strval', $params));
+    }
+}
+
 final class ObjectChangeHandlerTest extends TestCase
 {
     private static function handler(?ArrayLogger $logger = null): ObjectChangeHandler
@@ -40,6 +70,44 @@ final class ObjectChangeHandlerTest extends TestCase
         $guarded = new GuardedUrlResolver(new AttributeUrlResolver($reader), $reader, $logger);
 
         return new ObjectChangeHandler($reader, $guarded, $logger);
+    }
+
+    public function testRenamedYieldsTheOldUrlsOfRouteRulesWhoseParamsChanged(): void
+    {
+        $reader = new AttributeReader();
+        $logger = new ArrayLogger();
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+        $post = new ObjectChangeHandlerSluggedPost('new-slug', category: new ObjectChangeHandlerCategory('tech'));
+
+        $old = $handler->renamed($post, ['slug' => ['old-slug', 'new-slug'], 'title' => ['a', 'b']]);
+
+        self::assertCount(1, $old);
+        self::assertSame('https://www.example.com/post_show/old-slug/tech', $old[0]->url);
+        self::assertSame(Event::Deleted, $old[0]->event);
+        self::assertSame('new-slug', $post->slug, 'the object is restored');
+
+        self::assertSame([], $handler->renamed($post, ['title' => ['a', 'b']]), 'a field no route parameter reads: nothing');
+        self::assertSame([], $handler->renamed($post, ['slug' => ['new-slug', 'new-slug']]), 'same URL before and after: nothing');
+        self::assertSame([], $handler->renamed($post, ['category' => [new ObjectChangeHandlerCategory('tech'), $post->category]]), 'dotted path root matched, URL unchanged');
+        self::assertCount(1, $handler->renamed($post, ['category' => [new ObjectChangeHandlerCategory('news'), $post->category]]), 'a changed relation the path goes through');
+
+        $draft = new ObjectChangeHandlerSluggedPost('new', published: false, category: new ObjectChangeHandlerCategory('tech'));
+        self::assertSame([], $handler->renamed($draft, ['slug' => ['old', 'new']]), 'the old state was not public: no page to delete');
+        self::assertCount(1, $handler->renamed($draft, ['slug' => ['old', 'new'], 'published' => [true, false]]), 'renamed and unpublished at once: the old public URL goes');
+    }
+
+    public function testRenamedSkipsObjectsWhosePreviousStateCannotBeRebuilt(): void
+    {
+        $reader = new AttributeReader();
+        $logger = new ArrayLogger();
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+        $post = new ObjectChangeHandlerSluggedPost('new', category: new ObjectChangeHandlerCategory('tech'));
+
+        self::assertCount(1, $handler->renamed($post, ['slug' => ['old', 'new'], 'not_a_property' => [1, 2]]), 'a change-set entry that is not a property is ignored when the URL does not read it');
+
+        $frozen = new ObjectChangeHandlerFrozenPost('new');
+        self::assertSame([], $handler->renamed($frozen, ['slug' => ['old', 'new']]));
+        self::assertStringContainsString('cannot rebuild', implode("\n", $logger->messages('debug')));
     }
 
     public function testCreatedEventsReturnsOneRuleEventWhenTheRuleApplies(): void

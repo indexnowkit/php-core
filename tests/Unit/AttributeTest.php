@@ -24,6 +24,20 @@ final class NotAnnotated {}
  */
 final class AttributeTest extends TestCase
 {
+    public function testClearDropsCompiledRules(): void
+    {
+        $reader = new AttributeReader();
+        $first = $reader->rules(AttributePost::class);
+        self::assertSame($first, $reader->rules(AttributePost::class), 'cached');
+
+        $reader->clear(AttributePost::class);
+        self::assertNotSame($first, $reader->rules(AttributePost::class), 'recompiled after clear(class)');
+
+        $second = $reader->rules(AttributePost::class);
+        $reader->clear();
+        self::assertNotSame($second, $reader->rules(AttributePost::class), 'recompiled after clear()');
+    }
+
     public function testRulesAreCompiledAndInherited(): void
     {
         $reader = new AttributeReader();

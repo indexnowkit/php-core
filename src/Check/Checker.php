@@ -16,17 +16,22 @@ use IndexNowKit\Key\KeyValidator;
 use IndexNowKit\ResultStatus;
 use IndexNowKit\Url\UrlNormalizer;
 use Psr\Log\NullLogger;
+use Throwable;
 
 /**
  * "indexnow check": validates configuration, fetches every key file over HTTP and optionally sends a live
  * probe. Answers "why does it not work" before the first real submission. Never throws.
  */
-final class Checker
+final class Checker implements CheckerInterface
 {
+    /**
+     * @param iterable<CheckInterface> $checks extra checks run after the built-in ones
+     */
     public function __construct(
         private readonly Config $config,
         private readonly KeyProviderInterface $keys,
         private readonly TransportInterface $transport,
+        private readonly iterable $checks = [],
     ) {}
 
     /**
@@ -76,8 +81,20 @@ final class Checker
         foreach ($hosts as $host) {
             $this->checkHost($host, $liveProbe, $report, $probeUrl);
         }
+        $this->extraChecks($report);
 
         return $report;
+    }
+
+    private function extraChecks(CheckReport $report): void
+    {
+        foreach ($this->checks as $check) {
+            try {
+                $check->check($report);
+            } catch (Throwable $e) {
+                $report->error(\sprintf('%s failed: %s', $check::class, $e->getMessage()));
+            }
+        }
     }
 
     private function checkHost(string $host, bool $liveProbe, CheckReport $report, ?string $probeUrl): void

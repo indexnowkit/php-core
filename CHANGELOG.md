@@ -110,6 +110,17 @@ downstream piece — event classification, guards, locales, deletion semantics, 
   `logging.levels` (`Config::logLevel()`, per-outcome PSR-3 levels in `Client` and `Submitter`; events in
   `Config::LOG_EVENTS`), `retry.*` with `Config::retryPolicy()`, `resolver.max_via_depth` / `max_via_fanout`,
   `collector.max_urls` (`IndexNowKit::collect()` flushes early) and `collector.detect_leaks`, `debounce.key_prefix`.
+- `ObjectChangeHandler::renamed($subject, $changeSet)`: the URLs a route rule produced from the previous values of
+  changed fields, as Deleted, minus those the object still has. ORM hooks call it on updates so a renamed page's
+  old URL is dropped from the index.
+- `engine_aliases` (`Config::resolveEngine()`), `locale_hosts` (`Config::hostForLocale()`; `AttributeUrlResolver`
+  takes `localeHosts:` and generates each locale on its host when the rule pins none), `logging.max_body`.
+- `Check\CheckInterface` (extra checks, run by `Checker` after the built-in ones, exceptions become error lines) and
+  `Check\CheckerInterface`.
+- `Testing\Conformance\CoreConformanceTestCase`: the protocol scenarios of docs/spec/03 as an abstract PHPUnit
+  case an adapter runs against the facade its container built.
+- `Reason::translationKey()` (`indexnowkit.reason.<value>`) for UIs; `Psr18Transport` takes `postBodyLimit:` and
+  `maxRetryAfter:`.
 - `ClientInterface`: `Submitter` depends on it, so the HTTP half can be decorated (per-host policy, metrics).
 - `Checker::run(probeUrl:)`: probe with a real page when the site root redirects.
 - `Checker` warns in production when `strict_hosts` is off and a `base_url` is set: any hostname the app is reached

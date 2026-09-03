@@ -64,6 +64,9 @@ Config::fromArray([
 | `production_environments` | `productionEnvironments` | `['prod', 'production']` | environment names (case-insensitive) that count as production; replaces the default list |
 | `previous_key` | `previousKey` | `null` | the key before a rotation: still accepted by the key file, never submitted; also `hosts.<host>.previous_key` |
 | `hosts.<host>.engines` | `hostEngines` / `endpointsFor()` | inherit `engines` | engines for one host only |
+| `engine_aliases` | `engineAliases` / `resolveEngine()` | `{}` | short names for custom endpoints, usable wherever an engine is named |
+| `locale_hosts` | `localeHosts` / `hostForLocale()` | `{}` | locale => host; rules with `locales` and no `host` generate each locale on its host |
+| `logging.max_body` | `logBody` | `300` | bytes of an engine response body kept in a failure log line |
 | `max_url_length` | `maxUrlLength` | `2048` | URLs above it are skipped as `invalid_url` |
 | `debounce.key_prefix` | `debounceKeyPrefix` | `'indexnowkit_'` | cache key prefix of a shared debounce store |
 | `logging.max_urls` | `logUrls` / `logSample()` | `20` | URLs listed in one log line; `0` = counts only |

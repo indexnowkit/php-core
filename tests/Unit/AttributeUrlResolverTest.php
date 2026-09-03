@@ -53,6 +53,12 @@ final class StubRouter implements RouteUrlResolverInterface
     }
 }
 
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'], locales: 'all')]
+final class AttributeUrlResolverLocalizedPost
+{
+    public string $slug = 'hello';
+}
+
 #[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'])]
 final class RoutedPost
 {
@@ -152,6 +158,18 @@ final class DeletedBypassPost
 
 final class AttributeUrlResolverTest extends TestCase
 {
+    public function testLocaleHostsGiveEachLocaleItsOwnHostUnlessTheRulePinsOne(): void
+    {
+        $router = new StubRouter(['en', 'de']);
+        $reader = new AttributeReader();
+        $resolver = new AttributeUrlResolver($reader, $router, localeHosts: ['de' => 'example.de']);
+        $post = new AttributeUrlResolverLocalizedPost();
+
+        $resolver->resolve($post, Event::Updated);
+
+        self::assertSame([null, 'example.de'], array_column($router->calls, 'host'), 'en stays on the default host, de goes to example.de');
+    }
+
     public function testNoAttributeReturnsEmpty(): void
     {
         $resolver = new AttributeUrlResolver(new AttributeReader());

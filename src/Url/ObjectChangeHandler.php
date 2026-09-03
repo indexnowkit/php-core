@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Url;
 
+use Closure;
 use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Attribute\ChangeClassifier;
+use IndexNowKit\Attribute\Param\Accessor;
+use IndexNowKit\Attribute\Param\Call;
+use IndexNowKit\Attribute\Param\Equals;
+use IndexNowKit\Attribute\Param\Formatted;
+use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Attribute\RuleEvent;
 use IndexNowKit\Attribute\RuleSet;
+use IndexNowKit\Attribute\RuleSource;
+use IndexNowKit\Attribute\UrlRule;
 use IndexNowKit\Event;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use ReflectionClass;
+use ReflectionProperty;
 use Throwable;
 
 /**
@@ -78,6 +88,144 @@ final class ObjectChangeHandler
         }
 
         return $out;
+    }
+
+    /**
+     * URLs the object had before this update and does not have any more: a route rule whose parameters read a
+     * changed field (a slug, a category) yields its old URLs as Deleted, resolved from the previous values in
+     * $changeSet, so the engine drops the page that now answers 404. Only route rules and only fields the object
+     * can be reset to (readonly properties are skipped with a debug line); the object is restored afterwards.
+     *
+     * @param array<string, array{0: mixed, 1: mixed}> $changeSet field => [old, new]
+     *
+     * @return list<ResolvedUrl>
+     */
+    public function renamed(object $subject, array $changeSet): array
+    {
+        if ($changeSet === []) {
+            return [];
+        }
+        $changed = array_keys($changeSet);
+        $rules = [];
+        $dependent = [];
+        foreach ($this->rulesOf($subject) as $rule) {
+            if ($rule->source !== RuleSource::Route || !$rule->listensTo(Event::Deleted)) {
+                continue;
+            }
+            $fields = self::routeFields($rule, $changed);
+            if ($fields !== []) {
+                $rules[] = $rule;
+                $dependent = [...$dependent, ...$fields];
+            }
+        }
+        if ($rules === []) {
+            return [];
+        }
+        $restore = self::apply($subject, array_map(static fn(array $pair): mixed => $pair[0], $changeSet), array_values(array_unique($dependent)));
+        if ($restore === null) {
+            $this->logger->debug('indexnow: cannot rebuild the previous state of {class} (a field the URL depends on is readonly or not a property), old URLs are not announced as deleted', ['class' => $subject::class]);
+
+            return [];
+        }
+        try {
+            $old = [];
+            foreach ($rules as $rule) {
+                $old = [...$old, ...$this->resolver->resolveRule($subject, $rule, Event::Deleted, false)];
+            }
+        } finally {
+            $restore();
+        }
+        if ($old === []) {
+            return [];
+        }
+        $current = [];
+        foreach ($rules as $rule) {
+            foreach ($this->resolver->resolveRule($subject, $rule, Event::Updated, true) as $item) {
+                $current[$item->url] = true;
+            }
+        }
+
+        return array_values(array_filter($old, static fn(ResolvedUrl $item): bool => !isset($current[$item->url])));
+    }
+
+    /**
+     * Changed fields the rule's route parameters (or host) read, directly or as the root of a dotted path.
+     *
+     * @param list<string> $changed
+     *
+     * @return list<string>
+     */
+    private static function routeFields(UrlRule $rule, array $changed): array
+    {
+        $fields = [];
+        $sources = array_values($rule->params);
+        if ($rule->host !== null) {
+            $sources[] = $rule->host;
+        }
+        foreach ($sources as $source) {
+            $path = match (true) {
+                \is_string($source) => $source,
+                $source instanceof Accessor, $source instanceof Formatted, $source instanceof Equals => $source->path,
+                $source instanceof Call => $source->method,
+                $source instanceof ParamValue => null,
+            };
+            if ($path === null) {
+                continue;
+            }
+            $root = explode('.', $path, 2)[0];
+            $fields = [...$fields, ...array_values(array_intersect(UrlRule::fieldCandidates($root), $changed))];
+        }
+
+        return array_values(array_unique($fields));
+    }
+
+    /**
+     * Sets $values on the object and returns the closure that restores the current values. Fields that are not
+     * writable properties are skipped, unless the URL depends on them ($required): then null, nothing is touched.
+     *
+     * @param array<string, mixed> $values   field => previous value
+     * @param list<string>         $required fields that must be applied for the old URL to be right
+     *
+     * @return (Closure(): void)|null
+     */
+    private static function apply(object $subject, array $values, array $required): ?Closure
+    {
+        $properties = [];
+        foreach (array_keys($values) as $field) {
+            $property = self::property($subject::class, $field);
+            if ($property === null || $property->isReadOnly() || $property->isStatic()) {
+                if (\in_array($field, $required, true)) {
+                    return null;
+                }
+                continue;
+            }
+            $properties[$field] = $property;
+        }
+        $current = [];
+        foreach ($properties as $field => $property) {
+            $current[$field] = $property->isInitialized($subject) ? $property->getValue($subject) : null;
+            $property->setValue($subject, $values[$field]);
+        }
+
+        return static function () use ($subject, $properties, $current): void {
+            foreach ($properties as $field => $property) {
+                $property->setValue($subject, $current[$field]);
+            }
+        };
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private static function property(string $class, string $field): ?ReflectionProperty
+    {
+        for ($reflection = new ReflectionClass($class); $reflection !== false; $reflection = $reflection->getParentClass()) {
+            if ($reflection->hasProperty($field)) {
+                return $reflection->getProperty($field);
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -225,6 +225,9 @@ $indexNow->flush();                              // в конце единицы
 `IndexNowKit::sitemap()` отдаёт reader поверх транспорта фасада (или `SitemapSourceInterface`, переданный в
 `create(sitemap:)`), `$kit->transport` — сам транспорт.
 
+Адаптер подтверждает свою обвязку через `Testing\Conformance\CoreConformanceTestCase`: наследуешь, отдаёшь
+фасад из своего контейнера и его `FakeTransport`, и сценарии протокола из спеки гоняются против него.
+
 ## Тестирование
 
 `IndexNowKit\Testing` входит в публикуемый пакет: `FakeTransport` (записывает POST, отдаёт ответы из очереди),

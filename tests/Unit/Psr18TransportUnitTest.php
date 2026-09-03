@@ -76,6 +76,18 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertSame(Psr18Transport::POST_BODY_LIMIT, \strlen($response->body));
     }
 
+    public function testPostBodyLimitAndMaxRetryAfterAreConstructorArguments(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(429, ['Retry-After' => '600'], str_repeat('b', 100)));
+        $transport = new Psr18Transport($client, $f, $f, postBodyLimit: 10, maxRetryAfter: 120);
+
+        $response = $transport->post('https://h.example.com/indexnow', '{}');
+
+        self::assertSame(10, \strlen($response->body));
+        self::assertSame(120, $response->retryAfter, 'clamped to maxRetryAfter');
+    }
+
     public function testGetBodyIsReadInFullBeyondPostLimit(): void
     {
         $f = $this->factory();

@@ -228,6 +228,9 @@ document size. The root may also be a local path or `file://` URL, and text site
 like XML ones. `IndexNowKit::sitemap()` returns the reader built over the facade's transport (or the
 `SitemapSourceInterface` you passed to `create(sitemap:)`), and `$kit->transport` is the transport itself.
 
+Adapters prove their wiring with `Testing\Conformance\CoreConformanceTestCase`: extend it, return the facade
+your container built and its `FakeTransport`, and the protocol scenarios of the spec run against it.
+
 ## Testing
 
 `IndexNowKit\Testing` is part of the published package: `FakeTransport` (records POSTs, answers queued responses),
