@@ -82,7 +82,7 @@ formatting a date implicitly is how a URL silently changes shape. Anything else 
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `when` | accessor name | inherit | the page exists only while this is truthy |
+| `when` | accessor name, `new Equals(path, value)`, or a closure `fn(object): bool` (runtime rules only) | inherit | the page exists only while the condition holds |
 | `whenFields` | list of field names | `[]` | fields backing `when` when its name does not match the field |
 | `fields` | list of field names, or `null` | inherit, then `[]` | for updates only: submit when one of these changed; `[]` = any field |
 | `events` | subset of `created`, `updated`, `deleted` (strings or `Event` cases), or `null` | inherit, then all three | which lifecycle events the rule listens to |
@@ -90,8 +90,22 @@ formatting a date implicitly is how a URL silently changes shape. Anything else 
 | `host` | string or `ParamValue` | `null` | generate this rule's URLs on that host (multi-domain) |
 | `name` | string | derived | stable rule id for logs, `explain` output and subclass overrides |
 
-`when` is a **conjunction**: the class-level `when` and the rule's own `when` must both be truthy. `fields`,
+`when` is a **conjunction**: the class-level `when` and the rule's own `when` must both hold. `fields`,
 `events` and `locales` are defaults a rule overrides; `null` means inherit, `[]` means "no filter".
+
+An accessor string is checked for truthiness, which is right for booleans and wrong for a status string (`'draft'` is
+truthy). For string or enum states use `Equals`, which also gives exact old-state detection from the ORM change set:
+
+```php
+use IndexNowKit\Attribute\Param\Equals;
+
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: new Equals('status', 'published'))]
+#[IndexNow(route: 'job_show', params: ['id' => 'id'], when: new Equals('state', JobState::Open))]   // BackedEnum or its value
+```
+
+Rules registered at runtime (`RuleRegistry`) may pass a closure: `when: fn (WP_Post $p): bool => $p->post_status === 'publish'`.
+A closure's old value cannot be reconstructed, so list the fields it reads in `whenFields`; a change of one of them is
+treated as a visibility flip (see the semantics table).
 
 An unknown event name throws `ConfigurationException` naming the attribute and the value.
 
@@ -231,6 +245,11 @@ $registry->register(Post::class, [
     new IndexNow(route: 'posts.show', params: ['post' => 'self']),
     new IndexNow(urls: ['/']),
 ], new IndexNowDefaults(when: 'isPublished'));
+
+$registry->register(WP_Post::class, [new IndexNow(resolver: 'wp_permalink')], new IndexNowDefaults(
+    when: fn (WP_Post $post): bool => $post->post_status === 'publish',   // or: new Equals('post_status', 'publish')
+    whenFields: ['post_status'],
+));
 
 $registry->registerFor(CmsPage::class, fn (CmsPage $page): ?RuleSet => $page->isSystem() ? null : $rulesFor($page));
 

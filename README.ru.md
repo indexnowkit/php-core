@@ -159,7 +159,9 @@ class Offer
 
 `when` часто задаётся геттером (`isPublished`), а в change set ORM лежит поле (`published`). Конвенция
 `isPublished → published`/`is_published` и `getStatus → status` применяется автоматически; если имена не связаны,
-перечислите поля в `whenFields`.
+перечислите поля в `whenFields`. Строковый или enum-статус не булев: используйте
+`when: new Equals('status', 'published')` (`IndexNowKit\Attribute\Param\Equals`); правила, зарегистрированные в
+рантайме, могут передать замыкание.
 
 Полная модель, таблица семантики и типы для адаптеров (`UrlRule`, `RuleSet`, `RuleRegistry`):
 [docs/attribute-reference.md](docs/attribute-reference.md).

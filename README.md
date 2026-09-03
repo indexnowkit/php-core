@@ -162,7 +162,9 @@ Visibility (`when`) is evaluated per rule, before and after a change. `true → 
 
 `when` is often a getter (`isPublished`) while the ORM change set holds the field (`published`). The convention
 `isPublished → published`/`is_published` and `getStatus → status` is applied automatically; when the names are
-unrelated, name the backing fields with `whenFields`.
+unrelated, name the backing fields with `whenFields`. A status string or enum is not a boolean: use
+`when: new Equals('status', 'published')` (`IndexNowKit\Attribute\Param\Equals`); rules registered at runtime may
+pass a closure.
 
 Full model, semantics table and the adapter-facing types (`UrlRule`, `RuleSet`, `RuleRegistry`):
 [docs/attribute-reference.md](docs/attribute-reference.md).

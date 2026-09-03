@@ -12,6 +12,8 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 
 #### The rule model
 
+- `when` accepts `new Equals(path, value)` for string/enum states and, for rules registered at runtime, a closure `fn(object): bool`.
+
 - `#[IndexNow]` is **repeatable**: one attribute per family of public URLs. Exactly one source per rule, chosen from
   `route`, `resolver`, `via` (a related object or collection), `url` (an accessor returning the URL) and `urls`
   (literal URLs). Zero or several sources throw at compile time with a message naming them.
