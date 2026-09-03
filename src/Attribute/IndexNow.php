@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use Attribute;
+use Closure;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
@@ -34,7 +35,7 @@ final readonly class IndexNow
      * @param string|null                      $via        accessor to a related object or collection whose pages are resubmitted (as updates)
      * @param string|null                      $url        accessor returning string|iterable<string>|null: the URL(s) themselves (Django get_absolute_url style)
      * @param list<string>                     $urls       literal URLs, absolute or base_url-relative
-     * @param string|null                      $when       bool accessor: the page exists only while true; true -> false is sent as a deletion
+     * @param string|ParamValue|Closure|null  $when       condition: bool accessor (truthy), `new Equals('status', 'published')`, or a closure fn(object): bool (runtime-registered rules only); true -> false is sent as a deletion
      * @param list<string>                     $whenFields fields backing $when when its name differs from the field (for old-state detection in ORM change sets)
      * @param list<string>|null                $fields     for updates, submit only when one of these fields changed; null = inherit, [] = any
      * @param list<string|Event>|null          $events     subset of created/updated/deleted; null = inherit
@@ -51,7 +52,7 @@ final readonly class IndexNow
         public ?string $via = null,
         public ?string $url = null,
         public array $urls = [],
-        public ?string $when = null,
+        public string|ParamValue|Closure|null $when = null,
         public array $whenFields = [],
         public ?array $fields = null,
         ?array $events = null,

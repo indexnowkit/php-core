@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use BackedEnum;
+use Closure;
 use DateTimeInterface;
 use IndexNowKit\Attribute\Param\Accessor;
 use IndexNowKit\Attribute\Param\Call;
+use IndexNowKit\Attribute\Param\Equals;
 use IndexNowKit\Attribute\Param\Formatted;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Attribute\Param\Placeholder;
@@ -56,6 +58,7 @@ final class ParamExtractor
             $param instanceof Value => $param->value,
             $param instanceof Formatted => self::format($subject, $param),
             $param instanceof Call => self::call($subject, $param, $locale, $host),
+            $param instanceof Equals => self::equals(self::read($subject, $param->path), $param->value),
             default => throw new ConfigurationException(\sprintf('Unsupported param source %s on %s.', get_debug_type($param), $subject::class)),
         };
     }
@@ -92,6 +95,33 @@ final class ParamExtractor
         }
 
         throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no property, getter or method found.', $accessor, $subject::class));
+    }
+
+    /**
+     * Evaluate a `when` condition: accessor string (truthy), ParamValue (truthy, {@see Equals} for comparisons)
+     * or a closure `fn(object): bool` (runtime-registered rules only).
+     *
+     * @throws ConfigurationException
+     */
+    public static function condition(object $subject, string|ParamValue|Closure $when): bool
+    {
+        if ($when instanceof Closure) {
+            return (bool) $when($subject);
+        }
+
+        return (bool) self::resolve($subject, $when);
+    }
+
+    private static function equals(mixed $actual, mixed $expected): bool
+    {
+        if ($actual instanceof BackedEnum) {
+            $actual = $expected instanceof BackedEnum ? $actual : $actual->value;
+        }
+        if ($expected instanceof BackedEnum && !$actual instanceof BackedEnum) {
+            $expected = $expected->value;
+        }
+
+        return $actual === $expected;
     }
 
     /**

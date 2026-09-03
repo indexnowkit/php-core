@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Attribute;
 
+use BackedEnum;
+use Closure;
+use IndexNowKit\Attribute\Param\Equals;
+use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
@@ -43,6 +47,21 @@ final class ChangeClassifier
     }
 
     /**
+     * Whether a condition held for the old value of its field: truthiness for accessors, comparison for Equals.
+     */
+    private static function heldBefore(string|ParamValue|Closure $condition, mixed $oldValue): bool
+    {
+        if ($condition instanceof Equals) {
+            $expected = $condition->value instanceof BackedEnum ? $condition->value->value : $condition->value;
+            $actual = $oldValue instanceof BackedEnum ? $oldValue->value : $oldValue;
+
+            return $actual === $expected;
+        }
+
+        return (bool) $oldValue;
+    }
+
+    /**
      * Old-state visibility, best effort:
      *  - a `when` accessor whose backing field is in the change set (by name, or by convention `isPublished` ->
      *    `published`) is evaluated exactly from the old value;
@@ -60,25 +79,26 @@ final class ChangeClassifier
         }
         $whenFieldTouched = array_intersect($rule->whenFields, $changedFields) !== [];
         $unknown = false;
-        foreach ($rule->when as $accessor) {
+        foreach ($rule->when as $condition) {
+            $accessor = UrlRule::accessorOf($condition);
             $key = null;
-            foreach (UrlRule::fieldCandidates($accessor) as $candidate) {
+            foreach ($accessor !== null ? UrlRule::fieldCandidates($accessor) : [] as $candidate) {
                 if (\array_key_exists($candidate, $changeSet)) {
                     $key = $candidate;
                     break;
                 }
             }
             if ($key !== null) {
-                if (!(bool) $changeSet[$key][0]) {
+                if (!self::heldBefore($condition, $changeSet[$key][0])) {
                     return false;
                 }
                 continue;
             }
-            if ($whenFieldTouched || array_intersect(UrlRule::fieldCandidates($accessor), $changedFields) !== []) {
+            if ($whenFieldTouched || ($accessor !== null && array_intersect(UrlRule::fieldCandidates($accessor), $changedFields) !== [])) {
                 $unknown = true;
                 continue;
             }
-            if (!(bool) ParamExtractor::read($subject, $accessor)) {
+            if (!ParamExtractor::condition($subject, $condition)) {
                 return false;
             }
         }

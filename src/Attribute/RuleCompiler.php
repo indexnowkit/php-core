@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Attribute;
 
+use Closure;
+use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 use ReflectionClass;
@@ -150,9 +152,9 @@ final class RuleCompiler
     }
 
     /**
-     * @return list<string>
+     * @return list<string|ParamValue|Closure>
      */
-    private static function when(IndexNowDefaults $defaults, ?string $own): array
+    private static function when(IndexNowDefaults $defaults, string|ParamValue|Closure|null $own): array
     {
         $when = $defaults->when !== null ? [$defaults->when] : [];
         if ($own !== null && !\in_array($own, $when, true)) {

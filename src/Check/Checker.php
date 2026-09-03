@@ -122,7 +122,14 @@ final class Checker
 
     private function probe(string $host, string $key, CheckReport $report): void
     {
-        $client = new Client($this->transport, $this->keys, $this->config->with(dryRun: false), new NullLogger());
+        try {
+            $config = $this->config->with(dryRun: false);
+        } catch (ConfigurationException $e) {
+            $report->error(\sprintf('%s: cannot build a live configuration: %s', $host, $e->getMessage()));
+
+            return;
+        }
+        $client = new Client($this->transport, $this->keys, $config, new NullLogger());
         $probeUrl = 'https://' . $host . '/';
         foreach ($this->config->endpoints as $endpoint) {
             $result = $client->submitBatch($endpoint, $host, $key, [$probeUrl]);

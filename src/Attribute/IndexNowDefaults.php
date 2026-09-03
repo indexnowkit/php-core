@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use Attribute;
+use Closure;
+use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
@@ -31,7 +33,7 @@ final readonly class IndexNowDefaults
      * @throws ConfigurationException on an unknown event name
      */
     public function __construct(
-        public ?string $when = null,
+        public string|ParamValue|Closure|null $when = null,
         public array $whenFields = [],
         public ?array $fields = null,
         ?array $events = null,

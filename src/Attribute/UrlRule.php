@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Attribute;
 
+use Closure;
+use IndexNowKit\Attribute\Param\Accessor;
+use IndexNowKit\Attribute\Param\Equals;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
@@ -18,7 +21,7 @@ final readonly class UrlRule
     /**
      * @param array<string, string|ParamValue> $params
      * @param list<string>                     $urls
-     * @param list<string>                     $when       conjunction: every accessor must be truthy
+     * @param list<string|ParamValue|Closure>  $when       conjunction: every condition must hold (accessor truthy, Equals, closure)
      * @param list<string>                     $whenFields fields backing $when (old-state detection)
      * @param list<string>                     $fields     changed-field filter for updates; [] = any
      * @param list<Event>                      $events
@@ -69,14 +72,14 @@ final readonly class UrlRule
     }
 
     /**
-     * Whether the page exists in the object's current state: every `when` accessor is truthy.
+     * Whether the page exists in the object's current state: every `when` condition holds.
      *
      * @throws ConfigurationException when an accessor cannot be read
      */
     public function appliesTo(object $subject): bool
     {
-        foreach ($this->when as $accessor) {
-            if (!(bool) ParamExtractor::read($subject, $accessor)) {
+        foreach ($this->when as $condition) {
+            if (!ParamExtractor::condition($subject, $condition)) {
                 return false;
             }
         }
@@ -93,13 +96,27 @@ final readonly class UrlRule
         if (\in_array($field, $this->whenFields, true)) {
             return true;
         }
-        foreach ($this->when as $accessor) {
-            if (\in_array($field, self::fieldCandidates($accessor), true)) {
+        foreach ($this->when as $condition) {
+            $accessor = self::accessorOf($condition);
+            if ($accessor !== null && \in_array($field, self::fieldCandidates($accessor), true)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * The accessor a condition reads, when it is statically known (string or Equals); null for closures/other sources.
+     */
+    public static function accessorOf(string|ParamValue|Closure $condition): ?string
+    {
+        return match (true) {
+            \is_string($condition) => $condition,
+            $condition instanceof Equals => $condition->path,
+            $condition instanceof Accessor => $condition->path,
+            default => null,
+        };
     }
 
     /**
