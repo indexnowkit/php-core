@@ -48,6 +48,7 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5",
         "symfony/cache": "^6.4 || ^7.0",
+        "symfony/console": "^6.4 || ^7.0 || ^8.0",
         "symfony/http-client": "^6.4 || ^7.0"
     },
     "suggest": {
@@ -58,7 +59,8 @@
         "ext-xmlreader": "Required by Sitemap\\SitemapReader",
         "ext-zlib": "Reading gzip-compressed sitemaps",
         "phpunit/phpunit": "To extend Testing\\Conformance\\CoreConformanceTestCase in an adapter's test suite",
-        "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl"
+        "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl",
+        "symfony/console": "Console\\*Runner: the shared bodies of the check/submit/explain/sitemap/key commands used by the framework adapters"
     },
     "autoload": {
         "psr-4": {
@@ -82,7 +84,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.2.x-dev"
+            "dev-main": "0.3.x-dev"
         }
     }
 }

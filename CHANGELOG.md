@@ -3,6 +3,28 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.3.0] — 2026-09-04
+
+### Added
+
+- **`Console\*`: the bodies of the console commands, shared by the framework adapters.** `CheckRunner`,
+  `SubmitRunner`, `SubmitSubjectsRunner` (+ `SubmitSubjectsOptions`), `ExplainRunner`, `SitemapRunner`
+  (+ `SitemapOptions`), `KeyGenerateRunner` render to a `Symfony\Component\Console\Style\SymfonyStyle` and return
+  an `ExitCode`; a framework command only parses its input. `ResultRenderer` / `ResultFormatterInterface`,
+  `ResultSummary`, `SubmitterFactory` / `SubmitterFactoryInterface` (with `SubmitterFactory::choose()` for
+  `--force` / `--dry-run`) moved here from the Symfony bundle. `SubjectLoaderInterface` is what an ORM adapter
+  implements so `submit-<subject>` and `explain` can find objects by class and id (`byIds()` and `all()` receive the
+  `Event`, so a deleted-event lookup can include soft-deleted rows). `Vocabulary` holds the few words that differ
+  per framework ("entity" / "model", `bin/console` / `php artisan`, where the configuration lives).
+  `symfony/console` is a suggested dependency: nothing else in the core loads these classes.
+- **`Check\SitemapSpoolCheck`**: the "where are sitemap documents spooled, is the temp dir writable" lines of
+  `check`, built from the adapter's raw `sitemap` config block. Both adapters carried a copy.
+
+### Changed
+
+- Adapter guide ([docs/adapters.md](docs/adapters.md) §14) describes the commands as thin wrappers over
+  `Console\*Runner`; [docs/bc.md](docs/bc.md) lists the new classes in their tiers.
+
 ## [0.2.2] — 2026-09-04
 
 ### Added
@@ -254,6 +276,7 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 
 Initial release: protocol client, batching, debounce, throttle, `#[IndexNow]` attribute, sitemap reader, checker.
 
+[0.3.0]: https://github.com/indexnowkit/php-core/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/indexnowkit/php-core/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/indexnowkit/php-core/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/indexnowkit/php-core/compare/0.1.0...0.2.0

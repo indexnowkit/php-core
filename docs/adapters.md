@@ -356,29 +356,36 @@ the real rate limiting in the queue worker. Both take a `Psr\Clock\ClockInterfac
 
 ## 14. Diagnostics users will ask for
 
-Ship four commands. They are what turns "it does not work" into a self-service answer.
+Ship six commands. They are what turns "it does not work" into a self-service answer, and their bodies are in the
+core (`Console\*Runner`, rendering to a `Symfony\Component\Console\Style\SymfonyStyle`; Laravel's `OutputStyle`
+is one). A framework command parses its arguments and calls the runner; every framework prints the same thing.
 
-| Command | Core piece |
-|---|---|
-| `check` | `Check\Checker` → `CheckReport` → `CheckItem` (levels `Ok`, `Warning`, `Error`); `run(liveProbe:, onlyHost:)` |
-| `submit <url>...` | `SubmitterInterface::submit()`, rendering `Result` rows |
-| `submit-entity <class> <id>` | `IndexNowKit::explain()` for a `--explain` table, `submit()` otherwise |
-| `sitemap [url]` | `Sitemap\SitemapSourceInterface::read($url, $changedSince)` (the shipped `SitemapReader` adds `$allowForeignHosts`, local files and text sitemaps), submitted in batches of `Config::$batchMaxUrls` |
+| Command | Runner | What the adapter supplies |
+|---|---|---|
+| `check` | `Console\CheckRunner` | a closure that builds `Config` from the raw configuration (throws `ConfigurationException`); `Check\CheckInterface` services for adapter wiring (is the ORM hook active? is the queue routed?) and the core's `Check\SitemapSpoolCheck` over the raw `sitemap` block |
+| `submit <url>...` | `Console\SubmitRunner` | — |
+| `submit-<subject> <class> [ids]` | `Console\SubmitSubjectsRunner` + `SubmitSubjectsOptions` | a `Console\SubjectLoaderInterface`: class resolution (FQCN or the framework's short name), objects by id, first N objects; `byIds()` / `all()` receive the `Event` so `deleted` can include soft-deleted rows |
+| `explain <class> <id>` | `Console\ExplainRunner` | the same loader |
+| `sitemap [url]` | `Console\SitemapRunner` + `SitemapOptions` | the `SitemapSourceInterface` service and `sitemap.url` from the config |
+| `key:generate` | `Console\KeyGenerateRunner` | the default env file path |
 
-Type the command against `SitemapSourceInterface` and expose the reader under an alias of it, so an application can
-decorate the source (filter, rewrite) or replace it (another format, a database) without touching your command.
-The sitemap command should stream: read the generator, submit every `batch.max_urls` URLs, fold results into
-counts (the Symfony bundle's `ResultSummary` is the reference), and never collect the URL list into an array.
-Expose the reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`,
-`max_bytes`, `allow_foreign_hosts`, `spool` = auto|disk|memory, `spool_dir`, `fetch_retries`) and offer
-`--allow-foreign-hosts` for one-off runs. Submit the pending batch before reporting a mid-run failure: the re-run is
-idempotent, what was read is still worth announcing. In `check`, report where documents are spooled
-(`Sitemap\Spool::probeDisk($dir)` tells you why a temp dir is unusable): a read-only container without a writable
-temp dir only shows up on the first cron run otherwise.
+Shared by all of them: `Console\SubmitterFactoryInterface` (`SubmitterFactory`: the separate submitter `--force` and
+`--dry-run` build, `SubmitterFactory::choose()` picks it or the application's), `Console\ResultFormatterInterface`
+(`ResultRenderer`: table or `--json`; an application replaces it to match its own CLI), `Console\ResultSummary`
+(the streamed sitemap run folds results into counts) and `Console\Vocabulary` (the words that differ: "entity" /
+"model", `bin/console` / `php artisan`, where the configuration lives). Expose the three interfaces under stable
+service ids so an application can decorate them, and expose the runners too: a tenant loop over
+`SubmitSubjectsRunner` is a ten-line application command.
 
-`Checker` never throws and covers configuration, key files and a live probe. Add your own lines to the report for
-adapter-specific wiring (is the ORM listener actually active? is the queue transport routed?) — those are the
-failures the core cannot see.
+Type the sitemap command against `SitemapSourceInterface` and expose the reader under an alias of it, so an
+application can decorate the source (filter, rewrite) or replace it (another format, a database). Expose the
+reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`, `max_bytes`,
+`allow_foreign_hosts`, `spool` = auto|disk|memory, `spool_dir`, `fetch_retries`); `SitemapRunner` streams, submits
+every `batch.max_urls` URLs, and submits the pending batch before reporting a mid-run failure (the re-run is
+idempotent, what was read is still worth announcing).
+
+`Checker` never throws and covers configuration, key files and a live probe; `CheckRunner` prints its report. The
+adapter-specific lines are `CheckInterface` services tagged for the checker, not special cases in the command.
 
 Result listeners (`SubmitterInterface::addListener()`) feed an admin log or a profiler panel. Register the listener
 on the same submitter instance the application uses, and forward `addListener()` in any decorator.
