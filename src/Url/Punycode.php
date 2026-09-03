@@ -15,6 +15,9 @@ use IndexNowKit\Exception\InvalidUrlException;
 final class Punycode
 {
     private const BASE = 36;
+
+    /** a-z then 0-9: digit(d) of RFC 3492, i.e. chr(97 + d) below 26, chr(22 + d) otherwise. */
+    private const DIGITS = 'abcdefghijklmnopqrstuvwxyz0123456789';
     private const TMIN = 1;
     private const TMAX = 26;
     private const SKEW = 38;
@@ -70,7 +73,7 @@ final class Punycode
         $bias = self::INITIAL_BIAS;
         $output = '';
         foreach ($codePoints as $cp) {
-            if ($cp < 0x80) {
+            if ($cp >= 0 && $cp < 0x80) {
                 $output .= \chr($cp);
             }
         }
@@ -156,6 +159,6 @@ final class Punycode
 
     private static function digit(int $d): string
     {
-        return $d < 26 ? \chr(97 + $d) : \chr(22 + $d);
+        return self::DIGITS[$d];
     }
 }
