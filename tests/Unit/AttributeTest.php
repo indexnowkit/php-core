@@ -5,81 +5,56 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
-use IndexNowKit\Attribute\IndexNow;
-use IndexNowKit\Attribute\ParamExtractor;
-use IndexNowKit\Attribute\PublishGuard;
-use IndexNowKit\Event;
-use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use PHPUnit\Framework\TestCase;
 
-#[IndexNow(route: 'post_show', params: ['slug' => 'slug', 'author' => 'author.name'], when: 'isPublished', events: ['created', 'updated'], fields: ['slug', 'title'])]
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'])]
 class AttributePost
 {
-    public function __construct(public string $slug = 'hello', public bool $published = true, public AttributeAuthor $author = new AttributeAuthor()) {}
-
-    public function isPublished(): bool
-    {
-        return $this->published;
-    }
-}
-
-class AttributeAuthor
-{
-    public function getName(): string
-    {
-        return 'ann';
-    }
+    public function __construct(public string $slug = 'hello') {}
 }
 
 final class AttributeChildPost extends AttributePost {}
 
 final class NotAnnotated {}
 
+/**
+ * AttributeReader is a thin, per-class-cached wrapper around RuleCompiler::compile(); the compilation
+ * behaviour itself (inheritance, defaults merging, naming) is covered by RuleCompilerTest.
+ */
 final class AttributeTest extends TestCase
 {
-    public function testReadAndInherit(): void
+    public function testRulesAreCompiledAndInherited(): void
     {
         $reader = new AttributeReader();
-        $attr = $reader->read(AttributeChildPost::class);
-        self::assertNotNull($attr);
-        self::assertSame('post_show', $attr->route);
-        self::assertSame([Event::Created, Event::Updated], $attr->events);
-        self::assertTrue($attr->listensTo(Event::Created));
-        self::assertFalse($attr->listensTo(Event::Deleted));
-        self::assertNull($reader->read(new NotAnnotated()));
-        self::assertSame($attr, $reader->read(AttributeChildPost::class), 'cached');
+
+        $ruleSet = $reader->rules(AttributeChildPost::class);
+
+        self::assertCount(1, $ruleSet);
+        self::assertSame('post_show', $ruleSet->get('post_show')?->route);
     }
 
-    public function testFieldsFilter(): void
+    public function testRulesAcceptsAnObjectInstanceToo(): void
     {
-        $attr = (new AttributeReader())->read(AttributePost::class);
-        self::assertNotNull($attr);
-        self::assertTrue($attr->caresAbout(['title', 'views']));
-        self::assertFalse($attr->caresAbout(['views']));
-        self::assertTrue((new IndexNow(route: 'x'))->caresAbout(['anything']));
+        $reader = new AttributeReader();
+
+        self::assertSame('post_show', $reader->rules(new AttributePost())->get('post_show')?->route);
     }
 
-    public function testParamExtractorAndGuard(): void
+    public function testUnannotatedClassYieldsAnEmptyRuleSet(): void
     {
-        $post = new AttributePost(slug: 's1', published: false);
-        $attr = (new AttributeReader())->read($post);
-        self::assertNotNull($attr);
-        self::assertSame(['slug' => 's1', 'author' => 'ann'], ParamExtractor::extract($post, $attr->params));
-        self::assertSame($post, ParamExtractor::read($post, 'self'));
-        self::assertFalse(PublishGuard::isPublished($post, $attr));
-        $post->published = true;
-        self::assertTrue(PublishGuard::isPublished($post, $attr));
+        $reader = new AttributeReader();
+
+        $ruleSet = $reader->rules(NotAnnotated::class);
+
+        self::assertTrue($ruleSet->isEmpty());
+        self::assertCount(0, $ruleSet);
     }
 
-    public function testRequiresRouteOrResolver(): void
+    public function testCompiledRuleSetIsCachedPerClass(): void
     {
-        $this->expectException(ConfigurationException::class);
-        new IndexNow();
-    }
+        $reader = new AttributeReader();
 
-    public function testUnknownAccessor(): void
-    {
-        $this->expectException(ConfigurationException::class);
-        ParamExtractor::read(new NotAnnotated(), 'nope');
+        self::assertSame($reader->rules(AttributePost::class), $reader->rules(AttributePost::class));
     }
 }

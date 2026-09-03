@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Check\Checker;
 use IndexNowKit\Check\CheckItem;
 use IndexNowKit\Check\CheckLevel;
-use IndexNowKit\Check\Checker;
 use IndexNowKit\Config;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Key\StaticKeyProvider;
-use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Testing\FakeTransport;
+use IndexNowKit\Tests\Support\Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

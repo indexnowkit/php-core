@@ -7,6 +7,7 @@ namespace IndexNowKit\Check;
 use IndexNowKit\Client;
 use IndexNowKit\Config;
 use IndexNowKit\Engine;
+use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\TransportInterface;
@@ -29,9 +30,10 @@ final class Checker
     ) {}
 
     /**
-     * @param bool $liveProbe POST the site root to every endpoint (real request, even with dry_run on)
+     * @param bool        $liveProbe POST the site root to every endpoint (real request, even with dry_run on)
+     * @param string|null $onlyHost  check this host only (multi-domain setups)
      */
-    public function run(bool $liveProbe = false): CheckReport
+    public function run(bool $liveProbe = false, ?string $onlyHost = null): CheckReport
     {
         $report = new CheckReport();
         $config = $this->config;
@@ -40,7 +42,14 @@ final class Checker
             $report->warning('IndexNow is disabled (enabled: false). Nothing will be submitted.');
         }
         if ($config->dryRun) {
-            $report->warning('dry_run is on: requests are logged, not sent.');
+            if ($config->isProduction()) {
+                $report->error(\sprintf('dry_run is on in a production environment (%s): nothing is sent to the engines.', (string) $config->environment));
+            } else {
+                $report->warning('dry_run is on: requests are logged, not sent.');
+            }
+        }
+        if ($config->strictHosts) {
+            $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped');
         }
         if ($config->baseUrl === null) {
             $report->warning('base_url is not set: relative URLs and CLI/worker submissions cannot be resolved. Set INDEXNOW_BASE_URL.');
@@ -51,6 +60,9 @@ final class Checker
         $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d, throttle: %d/min, timeout: %ss', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls, $config->throttleMaxRequestsPerMinute, $config->httpTimeout));
 
         $hosts = $this->hostsToCheck();
+        if ($onlyHost !== null) {
+            $hosts = [strtolower($onlyHost)];
+        }
         if ($hosts === []) {
             $report->error('No host to check: set base_url or a hosts map.');
 
@@ -83,6 +95,9 @@ final class Checker
 
             return;
         }
+        if (!$this->config->serveKeyFile && $this->keys->keyLocationFor($host) === null) {
+            $report->warning(\sprintf('%s: serve_key_file is off and no key_location is set; make sure %s is served by your web server.', $host, self::maskUrl($keyUrl, $key)));
+        }
         try {
             $response = $this->transport->get($keyUrl);
             if ($response->status !== 200) {
@@ -94,6 +109,10 @@ final class Checker
             }
         } catch (TransportException $e) {
             $report->error(\sprintf('%s: cannot fetch key file: %s', $host, self::maskUrl($e->getMessage(), $key)));
+        } catch (ConfigurationException $e) {
+            $report->error(\sprintf('%s: no HTTP client to fetch the key file: %s', $host, $e->getMessage()));
+
+            return;
         }
 
         if ($liveProbe && $this->config->enabled) {

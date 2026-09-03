@@ -20,6 +20,13 @@ interface CollectorInterface extends Countable
     public function isEmpty(): bool;
 
     /**
+     * Buffered URLs without draining (profilers, diagnostics).
+     *
+     * @return list<string>
+     */
+    public function all(): array;
+
+    /**
      * Returns the buffered URLs (de-duplicated, insertion order) and empties the buffer.
      *
      * @return list<string>

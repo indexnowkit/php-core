@@ -21,6 +21,8 @@ use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\NullUrlResolver;
+use IndexNowKit\Url\ObjectChangeHandler;
+use IndexNowKit\Url\ResolvedUrl;
 use IndexNowKit\Url\UrlNormalizer;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
@@ -34,6 +36,7 @@ use Psr\Log\NullLogger;
 final class IndexNowKit
 {
     private readonly GuardedUrlResolver $resolver;
+    private readonly ObjectChangeHandler $changes;
 
     public function __construct(
         public readonly Config $config,
@@ -45,7 +48,8 @@ final class IndexNowKit
         ?UrlResolverInterface $resolver = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->resolver = new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
+        $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
+        $this->changes = new ObjectChangeHandler($attributes, $this->resolver, $logger);
     }
 
     /**
@@ -138,10 +142,28 @@ final class IndexNowKit
     }
 
     /**
-     * Resolver with attribute subscription and `when` guard applied (adapters use it in ORM hooks).
+     * Like urlsFor(), with the rule that produced each URL (debugging, `explain` commands). Never throws.
+     *
+     * @return list<ResolvedUrl>
+     */
+    public function explain(object $subject, Event $event): array
+    {
+        return $this->resolver->explain($subject, $event);
+    }
+
+    /**
+     * Never-throwing resolver (rules, `when` guard, per-rule resolution) for ORM hooks and commands.
      */
     public function resolver(): GuardedUrlResolver
     {
         return $this->resolver;
+    }
+
+    /**
+     * ORM-hook building block: classifies created/updated/deleted objects per rule and resolves their URLs.
+     */
+    public function changes(): ObjectChangeHandler
+    {
+        return $this->changes;
     }
 }

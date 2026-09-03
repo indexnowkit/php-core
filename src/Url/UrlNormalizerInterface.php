@@ -17,7 +17,9 @@ interface UrlNormalizerInterface
      *
      * @return string absolute http(s) URL
      *
-     * @throws InvalidUrlException when the URL cannot be submitted (wrong scheme, no host, no base_url for a relative path...)
+     * @throws InvalidUrlException when the URL cannot be submitted (wrong scheme, no host, no base_url for a relative path...).
+     *                             Implementations MUST throw only this exception: anything else escapes to the caller
+     *                             and breaks the never-throw contract of submit()
      */
     public function normalize(string $url): string;
 

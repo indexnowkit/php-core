@@ -6,23 +6,31 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
+use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Dispatch\CallableDispatcher;
 use IndexNowKit\Event;
+use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Result;
+use IndexNowKit\SubmitterInterface;
 use IndexNowKit\Testing\ArrayLogger;
-use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Testing\FakeTransport;
+use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Url\CallableUrlResolver;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 #[IndexNowAttribute(resolver: 'any', when: 'published')]
 final class FacadePost
 {
     public function __construct(public string $slug, public bool $published = true) {}
 }
+
+#[IndexNowAttribute(resolver: 'any', events: ['created'])]
+final class FacadeCreatedOnlyPost {}
 
 #[IndexNowAttribute(route: 'x', when: 'badAccessor')]
 final class BadWhenPost {}
@@ -50,22 +58,64 @@ final class MappingNormalizer implements UrlNormalizerInterface
     }
 }
 
+final class FacadeFakeSubmitter implements SubmitterInterface
+{
+    /** @return list<Result> */
+    public function submit(iterable $urls): array
+    {
+        return [];
+    }
+
+    /** @return list<string> */
+    public function prepare(iterable $urls): array
+    {
+        return [];
+    }
+
+    public function addListener(callable $listener): void {}
+}
+
 final class FacadeTest extends TestCase
 {
-    public function testSubmitEntityUsesResolverAndGuard(): void
+    private static function facadePostSlugResolver(): CallableUrlResolver
+    {
+        return new CallableUrlResolver(static function (object $p, Event $e): string {
+            self::assertInstanceOf(FacadePost::class, $p);
+
+            return '/posts/' . $p->slug;
+        });
+    }
+
+    public function testSubmitEntityUsesTheConfiguredResolver(): void
     {
         $t = new FakeTransport();
-        $inx = IndexNowKit::create(Factory::config(), $t, resolver: new CallableUrlResolver(static fn(FacadePost $p, Event $e) => '/posts/' . $p->slug));
+        $inx = IndexNowKit::create(Factory::config(), $t, resolver: self::facadePostSlugResolver());
 
         $inx->submitEntity(new FacadePost('a'));
+
         self::assertSame(['https://www.example.com/posts/a'], $t->posts[0]['body']['urlList']);
+    }
 
-        self::assertSame([], $inx->submitEntity(new FacadePost('draft', published: false)));
-        self::assertCount(1, $t->posts);
+    public function testCustomResolverIsUsedRegardlessOfWhenSinceGuardedUrlResolverNoLongerAppliesItItself(): void
+    {
+        $t = new FakeTransport();
+        $inx = IndexNowKit::create(Factory::config(), $t, resolver: self::facadePostSlugResolver());
 
-        // deletions are sent even when unpublished
-        $inx->submitEntity(new FacadePost('gone', published: false), Event::Deleted);
-        self::assertCount(2, $t->posts);
+        $results = $inx->submitEntity(new FacadePost('draft', published: false));
+
+        self::assertNotSame([], $results, '`when` is only enforced per rule inside AttributeUrlResolver, not by GuardedUrlResolver for a custom resolver');
+        self::assertSame(['https://www.example.com/posts/draft'], $t->posts[0]['body']['urlList']);
+    }
+
+    public function testCustomResolverStillRespectsClassLevelEventSubscription(): void
+    {
+        $t = new FakeTransport();
+        $inx = IndexNowKit::create(Factory::config(), $t, resolver: new CallableUrlResolver(static fn(): string => '/x'));
+
+        $results = $inx->submitEntity(new FacadeCreatedOnlyPost(), Event::Updated);
+
+        self::assertSame([], $results);
+        self::assertCount(0, $t->posts);
     }
 
     public function testCollectAndFlushGoThroughDispatcher(): void
@@ -120,5 +170,37 @@ final class FacadeTest extends TestCase
         self::assertSame(1, $throttle->calls);
         self::assertSame($attributes, $inx->attributes);
         self::assertSame($keys, $inx->keys);
+    }
+
+    public function testCreateRejectsASubmitterCombinedWithATransport(): void
+    {
+        $this->expectException(ConfigurationException::class);
+        IndexNowKit::create(Factory::config(), transport: new FakeTransport(), submitter: new FacadeFakeSubmitter());
+    }
+
+    public function testCreateRejectsASubmitterCombinedWithADebounceStore(): void
+    {
+        $this->expectException(ConfigurationException::class);
+        IndexNowKit::create(Factory::config(), debounce: new MemoryDebounceStore(), submitter: new FacadeFakeSubmitter());
+    }
+
+    public function testCreateAcceptsACustomSubmitterAlone(): void
+    {
+        $submitter = new FacadeFakeSubmitter();
+
+        $inx = IndexNowKit::create(Factory::config(), submitter: $submitter);
+
+        self::assertSame($submitter, $inx->submitter);
+    }
+
+    public function testExplainReturnsResolvedUrlsWithProvenanceFromTheConfiguredResolver(): void
+    {
+        $inx = IndexNowKit::create(Factory::config(), new FakeTransport(), resolver: new CallableUrlResolver(static fn(): string => '/explained'));
+
+        $resolved = $inx->explain(new stdClass(), Event::Updated);
+
+        self::assertCount(1, $resolved);
+        self::assertSame('/explained', $resolved[0]->url);
+        self::assertSame('custom', $resolved[0]->rule);
     }
 }

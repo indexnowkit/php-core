@@ -32,6 +32,11 @@ final class Collector implements CollectorInterface
         return $this->urls === [];
     }
 
+    public function all(): array
+    {
+        return array_keys($this->urls);
+    }
+
     public function count(): int
     {
         return \count($this->urls);

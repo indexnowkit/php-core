@@ -29,7 +29,8 @@ interface SubmitterInterface
 
     /**
      * Called with every Result (also skipped ones) right after it is produced. Exceptions thrown by a listener are
-     * logged and swallowed. Decorators forward listeners to the decorated submitter.
+     * logged and swallowed. A decorator MUST forward addListener() to the decorated submitter; otherwise every
+     * listener registered on the outer object (profilers, metrics) is silently dropped.
      *
      * @param callable(Result): void $listener
      */

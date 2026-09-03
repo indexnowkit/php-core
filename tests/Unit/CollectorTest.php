@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Collector\Collector;
+use IndexNowKit\Testing\ArrayLogger;
 use PHPUnit\Framework\TestCase;
 
 final class CollectorTest extends TestCase
@@ -49,5 +50,28 @@ final class CollectorTest extends TestCase
 
         self::assertTrue($collector->isEmpty());
         self::assertSame(0, $collector->count());
+    }
+
+    public function testResetOfANonEmptyBufferLogsAWarningWithTheCount(): void
+    {
+        $logger = new ArrayLogger();
+        $collector = new Collector($logger);
+        $collector->add(['/a', '/b']);
+
+        $collector->reset();
+
+        $warnings = $logger->messages('warning');
+        self::assertCount(1, $warnings);
+        self::assertStringContainsString('2 collected URL(s) discarded', $warnings[0]);
+    }
+
+    public function testResetOfAnEmptyBufferLogsNothing(): void
+    {
+        $logger = new ArrayLogger();
+        $collector = new Collector($logger);
+
+        $collector->reset();
+
+        self::assertSame([], $logger->messages('warning'));
     }
 }

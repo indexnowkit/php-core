@@ -6,6 +6,10 @@ namespace IndexNowKit\Debounce;
 
 /**
  * Remembers when a URL was last submitted so the same URL is not re-sent within debounce.per_url seconds.
+ *
+ * Implementations may throw (backend down): Submitter treats a failing filterRecent() as "nothing is recent"
+ * (submits without de-duplication) and a failing markSubmitted() as "window not recorded"; both are logged as
+ * warnings and never interrupt delivery.
  */
 interface DebounceStoreInterface
 {

@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace IndexNowKit\Url;
 
 use IndexNowKit\Attribute\AttributeReaderInterface;
-use IndexNowKit\Attribute\PublishGuard;
+use IndexNowKit\Attribute\UrlRule;
 use IndexNowKit\Event;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Throwable;
 
 /**
- * The single place that turns "an object changed" into URLs: reads #[IndexNow], checks the event
- * subscription and the `when` guard (skipped for deletions), delegates to the real resolver, and
- * turns any exception into an error log plus an empty list. ORM hooks must go through it so a typo
- * in an attribute never breaks the host application's flush.
+ * The never-throwing "an object changed -> URLs" entry point. Wraps any resolver: an exception (invalid
+ * attribute, missing accessor, router failure) becomes an error log entry plus an empty list, so a typo in
+ * an attribute never breaks the host application's flush. Silent outcomes are logged at debug level.
+ *
+ * With the default AttributeUrlResolver the guards (`when`, `events`) are applied per rule inside it; a
+ * hand-written top-level resolver keeps the class-level event subscription check here.
  */
 final class GuardedUrlResolver implements UrlResolverInterface
 {
@@ -26,26 +28,59 @@ final class GuardedUrlResolver implements UrlResolverInterface
     ) {}
 
     /**
-     * @return list<string>
+     * @return list<string> de-duplicated
      */
     public function resolve(object $subject, Event $event): array
     {
+        return ResolvedUrl::urls($this->explain($subject, $event));
+    }
+
+    /**
+     * @return list<ResolvedUrl>
+     */
+    public function explain(object $subject, Event $event): array
+    {
         try {
-            $attribute = $this->attributes->read($subject);
-            if ($attribute === null || !$attribute->listensTo($event)) {
-                return [];
+            if ($this->inner instanceof AttributeUrlResolver) {
+                $resolved = $this->inner->explain($subject, $event);
+            } else {
+                $rules = $this->attributes->rules($subject);
+                if (!$rules->isEmpty() && !$rules->listensTo($event)) {
+                    $this->logger->debug('indexnow: {class} does not subscribe to {event}', ['class' => $subject::class, 'event' => $event->value]);
+
+                    return [];
+                }
+                $resolved = [];
+                foreach ($this->inner->resolve($subject, $event) as $url) {
+                    $resolved[] = new ResolvedUrl($url, 'custom', $subject::class, $event);
+                }
             }
-            if ($event !== Event::Deleted && !PublishGuard::isPublished($subject, $attribute)) {
-                return [];
-            }
-            $urls = [];
-            foreach ($this->inner->resolve($subject, $event) as $url) {
-                $urls[] = $url;
+            if ($resolved === []) {
+                $this->logger->debug('indexnow: no URLs for {class} ({event}): no rule applies (no #[IndexNow], event not subscribed, or `when` is false)', ['class' => $subject::class, 'event' => $event->value]);
             }
 
-            return $urls;
+            return $resolved;
         } catch (Throwable $e) {
             $this->logger->error('indexnow: cannot resolve URLs for {class} ({event}): {error}', ['class' => $subject::class, 'event' => $event->value, 'error' => $e->getMessage(), 'exception' => $e]);
+
+            return [];
+        }
+    }
+
+    /**
+     * One rule, never throws. With a non-attribute inner resolver the whole object is resolved instead.
+     *
+     * @return list<ResolvedUrl>
+     */
+    public function resolveRule(object $subject, UrlRule $rule, Event $event): array
+    {
+        if (!$this->inner instanceof AttributeUrlResolver) {
+            return $this->explain($subject, $event);
+        }
+        try {
+            return $this->inner->resolveRule($subject, $rule, $event);
+        } catch (Throwable $e) {
+            $this->logger->error('indexnow: cannot resolve URLs for {class} rule "{rule}" ({event}): {error}', ['class' => $subject::class, 'rule' => $rule->name, 'event' => $event->value, 'error' => $e->getMessage(), 'exception' => $e]);
 
             return [];
         }

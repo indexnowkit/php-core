@@ -5,35 +5,84 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use IndexNowKit\Event;
+use IndexNowKit\Exception\ConfigurationException;
 
 /**
- * Turns an ORM update into the lifecycle event the attribute cares about, identically in every adapter:
- * `when` flipping true -> false is a deletion (engines recrawl the 404), false -> true a creation, otherwise an
- * update filtered by `fields`. Null means "nothing to submit".
+ * Turns an ORM update into the lifecycle event one rule cares about, identically in every adapter.
+ *
+ * Visibility is evaluated per rule (class guard AND rule guard). true -> false is a deletion of that rule's
+ * URLs only (engines recrawl the 404), false -> true a creation, otherwise an update filtered by `fields`.
+ * Null means "nothing to submit for this rule".
  */
 final class ChangeClassifier
 {
     private function __construct() {}
 
     /**
-     * @param list<string>     $changedFields property names changed in this update
-     * @param array{mixed, mixed}|null $whenChange   [old, new] values of the `when` property if it changed, null otherwise
+     * @param list<string>                             $changedFields field names changed in this update
+     * @param array<string, array{0: mixed, 1: mixed}> $changeSet     field => [old, new] when the ORM provides it
+     *
+     * @throws ConfigurationException when a `when` accessor cannot be read
      */
-    public static function classify(IndexNow $attribute, array $changedFields, ?array $whenChange): ?Event
+    public static function classify(UrlRule $rule, object $subject, array $changedFields, array $changeSet = []): ?Event
     {
-        if ($attribute->when !== null && $whenChange !== null) {
-            [$old, $new] = $whenChange;
-            if ((bool) $old && !(bool) $new) {
-                return $attribute->listensTo(Event::Deleted) ? Event::Deleted : null;
-            }
-            if (!(bool) $old && (bool) $new) {
-                return $attribute->listensTo(Event::Created) ? Event::Created : null;
-            }
+        $after = $rule->appliesTo($subject);
+        $before = self::appliedBefore($rule, $subject, $changedFields, $changeSet, $after);
+
+        if ($before && !$after) {
+            return $rule->listensTo(Event::Deleted) ? Event::Deleted : null;
         }
-        if (!$attribute->listensTo(Event::Updated) || !$attribute->caresAbout($changedFields)) {
+        if (!$before && $after) {
+            return $rule->listensTo(Event::Created) ? Event::Created : null;
+        }
+        if (!$after) {
             return null;
         }
 
-        return Event::Updated;
+        return $rule->listensTo(Event::Updated) && $rule->caresAbout($changedFields) ? Event::Updated : null;
+    }
+
+    /**
+     * Old-state visibility, best effort:
+     *  - a `when` accessor whose backing field is in the change set (by name, or by convention `isPublished` ->
+     *    `published`) is evaluated exactly from the old value;
+     *  - an accessor with no change-set entry keeps its current value unless a field it depends on changed,
+     *    in which case the outcome is assumed to have flipped: a false positive costs one request, a false
+     *    negative leaves a dead page indexed.
+     *
+     * @param list<string>                             $changedFields
+     * @param array<string, array{0: mixed, 1: mixed}> $changeSet
+     */
+    private static function appliedBefore(UrlRule $rule, object $subject, array $changedFields, array $changeSet, bool $after): bool
+    {
+        if ($rule->when === []) {
+            return true;
+        }
+        $whenFieldTouched = array_intersect($rule->whenFields, $changedFields) !== [];
+        $unknown = false;
+        foreach ($rule->when as $accessor) {
+            $key = null;
+            foreach (UrlRule::fieldCandidates($accessor) as $candidate) {
+                if (\array_key_exists($candidate, $changeSet)) {
+                    $key = $candidate;
+                    break;
+                }
+            }
+            if ($key !== null) {
+                if (!(bool) $changeSet[$key][0]) {
+                    return false;
+                }
+                continue;
+            }
+            if ($whenFieldTouched || array_intersect(UrlRule::fieldCandidates($accessor), $changedFields) !== []) {
+                $unknown = true;
+                continue;
+            }
+            if (!(bool) ParamExtractor::read($subject, $accessor)) {
+                return false;
+            }
+        }
+
+        return $unknown ? !$after : true;
     }
 }

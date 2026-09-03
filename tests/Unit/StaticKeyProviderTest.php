@@ -81,4 +81,33 @@ final class StaticKeyProviderTest extends TestCase
         self::assertSame('hostkey1234', $provider->keyFor('h.example.com'));
         self::assertSame('hostkey1234', $provider->keyFor('H.EXAMPLE.COM'));
     }
+
+    public function testStrictHostsRejectsAnUnmappedNonBaseHost(): void
+    {
+        $provider = new StaticKeyProvider('defaultkey123', ['h.example.com' => 'hostkey1234'], defaultHost: 'base.example.com', strictHosts: true);
+
+        self::assertNull($provider->keyFor('other.example.com'));
+    }
+
+    public function testStrictHostsStillAppliesTheDefaultKeyToTheBaseHost(): void
+    {
+        $provider = new StaticKeyProvider('defaultkey123', [], defaultHost: 'base.example.com', strictHosts: true);
+
+        self::assertSame('defaultkey123', $provider->keyFor('base.example.com'));
+    }
+
+    public function testStrictHostsStillHonoursTheHostsMap(): void
+    {
+        $provider = new StaticKeyProvider('defaultkey123', ['h.example.com' => 'hostkey1234'], defaultHost: 'base.example.com', strictHosts: true);
+
+        self::assertSame('hostkey1234', $provider->keyFor('h.example.com'));
+    }
+
+    public function testIsKnownKeyWithHostOnlyConfirmsThatHostsKeyExclusively(): void
+    {
+        $provider = new StaticKeyProvider(null, ['a.example.com' => 'hostkeyA1234', 'b.example.com' => 'hostkeyB1234']);
+
+        self::assertTrue($provider->isKnownKey('hostkeyA1234', 'a.example.com'));
+        self::assertFalse($provider->isKnownKey('hostkeyB1234', 'a.example.com'), 'b\'s key must not validate on a\'s host');
+    }
 }

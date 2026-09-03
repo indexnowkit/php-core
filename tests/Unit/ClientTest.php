@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
-use IndexNowKit\Reason;
 use IndexNowKit\Client;
 use IndexNowKit\Config;
 use IndexNowKit\Exception\InvalidArgumentException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Reason;
 use IndexNowKit\ResultStatus;
 use IndexNowKit\Testing\ArrayLogger;
-use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Testing\FakeTransport;
+use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
 use PHPUnit\Framework\Attributes\DataProvider;

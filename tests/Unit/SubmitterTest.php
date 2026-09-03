@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
-use IndexNowKit\Reason;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Http\Response;
+use IndexNowKit\Reason;
 use IndexNowKit\Result;
 use IndexNowKit\ResultStatus;
 use IndexNowKit\Testing\ArrayLogger;
-use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Testing\FrozenClock;
+use IndexNowKit\Tests\Support\Factory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
