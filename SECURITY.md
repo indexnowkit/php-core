@@ -12,8 +12,10 @@ What the library does to stay safe inside your application:
   untrusted input therefore makes your application announce foreign hosts under your key; the engines reject them
   (403/422) but the requests still happen. Submit only URLs of your own hosts, or list them in `hosts`.
 - Custom endpoints must be `https` (the key travels in the request body).
-- `SitemapReader` follows nested sitemaps only on the host of the root sitemap, caps recursion depth, document count and
-  gzip output, and disables external entities and network access in the XML parser.
+- `SitemapReader` follows nested sitemaps only on the origin of the root sitemap unless `allowForeignHosts` is set
+  (then the sitemap decides which http(s) hosts your server fetches from: enable it only for a sitemap you control),
+  caps recursion depth, document count, document size and gzip output, spools documents to temp files instead of
+  memory, and disables external entities and network access in the XML parser.
 - HTTP bodies are capped (2 KiB for submissions, 50 MiB for sitemaps). `symfony/http-client` and Guzzle created by
   `Psr18Transport::discover()` get the timeout and no redirects; any other discovered or injected client keeps its own
   settings, so configure the timeout there.

@@ -12,7 +12,7 @@ use IndexNowKit\Http\Exception\TransportException;
  * Defers building the real transport (PSR-18 discovery, client construction) until the first request, so a
  * request that submits nothing, a dry-run setup or `indexnow check` never pays for it and never fails on it.
  */
-final class LazyTransport implements TransportInterface
+final class LazyTransport implements StreamingTransportInterface
 {
     private ?TransportInterface $transport = null;
 
@@ -29,6 +29,23 @@ final class LazyTransport implements TransportInterface
     public function get(string $url): Response
     {
         return $this->transport()->get($url);
+    }
+
+    /**
+     * Streams when the real transport can, otherwise buffers through {@see TransportInterface::get()}.
+     */
+    public function download(string $url, $sink): Response
+    {
+        $transport = $this->transport();
+        if ($transport instanceof StreamingTransportInterface) {
+            return $transport->download($url, $sink);
+        }
+        $response = $transport->get($url);
+        if ($response->body !== '' && @fwrite($sink, $response->body) !== \strlen($response->body)) {
+            throw new TransportException(\sprintf('GET %s: cannot write the response body to the sink.', $url));
+        }
+
+        return new Response($response->status, '', $response->retryAfter);
     }
 
     /**

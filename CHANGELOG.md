@@ -77,6 +77,14 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 - `Http\LazyTransport` defers client discovery to the first request: a request that submits nothing, a dry-run setup
   and `check` never pay for it and never fail on it.
 - `Http\Response::parseRetryAfter()` is public, so custom transports interpret the header identically.
+- `Http\StreamingTransportInterface` (`download($url, $sink)`): GET without holding the body in memory.
+  `Psr18Transport`, `LazyTransport` and `Testing\FakeTransport` implement it.
+- `SitemapReader` keeps memory flat whatever the sitemap size: documents are spooled to temp files (streamed from
+  the socket through `StreamingTransportInterface`, buffered once otherwise), gzip is inflated chunk by chunk with
+  the size cap enforced while inflating, and XMLReader walks the file. Previously the raw body, the inflated body
+  and the parser copy were all in memory at once (about three times the document size). New `allowForeignHosts`
+  constructor option and `read()` argument to follow nested sitemaps on another origin (CDN-hosted parts);
+  non-http(s) `<loc>` values are skipped with a warning. Temp files are closed when the generator is destroyed.
 - `Testing\FakeTransport`, `ArrayLogger`, `FrozenClock` and `RecordingDispatcher` are part of the published package.
 - `Config::OPTIONS` and `Config::unknownOptions()` for typo detection in adapter config; `strict_hosts`;
   per-host `base_url` (`hosts: {host: {key, key_location, base_url}}`) and `Config::baseUrlFor()` for URL generation

@@ -331,6 +331,12 @@ timeouts, cap the body you read (`Psr18Transport` uses 2 KiB for POST diagnostic
 maximum). Parse `Retry-After` with `Response::parseRetryAfter($header)` so every adapter interprets delta-seconds
 and HTTP-dates identically and applies the same clamp. Configure no redirects and a timeout.
 
+Implement `Http\StreamingTransportInterface` too when your stack can read a response body in chunks
+(`download(string $url, $sink): Response` writes the body to a stream resource and returns an empty-bodied
+`Response`). `SitemapReader` then never holds a sitemap in memory; with a plain `TransportInterface` it buffers each
+document once through `get()` and spools it to disk from there. `LazyTransport` and `Testing\FakeTransport`
+implement both.
+
 ## 13. Debounce, throttle, clock
 
 `MemoryDebounceStore` is per process and bounded; `Psr16DebounceStore` shares the window across processes through
@@ -352,7 +358,12 @@ Ship four commands. They are what turns "it does not work" into a self-service a
 | `check` | `Check\Checker` → `CheckReport` → `CheckItem` (levels `Ok`, `Warning`, `Error`); `run(liveProbe:, onlyHost:)` |
 | `submit <url>...` | `SubmitterInterface::submit()`, rendering `Result` rows |
 | `submit-entity <class> <id>` | `IndexNowKit::explain()` for a `--explain` table, `submit()` otherwise |
-| `sitemap [url]` | `Sitemap\SitemapReader::read($url, $changedSince)` |
+| `sitemap [url]` | `Sitemap\SitemapReader::read($url, $changedSince, $allowForeignHosts)`, submitted in batches of `Config::$batchMaxUrls` |
+
+The sitemap command should stream: read the generator, submit every `batch.max_urls` URLs, fold results into
+counts (the Symfony bundle's `ResultSummary` is the reference), and never collect the URL list into an array.
+Expose the reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`,
+`max_bytes`, `allow_foreign_hosts`) and offer `--allow-foreign-hosts` for one-off runs.
 
 `Checker` never throws and covers configuration, key files and a live probe. Add your own lines to the report for
 adapter-specific wiring (is the ORM listener actually active? is the queue transport routed?) — those are the

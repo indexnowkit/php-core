@@ -86,6 +86,36 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertSame(5000, \strlen($response->body));
     }
 
+    public function testDownloadStreamsTheBodyIntoTheSinkWithoutBufferingIt(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(200, ['Retry-After' => '7'], str_repeat('x', 200000)));
+        $transport = new Psr18Transport($client, $f, $f);
+        $sink = fopen('php://temp', 'w+');
+        self::assertNotFalse($sink);
+
+        $response = $transport->download('https://h.example.com/sitemap.xml', $sink);
+
+        self::assertSame(200, $response->status);
+        self::assertSame('', $response->body, 'download() never returns the body');
+        self::assertSame(7, $response->retryAfter);
+        rewind($sink);
+        self::assertSame(200000, \strlen((string) stream_get_contents($sink)));
+    }
+
+    public function testDownloadOverConfiguredLimitThrows(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(200, [], str_repeat('x', 5000)));
+        $transport = new Psr18Transport($client, $f, $f, getBodyLimit: 4096);
+        $sink = fopen('php://temp', 'w+');
+        self::assertNotFalse($sink);
+
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('larger than 4096 bytes');
+        $transport->download('https://h.example.com/sitemap.xml', $sink);
+    }
+
     public function testGetBodyOverConfiguredLimitThrows(): void
     {
         $f = $this->factory();

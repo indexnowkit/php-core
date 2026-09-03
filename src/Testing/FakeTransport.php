@@ -6,19 +6,22 @@ namespace IndexNowKit\Testing;
 
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
-use IndexNowKit\Http\TransportInterface;
+use IndexNowKit\Http\StreamingTransportInterface;
 use Throwable;
 
 /**
  * Test double: records POSTs (decoded body included), answers queued responses or throws queued exceptions.
  */
-final class FakeTransport implements TransportInterface
+final class FakeTransport implements StreamingTransportInterface
 {
     /** @var list<array{url: string, json: string, headers: array<string, string>, body: array<string, mixed>}> */
     public array $posts = [];
 
     /** @var list<string> */
     public array $gets = [];
+
+    /** @var list<string> URLs fetched through download() (a subset of $gets) */
+    public array $downloads = [];
 
     /** @var list<Response|Throwable> */
     private array $queue = [];
@@ -64,6 +67,15 @@ final class FakeTransport implements TransportInterface
         }
 
         return $response;
+    }
+
+    public function download(string $url, $sink): Response
+    {
+        $response = $this->get($url);
+        $this->downloads[] = $url;
+        fwrite($sink, $response->body);
+
+        return new Response($response->status, '', $response->retryAfter);
     }
 
     public static function failing(string $message = 'connection refused'): TransportException

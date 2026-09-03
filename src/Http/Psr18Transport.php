@@ -21,9 +21,10 @@ use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * PSR-18 transport. POST responses are read up to 2 KiB (diagnostics only); GET responses up to 50 MiB
- * (the sitemap protocol maximum).
+ * (the sitemap protocol maximum). {@see download()} streams a GET body into a sink so large documents never
+ * live in memory.
  */
-final class Psr18Transport implements TransportInterface
+final class Psr18Transport implements StreamingTransportInterface
 {
     public const POST_BODY_LIMIT = 2048;
     public const GET_BODY_LIMIT = 52_428_800;
@@ -79,12 +80,33 @@ final class Psr18Transport implements TransportInterface
 
     public function get(string $url): Response
     {
+        return $this->send($this->getRequest($url), $this->getBodyLimit);
+    }
+
+    public function download(string $url, $sink): Response
+    {
+        $request = $this->getRequest($url);
+        $response = $this->sendRequest($request);
+        $body = $response->getBody();
+        if ($body->isReadable()) {
+            $this->copyBody($body, $this->getBodyLimit, $request, static function (string $chunk) use ($sink, $request): void {
+                if (@fwrite($sink, $chunk) !== \strlen($chunk)) {
+                    throw new TransportException(\sprintf('GET %s: cannot write the response body to the sink.', $request->getUri()->getHost()));
+                }
+            });
+        }
+
+        return new Response($response->getStatusCode(), '', self::retryAfter($response));
+    }
+
+    private function getRequest(string $url): RequestInterface
+    {
         $request = $this->requestFactory->createRequest('GET', $url);
         foreach ($this->extraHeaders as $name => $value) {
             $request = $request->withHeader($name, $value);
         }
 
-        return $this->send($request, $this->getBodyLimit);
+        return $request;
     }
 
     /**
@@ -118,13 +140,18 @@ final class Psr18Transport implements TransportInterface
 
     private function send(RequestInterface $request, int $bodyLimit): Response
     {
+        $response = $this->sendRequest($request);
+
+        return new Response($response->getStatusCode(), $this->readBody($response->getBody(), $bodyLimit, $request), self::retryAfter($response));
+    }
+
+    private function sendRequest(RequestInterface $request): ResponseInterface
+    {
         try {
-            $response = $this->client->sendRequest($request);
+            return $this->client->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
             throw new TransportException(\sprintf('%s %s failed: %s', $request->getMethod(), $request->getUri()->getHost(), $e->getMessage()), 0, $e);
         }
-
-        return new Response($response->getStatusCode(), $this->readBody($response->getBody(), $bodyLimit, $request), self::retryAfter($response));
     }
 
     private function readBody(StreamInterface $body, int $limit, RequestInterface $request): string
@@ -133,21 +160,33 @@ final class Psr18Transport implements TransportInterface
             return '';
         }
         $content = '';
-        while (!$body->eof() && \strlen($content) < $limit) {
-            $chunk = $body->read(min(self::READ_CHUNK, $limit - \strlen($content)));
+        $this->copyBody($body, $limit, $request, static function (string $chunk) use (&$content): void {
+            $content .= $chunk;
+        });
+
+        return $content;
+    }
+
+    /**
+     * Reads $body in READ_CHUNK pieces and hands each to $write; a body over $limit is truncated (POST diagnostics)
+     * or rejected (GET).
+     *
+     * @param callable(string): void $write
+     */
+    private function copyBody(StreamInterface $body, int $limit, RequestInterface $request, callable $write): void
+    {
+        $read = 0;
+        while (!$body->eof() && $read < $limit) {
+            $chunk = $body->read(min(self::READ_CHUNK, $limit - $read));
             if ($chunk === '') {
                 break;
             }
-            $content .= $chunk;
+            $read += \strlen($chunk);
+            $write($chunk);
         }
-        if (\strlen($content) >= $limit && !$body->eof() && $body->read(1) !== '') {
-            if ($limit === self::POST_BODY_LIMIT) {
-                return $content;
-            }
+        if ($read >= $limit && !$body->eof() && $body->read(1) !== '' && $limit !== self::POST_BODY_LIMIT) {
             throw new TransportException(\sprintf('%s %s: response body larger than %d bytes.', $request->getMethod(), $request->getUri()->getHost(), $limit));
         }
-
-        return $content;
     }
 
     /**

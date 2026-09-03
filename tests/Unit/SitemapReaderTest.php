@@ -7,6 +7,7 @@ namespace IndexNowKit\Tests\Unit;
 use DateTimeImmutable;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
+use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Sitemap\SitemapReader;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Testing\FakeTransport;
@@ -54,6 +55,76 @@ final class SitemapReaderTest extends TestCase
         self::assertSame([], $entries);
         self::assertCount(1, $logger->messages('warning'));
         self::assertStringContainsString('not on the host', implode("\n", $logger->messages('warning')));
+    }
+
+    public function testForeignHostsAreFollowedWhenAllowedByConstructorOrPerCall(): void
+    {
+        $t = new FakeTransport();
+        $index = '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>https://cdn.example.net/s1.xml</loc></sitemap><sitemap><loc>ftp://cdn.example.net/s2.xml</loc></sitemap></sitemapindex>';
+        $t->onGet('https://www.example.com/sitemap.xml', new Response(200, $index));
+        $t->onGet('https://cdn.example.net/s1.xml', new Response(200, self::URLSET));
+        $logger = new ArrayLogger();
+
+        $entries = iterator_to_array((new SitemapReader($t, allowForeignHosts: true, logger: $logger))->read('https://www.example.com/sitemap.xml'), false);
+        self::assertCount(3, $entries);
+        self::assertNotContains('ftp://cdn.example.net/s2.xml', $t->gets, 'only http(s) sitemaps are ever fetched, foreign hosts or not');
+        self::assertStringContainsString('not an http(s) URL', implode("\n", $logger->messages('warning')));
+
+        $t->gets = [];
+        $entries = iterator_to_array((new SitemapReader($t))->read('https://www.example.com/sitemap.xml', allowForeignHosts: true), false);
+        self::assertCount(3, $entries, 'the per-call flag overrides the constructor default');
+
+        $entries = iterator_to_array((new SitemapReader($t, allowForeignHosts: true))->read('https://www.example.com/sitemap.xml', allowForeignHosts: false), false);
+        self::assertSame([], $entries, 'and the other way round');
+    }
+
+    public function testStreamsThroughDownloadWhenTheTransportSupportsItAndBuffersOtherwise(): void
+    {
+        $streaming = new FakeTransport();
+        $streaming->onGet('https://www.example.com/sitemap.xml', new Response(200, self::URLSET));
+        self::assertCount(3, iterator_to_array((new SitemapReader($streaming))->read('https://www.example.com/sitemap.xml'), false));
+        self::assertSame(['https://www.example.com/sitemap.xml'], $streaming->downloads);
+
+        $buffering = new class ($streaming) implements TransportInterface {
+            public function __construct(private readonly FakeTransport $inner) {}
+
+            public function post(string $url, string $json, array $headers = []): Response
+            {
+                return $this->inner->post($url, $json, $headers);
+            }
+
+            public function get(string $url): Response
+            {
+                return $this->inner->get($url);
+            }
+        };
+        $streaming->downloads = [];
+        self::assertCount(3, iterator_to_array((new SitemapReader($buffering))->read('https://www.example.com/sitemap.xml'), false));
+        self::assertSame([], $streaming->downloads, 'a plain TransportInterface is read with get()');
+    }
+
+    public function testDecompressedSizeOverTheLimitIsRejectedWhileInflating(): void
+    {
+        $reader = new SitemapReader(new FakeTransport(), maxXmlBytes: 1000);
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('decompressed size exceeds 1000 bytes');
+        iterator_to_array($reader->parse((string) gzencode(str_repeat(' ', 5000) . '<urlset/>')), false);
+    }
+
+    public function testAbandonedGeneratorReleasesItsTempFiles(): void
+    {
+        $t = new FakeTransport();
+        $index = '<?xml version="1.0"?><sitemapindex ' . self::NS . '><sitemap><loc>https://www.example.com/s1.xml.gz</loc></sitemap></sitemapindex>';
+        $t->onGet('https://www.example.com/sitemap.xml', new Response(200, $index));
+        $t->onGet('https://www.example.com/s1.xml.gz', new Response(200, (string) gzencode(self::URLSET)));
+        $before = \count((array) get_resources('stream'));
+
+        foreach ((new SitemapReader($t))->read('https://www.example.com/sitemap.xml') as $entry) {
+            break; // stop after the first entry: three spools (root, gzip, inflated) are open here
+        }
+        gc_collect_cycles();
+
+        self::assertSame($before, \count((array) get_resources('stream')), 'every temp file is closed when the generator is destroyed');
     }
 
     public function testNestedSitemapOnAnotherPortOrSchemeIsSkipped(): void

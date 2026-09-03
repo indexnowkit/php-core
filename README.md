@@ -216,8 +216,12 @@ See [docs/retries-and-queues.md](docs/retries-and-queues.md) for the worker reci
 
 `Sitemap\SitemapReader` streams a sitemap or sitemap index into `SitemapEntry` objects, optionally filtered by
 `<lastmod>`, which is the right tool for re-announcing a bulk change:
-`$reader->read($sitemapUrl, new DateTimeImmutable('-1 day'))`. Indexes are followed on the same origin only, with
-caps on depth, document count and size.
+`$reader->read($sitemapUrl, new DateTimeImmutable('-1 day'))`. Memory stays flat whatever the size: documents are
+spooled to temp files (straight from the socket when the transport implements `Http\StreamingTransportInterface`,
+as `Psr18Transport` does), gzip is inflated chunk by chunk, XMLReader walks the file, entries come out one by one.
+Submit them in batches of `Config::$batchMaxUrls` rather than collecting the generator into an array. Indexes are
+followed on the origin of the root sitemap only (`allowForeignHosts: true`, or the same-named `read()` argument,
+follows CDN-hosted parts), with caps on depth, document count and document size.
 
 ## Testing
 
