@@ -9,7 +9,7 @@ use Composer\InstalledVersions;
 final class Version
 {
     /** Fallback when Composer runtime metadata is unavailable (e.g. vendored copy). */
-    public const VERSION = '0.2.1';
+    public const VERSION = '0.2.2';
 
     private function __construct() {}
 
