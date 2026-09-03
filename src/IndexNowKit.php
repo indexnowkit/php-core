@@ -7,6 +7,7 @@ namespace IndexNowKit;
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Collector\Collector;
+use IndexNowKit\Collector\CollectorInterface;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Dispatch\DispatcherInterface;
@@ -27,17 +28,17 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Facade wiring the default component graph for framework-less usage. Adapters build the same graph
+ * Facade (entry point) wiring the default component graph for framework-less usage. Adapters build the same graph
  * through their DI container and expose this object as the application-facing service.
  */
-final class IndexNow
+final class IndexNowKit
 {
     private readonly GuardedUrlResolver $resolver;
 
     public function __construct(
         public readonly Config $config,
         public readonly SubmitterInterface $submitter,
-        public readonly Collector $collector,
+        public readonly CollectorInterface $collector,
         public readonly DispatcherInterface $dispatcher,
         public readonly KeyProviderInterface $keys,
         public readonly AttributeReaderInterface $attributes = new AttributeReader(),
@@ -49,10 +50,11 @@ final class IndexNow
 
     /**
      * Default graph: PSR-18 discovery (with http.timeout), in-memory debounce, token-bucket throttle,
-     * synchronous dispatch. Every piece can be replaced; a custom $submitter (e.g. RetryingSubmitter) makes
-     * $transport/$debounce/$throttle irrelevant. Parameter order is part of the BC promise: use named arguments.
+     * synchronous dispatch. Every piece can be replaced. A custom $submitter (e.g. RetryingSubmitter) brings its
+     * own pipeline, so combining it with $transport/$debounce/$throttle/$normalizer is rejected instead of ignored.
+     * Parameter NAMES are part of the BC promise (new ones are only appended): always use named arguments.
      *
-     * @throws ConfigurationException when no HTTP client can be discovered
+     * @throws ConfigurationException when no HTTP client can be discovered, or on an incompatible combination
      */
     public static function create(
         Config $config,
@@ -66,18 +68,23 @@ final class IndexNow
         ?UrlNormalizerInterface $normalizer = null,
         ?AttributeReaderInterface $attributes = null,
         ?SubmitterInterface $submitter = null,
-        ?Collector $collector = null,
+        ?CollectorInterface $collector = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
-        $normalizer ??= new UrlNormalizer($config->baseUrl);
-        if ($submitter === null) {
+        if ($submitter !== null) {
+            $ignored = array_keys(array_filter(['transport' => $transport, 'debounce' => $debounce, 'throttle' => $throttle, 'normalizer' => $normalizer], static fn($v): bool => $v !== null));
+            if ($ignored !== []) {
+                throw new ConfigurationException(\sprintf('IndexNowKit::create(): $%s cannot be combined with a custom $submitter, which builds its own pipeline. Pass them to your submitter instead.', implode(', $', $ignored)));
+            }
+        } else {
+            $normalizer ??= new UrlNormalizer($config->baseUrl);
             $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
             $client = new Client($transport ?? Psr18Transport::discover(timeout: $config->httpTimeout), $keys, $config, $logger, $throttle, $normalizer);
             $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
         }
 
-        return new self($config, $submitter, $collector ?? new Collector(), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
+        return new self($config, $submitter, $collector ?? new Collector($logger), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
     }
 
     /**

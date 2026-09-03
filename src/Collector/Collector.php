@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Collector;
 
-use Countable;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
- * Per-unit-of-work buffer (HTTP request, console command, queue message) of normalized URLs.
- * Deduplicates, preserves insertion order, flushes once.
+ * In-memory collector. Deduplicates, preserves insertion order, flushes once.
+ *
+ * A reset() of a non-empty buffer is logged as a warning: it means the unit of work ended without a flush
+ * (no kernel.terminate, worker runtime that resets services, early exit), which is otherwise invisible.
  */
-final class Collector implements Countable
+final class Collector implements CollectorInterface
 {
     /** @var array<string, true> */
     private array $urls = [];
 
-    /**
-     * @param iterable<string> $urls already normalized (see SubmitterInterface::prepare())
-     */
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger()) {}
+
     public function add(iterable $urls): void
     {
         foreach ($urls as $url) {
@@ -35,11 +37,6 @@ final class Collector implements Countable
         return \count($this->urls);
     }
 
-    /**
-     * Returns the buffered URLs and empties the buffer.
-     *
-     * @return list<string>
-     */
     public function drain(): array
     {
         $urls = array_keys($this->urls);
@@ -50,6 +47,9 @@ final class Collector implements Countable
 
     public function reset(): void
     {
+        if ($this->urls !== []) {
+            $this->logger->warning('indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (no kernel.terminate?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
+        }
         $this->urls = [];
     }
 }

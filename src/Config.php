@@ -36,10 +36,22 @@ final readonly class Config
     /** @var array<string, string> host => key file URL (per-host overrides of key_location) */
     public array $keyLocations;
 
+    /** @var array<string, string> host => absolute base URL (per-host overrides of base_url for URL generation outside requests) */
+    public array $hostBaseUrls;
+
+    /** Every key fromArray() understands, dotted-path form. Adapters validate their own config against it with unknownOptions(). */
+    public const OPTIONS = [
+        'enabled', 'key', 'hosts', 'key_location', 'base_url', 'engines', 'dispatch', 'serve_key_file', 'dry_run',
+        'strict_hosts', 'environment', 'batch.max_urls', 'debounce.per_url', 'throttle.max_requests_per_minute',
+        'http.timeout', 'http.user_agent',
+    ];
+
     /**
-     * @param array<string, string|array{key: string, key_location?: string|null}> $hosts    per-host keys for multi-site setups
-     * @param list<string>                                                          $engines  engine names ({@see Engine}) or endpoint URLs
-     * @param string                                                                $dispatch adapter-defined delivery mode (sync, queue, ...); the core only reports it
+     * @param array<string, string|array{key: string, key_location?: string|null, base_url?: string|null}> $hosts       per-host keys for multi-site setups
+     * @param list<string>                                                                                 $engines     engine names ({@see Engine}) or endpoint URLs
+     * @param string                                                                                       $dispatch    adapter-defined delivery mode (sync, queue, ...); the core only reports it
+     * @param bool                                                                                         $strictHosts apply the default key only to the base_url host; other hosts need a `hosts` entry
+     * @param string|null                                                                                  $environment application environment (prod, dev, ...) for diagnostics; see PRODUCTION_ENVIRONMENTS
      *
      * @throws ConfigurationException
      */
@@ -58,6 +70,8 @@ final readonly class Config
         public ?string $userAgent = null,
         public bool $serveKeyFile = true,
         public bool $dryRun = false,
+        public bool $strictHosts = false,
+        public ?string $environment = null,
     ) {
         if ($enabled && !$dryRun && $key === null && $hosts === []) {
             throw new ConfigurationException('IndexNow is enabled but no "key" (or "hosts" map) is configured. Set INDEXNOW_KEY, or enable dry_run.');
@@ -65,7 +79,7 @@ final readonly class Config
         if ($key !== null) {
             KeyValidator::assertValid($key);
         }
-        [$this->hosts, $this->keyLocations] = self::normalizeHosts($hosts);
+        [$this->hosts, $this->keyLocations, $this->hostBaseUrls] = self::normalizeHosts($hosts);
         if ($baseUrl !== null && !self::isAbsoluteHttpUrl($baseUrl)) {
             throw new ConfigurationException(\sprintf('"base_url" must be an absolute http(s) URL, got "%s".', $baseUrl));
         }
@@ -96,6 +110,9 @@ final readonly class Config
         if ($userAgent !== null && preg_match('/[\r\n]/', $userAgent) === 1) {
             throw new ConfigurationException('"http.user_agent" must not contain line breaks.');
         }
+        if ($strictHosts && $baseUrl === null && $this->hosts === []) {
+            throw new ConfigurationException('"strict_hosts" needs at least one known host: set "base_url" or a "hosts" map.');
+        }
         $this->engines = array_values($engines);
         $this->endpoints = array_values(array_unique(array_map(Engine::resolveEndpoint(...), $engines)));
     }
@@ -117,7 +134,7 @@ final readonly class Config
         $throttle = self::sub($data, 'throttle');
         $http = self::sub($data, 'http');
 
-        /** @var array<string, string|array{key: string, key_location?: string|null}> $hosts */
+        /** @var array<string, string|array{key: string, key_location?: string|null, base_url?: string|null}> $hosts */
         $hosts = \is_array($data['hosts'] ?? null) ? $data['hosts'] : [];
         /** @var list<string> $engines */
         $engines = \is_array($data['engines'] ?? null) ? array_values($data['engines']) : [Engine::Api->value];
@@ -143,6 +160,8 @@ final readonly class Config
             userAgent: self::str($http['user_agent'] ?? null),
             serveKeyFile: (bool) ($data['serve_key_file'] ?? true),
             dryRun: $dryRun,
+            strictHosts: (bool) ($data['strict_hosts'] ?? false),
+            environment: $environment,
         );
     }
 
@@ -152,7 +171,7 @@ final readonly class Config
      * Recognised (with the default prefix): INDEXNOW_ENABLED, INDEXNOW_KEY, INDEXNOW_HOSTS ("host=key,host2=key2"),
      * INDEXNOW_KEY_LOCATION, INDEXNOW_BASE_URL, INDEXNOW_ENGINES ("api" or "yandex,bing"), INDEXNOW_DISPATCH,
      * INDEXNOW_BATCH_MAX_URLS, INDEXNOW_DEBOUNCE_PER_URL, INDEXNOW_THROTTLE_PER_MINUTE, INDEXNOW_HTTP_TIMEOUT,
-     * INDEXNOW_USER_AGENT, INDEXNOW_SERVE_KEY_FILE, INDEXNOW_DRY_RUN, plus INDEXNOW_ENV / APP_ENV for the
+     * INDEXNOW_USER_AGENT, INDEXNOW_SERVE_KEY_FILE, INDEXNOW_DRY_RUN, INDEXNOW_STRICT_HOSTS, plus INDEXNOW_ENV / APP_ENV for the
      * non-production dry-run safety net.
      *
      * @param array<string, mixed>|null $env defaults to getenv() + $_SERVER + $_ENV
@@ -181,6 +200,7 @@ final readonly class Config
             'dispatch' => $get('DISPATCH'),
             'dry_run' => $bool($get('DRY_RUN')),
             'serve_key_file' => $bool($get('SERVE_KEY_FILE')),
+            'strict_hosts' => $bool($get('STRICT_HOSTS')),
             'environment' => $get('ENV') ?? (\is_string($appEnv) ? $appEnv : null),
             'batch' => $get('BATCH_MAX_URLS') !== null ? ['max_urls' => $get('BATCH_MAX_URLS')] : null,
             'debounce' => $get('DEBOUNCE_PER_URL') !== null ? ['per_url' => $get('DEBOUNCE_PER_URL')] : null,
@@ -211,10 +231,12 @@ final readonly class Config
             'userAgent' => $this->userAgent,
             'serveKeyFile' => $this->serveKeyFile,
             'dryRun' => $this->dryRun,
+            'strictHosts' => $this->strictHosts,
+            'environment' => $this->environment,
         ];
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {
-                throw new ConfigurationException(\sprintf('Unknown Config option "%s".', (string) $name));
+                throw new ConfigurationException(\sprintf('Unknown Config option "%s". Known options: %s.', (string) $name, implode(', ', array_keys($current))));
             }
         }
 
@@ -233,6 +255,60 @@ final readonly class Config
     }
 
     /**
+     * Whether `environment` names a production environment ({@see PRODUCTION_ENVIRONMENTS}); false when unknown.
+     */
+    public function isProduction(): bool
+    {
+        return $this->environment !== null && \in_array(strtolower($this->environment), self::PRODUCTION_ENVIRONMENTS, true);
+    }
+
+    /**
+     * Base URL to generate absolute URLs for a host: the per-host override, else base_url when it is that host, else null.
+     */
+    public function baseUrlFor(string $host): ?string
+    {
+        $host = strtolower($host);
+        if (isset($this->hostBaseUrls[$host])) {
+            return $this->hostBaseUrls[$host];
+        }
+
+        return $this->baseHost() === $host ? $this->baseUrl : null;
+    }
+
+    /**
+     * Keys of $data that fromArray() does not understand, as dotted paths. Adapters strip their own keys via
+     * $allowed and warn (or fail) on the remainder, so `debounce.per_urls` does not pass silently.
+     *
+     * @param array<string, mixed> $data
+     * @param list<string>         $allowed extra dotted keys owned by the adapter (a prefix like "messenger" allows the whole block)
+     *
+     * @return list<string>
+     */
+    public static function unknownOptions(array $data, array $allowed = []): array
+    {
+        $known = [...self::OPTIONS, ...$allowed];
+        $unknown = [];
+        foreach ($data as $name => $value) {
+            $name = (string) $name;
+            if ($name === 'hosts' || \in_array($name, $known, true)) {
+                continue;
+            }
+            if (\is_array($value) && !array_is_list($value)) {
+                foreach ($value as $sub => $subValue) {
+                    $path = $name . '.' . (string) $sub;
+                    if (!\in_array($path, $known, true)) {
+                        $unknown[] = $path;
+                    }
+                }
+                continue;
+            }
+            $unknown[] = $name;
+        }
+
+        return $unknown;
+    }
+
+    /**
      * Host of base_url, lower-cased, or null.
      */
     public function baseHost(): ?string
@@ -246,9 +322,9 @@ final readonly class Config
     }
 
     /**
-     * @param array<string, string|array{key: string, key_location?: string|null}> $hosts
+     * @param array<string, string|array{key: string, key_location?: string|null, base_url?: string|null}> $hosts
      *
-     * @return array{0: array<string, string>, 1: array<string, string>}
+     * @return array{0: array<string, string>, 1: array<string, string>, 2: array<string, string>}
      *
      * @throws ConfigurationException
      */
@@ -256,6 +332,7 @@ final readonly class Config
     {
         $keys = [];
         $locations = [];
+        $baseUrls = [];
         foreach ($hosts as $host => $entry) {
             if (!\is_string($host) || $host === '' || preg_match('/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i', $host) !== 1) {
                 throw new ConfigurationException(\sprintf('"hosts" must map bare host names (no scheme, port or path) to keys, got "%s".', (string) $host));
@@ -277,19 +354,36 @@ final readonly class Config
                 }
                 $locations[$host] = $location;
             }
+            $baseUrl = \is_array($entry) ? ($entry['base_url'] ?? null) : null;
+            if ($baseUrl !== null) {
+                if (!\is_string($baseUrl) || !self::isAbsoluteHttpUrl($baseUrl)) {
+                    throw new ConfigurationException(\sprintf('"hosts.%s.base_url" must be an absolute http(s) URL.', $host));
+                }
+                if (self::hostOf($baseUrl) !== $host) {
+                    throw new ConfigurationException(\sprintf('"hosts.%s.base_url" must be on host %s, got %s.', $host, $host, self::hostOf($baseUrl)));
+                }
+                $baseUrls[$host] = $baseUrl;
+            }
         }
 
-        return [$keys, $locations];
+        return [$keys, $locations, $baseUrls];
     }
 
     /**
-     * @return array<string, string|array{key: string, key_location?: string|null}>
+     * @return array<string, string|array{key: string, key_location?: string|null, base_url?: string|null}>
      */
     private function hostsForConstructor(): array
     {
         $hosts = [];
         foreach ($this->hosts as $host => $key) {
-            $hosts[$host] = isset($this->keyLocations[$host]) ? ['key' => $key, 'key_location' => $this->keyLocations[$host]] : $key;
+            $entry = ['key' => $key];
+            if (isset($this->keyLocations[$host])) {
+                $entry['key_location'] = $this->keyLocations[$host];
+            }
+            if (isset($this->hostBaseUrls[$host])) {
+                $entry['base_url'] = $this->hostBaseUrls[$host];
+            }
+            $hosts[$host] = \count($entry) === 1 ? $key : $entry;
         }
 
         return $hosts;

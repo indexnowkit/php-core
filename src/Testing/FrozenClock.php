@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Tests\Support;
+namespace IndexNowKit\Testing;
 
 use DateTimeImmutable;
 use Psr\Clock\ClockInterface;
 
+/**
+ * Test double: a clock that only moves when advance() is called.
+ */
 final class FrozenClock implements ClockInterface
 {
     private DateTimeImmutable $now;

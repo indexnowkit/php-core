@@ -6,7 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Dispatch\SyncDispatcher;
 use IndexNowKit\SubmitterInterface;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

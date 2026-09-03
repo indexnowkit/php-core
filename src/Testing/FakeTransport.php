@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Tests\Support;
+namespace IndexNowKit\Testing;
 
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Http\TransportInterface;
 use Throwable;
 
+/**
+ * Test double: records POSTs (decoded body included), answers queued responses or throws queued exceptions.
+ */
 final class FakeTransport implements TransportInterface
 {
     /** @var list<array{url: string, json: string, headers: array<string, string>, body: array<string, mixed>}> */
@@ -27,7 +30,7 @@ final class FakeTransport implements TransportInterface
 
     public function willRespond(Response|Throwable ...$responses): self
     {
-        $this->queue = [...$this->queue, ...$responses];
+        $this->queue = array_values([...$this->queue, ...$responses]);
 
         return $this;
     }

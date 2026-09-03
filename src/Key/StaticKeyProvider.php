@@ -10,8 +10,8 @@ use IndexNowKit\Config;
  * Keys from configuration: a per-host map plus a default key.
  *
  * The default key applies to every host not in the map (single-site setups usually only set it). Without a
- * default key, hosts missing from the map are unmanaged: their URLs are skipped, never sent under another
- * host's key.
+ * default key, or with `$strictHosts`, hosts missing from the map (and different from the base host) are
+ * unmanaged: their URLs are skipped, never sent under another host's key.
  */
 final readonly class StaticKeyProvider implements KeyProviderInterface
 {
@@ -26,6 +26,7 @@ final readonly class StaticKeyProvider implements KeyProviderInterface
     /**
      * @param array<string, string> $hosts
      * @param array<string, string> $keyLocations per-host overrides of $keyLocation
+     * @param bool                  $strictHosts  apply the default key only to $defaultHost (multi-domain setups)
      */
     public function __construct(
         private ?string $defaultKey,
@@ -33,6 +34,7 @@ final readonly class StaticKeyProvider implements KeyProviderInterface
         private ?string $keyLocation = null,
         ?string $defaultHost = null,
         array $keyLocations = [],
+        private bool $strictHosts = false,
     ) {
         $this->hosts = array_change_key_case($hosts, CASE_LOWER);
         $this->keyLocations = array_change_key_case($keyLocations, CASE_LOWER);
@@ -41,7 +43,7 @@ final readonly class StaticKeyProvider implements KeyProviderInterface
 
     public static function fromConfig(Config $config): self
     {
-        return new self($config->key, $config->hosts, $config->keyLocation, $config->baseHost(), $config->keyLocations);
+        return new self($config->key, $config->hosts, $config->keyLocation, $config->baseHost(), $config->keyLocations, $config->strictHosts);
     }
 
     public function keyFor(string $host): ?string
@@ -50,6 +52,10 @@ final readonly class StaticKeyProvider implements KeyProviderInterface
         if (isset($this->hosts[$host])) {
             return $this->hosts[$host];
         }
+        if ($this->strictHosts && $host !== $this->defaultHost) {
+            return null;
+        }
+
         return $this->defaultKey;
     }
 
@@ -66,8 +72,13 @@ final readonly class StaticKeyProvider implements KeyProviderInterface
         return $this->keyLocation;
     }
 
-    public function isKnownKey(string $key): bool
+    public function isKnownKey(string $key, ?string $host = null): bool
     {
+        if ($host !== null) {
+            $expected = $this->keyFor($host);
+
+            return $expected !== null && hash_equals($expected, $key);
+        }
         if ($this->defaultKey !== null && hash_equals($this->defaultKey, $key)) {
             return true;
         }

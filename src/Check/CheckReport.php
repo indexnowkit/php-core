@@ -9,26 +9,29 @@ namespace IndexNowKit\Check;
  */
 final class CheckReport
 {
-    /** @var list<array{level: 'ok'|'warning'|'error', message: string}> */
+    /** @var list<CheckItem> */
     private array $items = [];
 
+    /** @internal writers are for Checker and adapter-side checks */
     public function ok(string $message): void
     {
-        $this->items[] = ['level' => 'ok', 'message' => $message];
+        $this->items[] = new CheckItem(CheckLevel::Ok, $message);
     }
 
+    /** @internal */
     public function warning(string $message): void
     {
-        $this->items[] = ['level' => 'warning', 'message' => $message];
+        $this->items[] = new CheckItem(CheckLevel::Warning, $message);
     }
 
+    /** @internal */
     public function error(string $message): void
     {
-        $this->items[] = ['level' => 'error', 'message' => $message];
+        $this->items[] = new CheckItem(CheckLevel::Error, $message);
     }
 
     /**
-     * @return list<array{level: 'ok'|'warning'|'error', message: string}>
+     * @return list<CheckItem>
      */
     public function items(): array
     {
@@ -38,7 +41,7 @@ final class CheckReport
     public function hasErrors(): bool
     {
         foreach ($this->items as $item) {
-            if ($item['level'] === 'error') {
+            if ($item->level === CheckLevel::Error) {
                 return true;
             }
         }

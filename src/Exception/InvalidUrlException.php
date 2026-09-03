@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Exception;
 
-use InvalidArgumentException;
-
 /**
- * A URL that cannot be submitted. Submitter catches it and drops the URL with a warning.
+ * A URL that cannot be submitted. Submitter catches it and reports the URL as skipped (Reason::InvalidUrl).
  */
 final class InvalidUrlException extends InvalidArgumentException implements IndexNowException {}

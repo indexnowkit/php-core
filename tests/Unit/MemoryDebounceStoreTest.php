@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Debounce\MemoryDebounceStore;
-use IndexNowKit\Tests\Support\FrozenClock;
+use IndexNowKit\Testing\FrozenClock;
 use PHPUnit\Framework\TestCase;
 
 final class MemoryDebounceStoreTest extends TestCase

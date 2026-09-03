@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
-use IndexNowKit\Tests\Support\ArrayLogger;
-use IndexNowKit\Tests\Support\FrozenClock;
+use IndexNowKit\Testing\ArrayLogger;
+use IndexNowKit\Testing\FrozenClock;
 use IndexNowKit\Throttle\TokenBucket;
 use PHPUnit\Framework\TestCase;
 

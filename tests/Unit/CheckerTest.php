@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Check\CheckItem;
+use IndexNowKit\Check\CheckLevel;
 use IndexNowKit\Check\Checker;
 use IndexNowKit\Config;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Tests\Support\Factory;
-use IndexNowKit\Tests\Support\FakeTransport;
+use IndexNowKit\Testing\FakeTransport;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -53,7 +55,7 @@ final class CheckerTest extends TestCase
         $config = Config::fromArray(['dry_run' => true, 'enabled' => false]);
         $report = (new Checker($config, StaticKeyProvider::fromConfig($config), new FakeTransport()))->run();
 
-        $warnings = implode("\n", array_column(array_filter($report->items(), static fn(array $i): bool => $i['level'] === 'warning'), 'message'));
+        $warnings = implode("\n", array_column(array_filter($report->items(), static fn(CheckItem $i): bool => $i->level === CheckLevel::Warning), 'message'));
         self::assertStringContainsString('disabled', $warnings);
         self::assertStringContainsString('dry_run is on', $warnings);
         self::assertStringContainsString('base_url is not set', $warnings);
@@ -117,7 +119,7 @@ final class CheckerTest extends TestCase
 
         $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run(liveProbe: true);
 
-        $matching = array_filter($report->items(), static fn(array $i): bool => $i['level'] === $expectedLevel && str_contains($i['message'], 'api'));
+        $matching = array_filter($report->items(), static fn(CheckItem $i): bool => $i->level->value === $expectedLevel && str_contains($i->message, 'api'));
         self::assertNotEmpty($matching, \sprintf('expected a %s-level item mentioning the engine for status %d', $expectedLevel, $status));
     }
 

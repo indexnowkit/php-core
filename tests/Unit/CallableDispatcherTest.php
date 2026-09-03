@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Dispatch\CallableDispatcher;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

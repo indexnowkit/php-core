@@ -7,7 +7,7 @@ namespace IndexNowKit\Tests\Unit;
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use IndexNowKit\Event;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Url\CallableUrlResolver;
 use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\NullUrlResolver;

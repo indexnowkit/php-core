@@ -9,7 +9,7 @@ use IndexNowKit\ResultStatus;
 use IndexNowKit\Retry\RetryingSubmitter;
 use IndexNowKit\Retry\RetryPolicy;
 use IndexNowKit\SubmitterInterface;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use PHPUnit\Framework\TestCase;
 
 final class RetryingSubmitterTest extends TestCase

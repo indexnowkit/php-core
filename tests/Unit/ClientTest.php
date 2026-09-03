@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Reason;
 use IndexNowKit\Client;
 use IndexNowKit\Config;
 use IndexNowKit\Exception\InvalidArgumentException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\ResultStatus;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
-use IndexNowKit\Tests\Support\FakeTransport;
+use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -163,7 +164,7 @@ final class ClientTest extends TestCase
         $result = $this->client($t, $config)->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
 
         self::assertSame(ResultStatus::Skipped, $result->status);
-        self::assertSame('dry_run', $result->error);
+        self::assertSame(Reason::DryRun, $result->reason);
         self::assertSame(self::ENDPOINT, $result->endpoint);
         self::assertCount(0, $t->posts);
     }

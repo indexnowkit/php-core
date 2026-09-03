@@ -14,6 +14,6 @@ final class NullUrlResolver implements UrlResolverInterface
 {
     public function resolve(object $subject, Event $event): iterable
     {
-        throw new ConfigurationException(\sprintf('No UrlResolver configured, cannot resolve URLs for %s. Pass one to IndexNow::create() or use a framework adapter.', $subject::class));
+        throw new ConfigurationException(\sprintf('No UrlResolver configured, cannot resolve URLs for %s. Pass one to IndexNowKit::create() or use a framework adapter.', $subject::class));
     }
 }

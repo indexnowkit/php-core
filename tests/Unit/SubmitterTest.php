@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Reason;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Result;
 use IndexNowKit\ResultStatus;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
-use IndexNowKit\Tests\Support\FakeTransport;
-use IndexNowKit\Tests\Support\FrozenClock;
+use IndexNowKit\Testing\FakeTransport;
+use IndexNowKit\Testing\FrozenClock;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -123,7 +124,7 @@ final class SubmitterTest extends TestCase
         self::assertSame(['https://blocked.example.com/b'], $t->posts[2]['body']['urlList']);
     }
 
-    public function testDisabledConfigReturnsSkippedResultsAndLogsDebug(): void
+    public function testDisabledConfigReturnsSkippedResultsAndLogsInfo(): void
     {
         $t = new FakeTransport();
         $logger = new ArrayLogger();
@@ -132,10 +133,10 @@ final class SubmitterTest extends TestCase
         $results = $submitter->submit(['/a']);
         self::assertCount(1, $results);
         self::assertSame(ResultStatus::Skipped, $results[0]->status);
-        self::assertSame('disabled', $results[0]->error);
+        self::assertSame(Reason::Disabled, $results[0]->reason);
         self::assertSame(['https://www.example.com/a'], $results[0]->urls);
         self::assertCount(0, $t->posts);
-        self::assertCount(1, $logger->messages('debug'));
+        self::assertCount(1, $logger->messages('info'));
     }
 
     public function testInvalidUrlsAreDroppedWithWarning(): void

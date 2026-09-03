@@ -7,4 +7,4 @@ namespace IndexNowKit\Exception;
 /**
  * Programming error at a call site (empty batch, key length out of range). Never thrown for remote failures.
  */
-final class InvalidArgumentException extends \InvalidArgumentException implements IndexNowException {}
+class InvalidArgumentException extends \InvalidArgumentException implements IndexNowException {}

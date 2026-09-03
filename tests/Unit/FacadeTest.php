@@ -8,11 +8,11 @@ use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use IndexNowKit\Dispatch\CallableDispatcher;
 use IndexNowKit\Event;
-use IndexNowKit\IndexNow;
+use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\StaticKeyProvider;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
-use IndexNowKit\Tests\Support\FakeTransport;
+use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Url\CallableUrlResolver;
 use IndexNowKit\Url\UrlNormalizerInterface;
@@ -55,7 +55,7 @@ final class FacadeTest extends TestCase
     public function testSubmitEntityUsesResolverAndGuard(): void
     {
         $t = new FakeTransport();
-        $inx = IndexNow::create(Factory::config(), $t, resolver: new CallableUrlResolver(static fn(FacadePost $p, Event $e) => '/posts/' . $p->slug));
+        $inx = IndexNowKit::create(Factory::config(), $t, resolver: new CallableUrlResolver(static fn(FacadePost $p, Event $e) => '/posts/' . $p->slug));
 
         $inx->submitEntity(new FacadePost('a'));
         self::assertSame(['https://www.example.com/posts/a'], $t->posts[0]['body']['urlList']);
@@ -71,7 +71,7 @@ final class FacadeTest extends TestCase
     public function testCollectAndFlushGoThroughDispatcher(): void
     {
         $received = [];
-        $inx = IndexNow::create(Factory::config(), new FakeTransport(), dispatcher: new CallableDispatcher(static function (array $urls) use (&$received): void {
+        $inx = IndexNowKit::create(Factory::config(), new FakeTransport(), dispatcher: new CallableDispatcher(static function (array $urls) use (&$received): void {
             $received = $urls;
         }));
 
@@ -85,7 +85,7 @@ final class FacadeTest extends TestCase
     public function testFlushOnEmptyCollectorDoesNothing(): void
     {
         $called = false;
-        $inx = IndexNow::create(Factory::config(), new FakeTransport(), dispatcher: new CallableDispatcher(static function () use (&$called): void {
+        $inx = IndexNowKit::create(Factory::config(), new FakeTransport(), dispatcher: new CallableDispatcher(static function () use (&$called): void {
             $called = true;
         }));
 
@@ -97,7 +97,7 @@ final class FacadeTest extends TestCase
     public function testUrlsForNeverThrowsWhenTheWhenAccessorIsMissing(): void
     {
         $logger = new ArrayLogger();
-        $inx = IndexNow::create(Factory::config(), new FakeTransport(), logger: $logger);
+        $inx = IndexNowKit::create(Factory::config(), new FakeTransport(), logger: $logger);
 
         $urls = $inx->urlsFor(new BadWhenPost(), Event::Updated);
 
@@ -113,7 +113,7 @@ final class FacadeTest extends TestCase
         $normalizer = new MappingNormalizer();
         $attributes = new AttributeReader();
 
-        $inx = IndexNow::create(Factory::config(), $t, keys: $keys, throttle: $throttle, normalizer: $normalizer, attributes: $attributes);
+        $inx = IndexNowKit::create(Factory::config(), $t, keys: $keys, throttle: $throttle, normalizer: $normalizer, attributes: $attributes);
         $inx->submit(['/whatever']);
 
         self::assertSame(['host' => 'custom.example.com', 'key' => 'hostkey12345', 'urlList' => ['https://custom.example.com/mapped']], $t->posts[0]['body']);

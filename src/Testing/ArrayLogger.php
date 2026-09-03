@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Tests\Support;
+namespace IndexNowKit\Testing;
 
 use Psr\Log\AbstractLogger;
 use Stringable;
 
+/**
+ * Test double: keeps every record; messages() returns them interpolated, optionally filtered by level.
+ */
 final class ArrayLogger extends AbstractLogger
 {
     /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
@@ -14,7 +17,7 @@ final class ArrayLogger extends AbstractLogger
 
     public function log($level, string|Stringable $message, array $context = []): void
     {
-        $this->records[] = ['level' => (string) $level, 'message' => (string) $message, 'context' => $context];
+        $this->records[] = ['level' => \is_scalar($level) ? (string) $level : 'unknown', 'message' => (string) $message, 'context' => $context];
     }
 
     /**

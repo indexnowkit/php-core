@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Support;
 
 use IndexNowKit\Client;
+use IndexNowKit\Testing\ArrayLogger;
+use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Config;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;

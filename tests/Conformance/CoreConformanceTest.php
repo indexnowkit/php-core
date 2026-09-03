@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Conformance;
 
+use IndexNowKit\Reason;
 use IndexNowKit\Config;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\ConfigurationException;
@@ -12,10 +13,10 @@ use IndexNowKit\Key\KeyGenerator;
 use IndexNowKit\ResultStatus;
 use IndexNowKit\Retry\RetryingSubmitter;
 use IndexNowKit\Retry\RetryPolicy;
-use IndexNowKit\Tests\Support\ArrayLogger;
+use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Tests\Support\Factory;
-use IndexNowKit\Tests\Support\FakeTransport;
-use IndexNowKit\Tests\Support\FrozenClock;
+use IndexNowKit\Testing\FakeTransport;
+use IndexNowKit\Testing\FrozenClock;
 use IndexNowKit\Throttle\TokenBucket;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -109,7 +110,7 @@ final class CoreConformanceTest extends TestCase
         $debounced = $submitter->submit(['/a']);
         self::assertCount(1, $debounced, 'C07: debounced');
         self::assertSame(ResultStatus::Skipped, $debounced[0]->status);
-        self::assertSame('debounced', $debounced[0]->error);
+        self::assertSame(Reason::Debounced, $debounced[0]->reason);
         self::assertCount(1, $t->posts);
 
         $clock->advance(600);
@@ -216,7 +217,7 @@ final class CoreConformanceTest extends TestCase
 
         self::assertCount(1, $results);
         self::assertSame(ResultStatus::Skipped, $results[0]->status);
-        self::assertSame('disabled', $results[0]->error);
+        self::assertSame(Reason::Disabled, $results[0]->reason);
         self::assertCount(0, $t->posts);
     }
 

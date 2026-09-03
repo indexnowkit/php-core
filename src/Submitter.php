@@ -9,6 +9,7 @@ use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Url\UrlNormalizer;
 use IndexNowKit\Url\UrlNormalizerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Throwable;
@@ -17,20 +18,27 @@ use Throwable;
  * One submission: normalize -> dedupe -> debounce -> Client (group, chunk, throttle, POST) -> mark submitted.
  *
  * Ancillary failures (debounce store down, a listener throwing) are logged and never abort delivery.
+ * Every outcome, including skipped URLs, is a Result handed to listeners and to the optional PSR-14 dispatcher.
  */
 final class Submitter implements SubmitterInterface
 {
+    private const LOG_URLS_LIMIT = 20;
+
     /** @var list<callable(Result): void> */
     private array $listeners = [];
 
     private readonly UrlNormalizerInterface $normalizer;
 
+    /**
+     * @param EventDispatcherInterface|null $events receives every Result as an event (PSR-14), in addition to listeners
+     */
     public function __construct(
         private readonly Client $client,
         private readonly Config $config,
         private readonly DebounceStoreInterface $debounce = new MemoryDebounceStore(),
         private readonly LoggerInterface $logger = new NullLogger(),
         ?UrlNormalizerInterface $normalizer = null,
+        private readonly ?EventDispatcherInterface $events = null,
     ) {
         $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl);
     }
@@ -42,21 +50,19 @@ final class Submitter implements SubmitterInterface
 
     public function submit(iterable $urls): array
     {
-        $normalized = $this->prepare($urls);
-        if ($normalized === []) {
-            return [];
+        [$normalized, $results] = $this->normalize($urls);
+        if ($normalized !== []) {
+            if (!$this->config->enabled) {
+                $this->logger->info('indexnow: disabled (enabled: false), dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => \array_slice($normalized, 0, self::LOG_URLS_LIMIT)]);
+                $results = [...$results, ...$this->skipped($normalized, Reason::Disabled)];
+                $normalized = [];
+            }
         }
-        if (!$this->config->enabled) {
-            $this->logger->debug('indexnow: disabled, dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => $normalized]);
 
-            return $this->skipped($normalized, 'disabled');
-        }
-
-        $results = [];
         $ttl = $this->config->debouncePerUrl;
-        if ($ttl > 0 && !$this->config->dryRun) {
+        if ($normalized !== [] && $ttl > 0 && !$this->config->dryRun) {
             $fresh = $this->withoutRecent($normalized, $ttl);
-            $results = $this->skipped(array_values(array_diff($normalized, $fresh)), 'debounced');
+            $results = [...$results, ...$this->skipped(array_values(array_diff($normalized, $fresh)), Reason::Debounced)];
             $normalized = $fresh;
         }
         if ($normalized !== []) {
@@ -67,7 +73,7 @@ final class Submitter implements SubmitterInterface
         }
 
         if ($ttl > 0) {
-            $sent = Result::urlsOf($results, static fn(Result $r): bool => $r->isSuccess());
+            $sent = Result::urlsWhere($results, static fn(Result $r): bool => $r->isSuccess());
             if ($sent !== []) {
                 try {
                     $this->debounce->markSubmitted($sent, $ttl);
@@ -82,16 +88,28 @@ final class Submitter implements SubmitterInterface
 
     public function prepare(iterable $urls): array
     {
+        return $this->normalize($urls)[0];
+    }
+
+    /**
+     * @param iterable<string> $urls
+     *
+     * @return array{0: list<string>, 1: list<Result>} normalized URLs and one skipped Result per invalid URL
+     */
+    private function normalize(iterable $urls): array
+    {
         $seen = [];
+        $invalid = [];
         foreach ($urls as $url) {
             try {
                 $seen[$this->normalizer->normalize($url)] = true;
             } catch (InvalidUrlException $e) {
                 $this->logger->warning('indexnow: dropping URL: {error}', ['error' => $e->getMessage()]);
+                $invalid[] = Result::skipped('', [$url], Reason::InvalidUrl, $e->getMessage());
             }
         }
 
-        return array_keys($seen);
+        return [array_keys($seen), $invalid];
     }
 
     /**
@@ -113,7 +131,7 @@ final class Submitter implements SubmitterInterface
         if ($recent === []) {
             return $urls;
         }
-        $this->logger->debug('indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl]);
+        $this->logger->debug('indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl, 'urls' => \array_slice($recent, 0, self::LOG_URLS_LIMIT)]);
         $skip = array_fill_keys($recent, true);
 
         return array_values(array_filter($urls, static fn(string $url): bool => !isset($skip[$url])));
@@ -126,7 +144,7 @@ final class Submitter implements SubmitterInterface
      *
      * @return list<Result>
      */
-    private function skipped(array $urls, string $reason): array
+    private function skipped(array $urls, Reason $reason): array
     {
         $byHost = [];
         foreach ($urls as $url) {
@@ -134,7 +152,7 @@ final class Submitter implements SubmitterInterface
         }
         $results = [];
         foreach ($byHost as $host => $hostUrls) {
-            $results[] = new Result('none', $host, $hostUrls, ResultStatus::Skipped, error: $reason);
+            $results[] = Result::skipped($host, $hostUrls, $reason);
         }
 
         return $results;
@@ -142,6 +160,11 @@ final class Submitter implements SubmitterInterface
 
     private function notify(Result $result): void
     {
+        try {
+            $this->events?->dispatch($result);
+        } catch (Throwable $e) {
+            $this->logger->error('indexnow: result event listener failed: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
+        }
         foreach ($this->listeners as $listener) {
             try {
                 $listener($result);

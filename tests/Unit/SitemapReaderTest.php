@@ -8,8 +8,8 @@ use DateTimeImmutable;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Sitemap\SitemapReader;
-use IndexNowKit\Tests\Support\ArrayLogger;
-use IndexNowKit\Tests\Support\FakeTransport;
+use IndexNowKit\Testing\ArrayLogger;
+use IndexNowKit\Testing\FakeTransport;
 use PHPUnit\Framework\TestCase;
 
 final class SitemapReaderTest extends TestCase

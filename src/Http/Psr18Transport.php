@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Http;
 
-use DateTimeImmutable;
-use DateTimeInterface;
 use Http\Discovery\Exception\NotFoundException;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
@@ -29,7 +27,7 @@ final class Psr18Transport implements TransportInterface
 {
     public const POST_BODY_LIMIT = 2048;
     public const GET_BODY_LIMIT = 52_428_800;
-    public const MAX_RETRY_AFTER = 86400;
+    public const MAX_RETRY_AFTER = Response::MAX_RETRY_AFTER;
 
     private const READ_CHUNK = 65536;
 
@@ -157,22 +155,6 @@ final class Psr18Transport implements TransportInterface
      */
     private static function retryAfter(ResponseInterface $response): ?int
     {
-        $header = trim($response->getHeaderLine('Retry-After'));
-        if ($header === '') {
-            return null;
-        }
-        if (preg_match('/^\d+$/', $header) === 1) {
-            return min((int) $header, self::MAX_RETRY_AFTER);
-        }
-        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::RFC7231, $header);
-        if ($date === false) {
-            $timestamp = strtotime($header);
-            if ($timestamp === false) {
-                return null;
-            }
-            $date = new DateTimeImmutable('@' . $timestamp);
-        }
-
-        return max(0, min($date->getTimestamp() - time(), self::MAX_RETRY_AFTER));
+        return Response::parseRetryAfter($response->getHeaderLine('Retry-After'), self::MAX_RETRY_AFTER);
     }
 }
