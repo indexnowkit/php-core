@@ -3,7 +3,14 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## 0.2.0 — 2026-09-04
+## [Unreleased]
+
+### Fixed
+
+- `Http\Response::parseRetryAfter()` no longer uses `DateTimeInterface::RFC7231`, deprecated in PHP 8.5; the format is
+  `Response::HTTP_DATE`.
+
+## [0.2.0] — 2026-09-04
 
 The URL model was rewritten. A class no longer declares *one* page, it declares a **list of rules**, and every
 downstream piece — event classification, guards, locales, deletion semantics, `explain` output — works per rule.
@@ -220,6 +227,10 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 - `AttributeReader::read()` / `rules()` throw `ConfigurationException` for an unknown class instead of a bare
   `ReflectionException`.
 
-## 0.1.0 — 2026-09-03
+## [0.1.0] — 2026-09-03
 
 Initial release: protocol client, batching, debounce, throttle, `#[IndexNow]` attribute, sitemap reader, checker.
+
+[0.2.0]: https://github.com/indexnowkit/php-core/compare/0.1.0...0.2.0
+[0.1.0]: https://github.com/indexnowkit/php-core/releases/tag/0.1.0
+[Unreleased]: https://github.com/indexnowkit/php-core/compare/0.2.0...main

@@ -304,4 +304,4 @@ What is covered by the promise and what is not: [docs/bc.md](docs/bc.md).
 Design rationale and the cross-language model: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
 Conformance suite: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
-MIT.
+MIT. IndexNow is a trademark of its owner; this project is independent and not affiliated with Microsoft, Yandex or indexnow.org.

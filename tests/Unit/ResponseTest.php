@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
-use DateTimeInterface;
 use IndexNowKit\Http\Response;
 use PHPUnit\Framework\TestCase;
 
@@ -18,7 +17,7 @@ final class ResponseTest extends TestCase
     public function testParseRetryAfterReadsAnHttpDateRelativeToNow(): void
     {
         $now = 1_700_000_000;
-        $future = gmdate(DateTimeInterface::RFC7231, $now + 50);
+        $future = gmdate(Response::HTTP_DATE, $now + 50);
 
         self::assertSame(50, Response::parseRetryAfter($future, now: $now));
     }
@@ -26,7 +25,7 @@ final class ResponseTest extends TestCase
     public function testParseRetryAfterHttpDateInThePastClampsToZero(): void
     {
         $now = 1_700_000_000;
-        $past = gmdate(DateTimeInterface::RFC7231, $now - 500);
+        $past = gmdate(Response::HTTP_DATE, $now - 500);
 
         self::assertSame(0, Response::parseRetryAfter($past, now: $now));
     }
@@ -51,7 +50,7 @@ final class ResponseTest extends TestCase
     public function testParseRetryAfterClampsAFarFutureHttpDateToTheMaximum(): void
     {
         $now = 1_700_000_000;
-        $farFuture = gmdate(DateTimeInterface::RFC7231, $now + 1_000_000);
+        $farFuture = gmdate(Response::HTTP_DATE, $now + 1_000_000);
 
         self::assertSame(100, Response::parseRetryAfter($farFuture, max: 100, now: $now));
     }

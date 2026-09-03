@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use DateTimeImmutable;
-use DateTimeInterface;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Psr18Transport;
+use IndexNowKit\Http\Response;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response as Psr7Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -280,7 +280,7 @@ final class Psr18TransportUnitTest extends TestCase
     public function testRetryAfterHttpDateInTheFutureIsPositive(): void
     {
         $f = $this->factory();
-        $future = (new DateTimeImmutable('+2 hours'))->format(DateTimeInterface::RFC7231);
+        $future = (new DateTimeImmutable('+2 hours'))->format(Response::HTTP_DATE);
         $client = new StubPsr18Client(new Psr7Response(429, ['Retry-After' => $future]));
         $transport = new Psr18Transport($client, $f, $f);
 
@@ -292,7 +292,7 @@ final class Psr18TransportUnitTest extends TestCase
     public function testRetryAfterHttpDateInThePastIsZero(): void
     {
         $f = $this->factory();
-        $past = (new DateTimeImmutable('-2 hours'))->format(DateTimeInterface::RFC7231);
+        $past = (new DateTimeImmutable('-2 hours'))->format(Response::HTTP_DATE);
         $client = new StubPsr18Client(new Psr7Response(429, ['Retry-After' => $past]));
         $transport = new Psr18Transport($client, $f, $f);
 

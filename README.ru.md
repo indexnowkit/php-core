@@ -308,4 +308,4 @@ SemVer. До 1.0 минорные версии могут содержать л�
 Обоснование архитектуры и межъязыковая модель: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
 Conformance-набор: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
-MIT.
+MIT. IndexNow — товарный знак его владельца; проект независимый и не связан с Microsoft, Яндексом или indexnow.org.

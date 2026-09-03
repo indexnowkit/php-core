@@ -15,6 +15,9 @@ final readonly class Response
     /** Upper bound applied to Retry-After values (one day). */
     public const MAX_RETRY_AFTER = 86400;
 
+    /** IMF-fixdate of RFC 9110 (the former DateTimeInterface::RFC7231, deprecated in PHP 8.5). */
+    public const HTTP_DATE = 'D, d M Y H:i:s \G\M\T';
+
     /**
      * @param int|null $retryAfter seconds, already clamped to [0, MAX_RETRY_AFTER]; null when the header is absent or unparseable
      */
@@ -35,7 +38,7 @@ final readonly class Response
         if (preg_match('/^\d+$/', $header) === 1) {
             return min((int) $header, $max);
         }
-        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::RFC7231, $header);
+        $date = DateTimeImmutable::createFromFormat(self::HTTP_DATE, $header);
         if ($date === false) {
             $timestamp = strtotime($header);
             if ($timestamp === false) {
