@@ -28,9 +28,9 @@ composer require indexnowkit/core symfony/http-client nyholm/psr7   # подой
 
 ```php
 use IndexNowKit\Config;
-use IndexNowKit\IndexNow;
+use IndexNowKit\IndexNowKit;
 
-$indexNow = IndexNow::create(Config::fromEnv());   // INDEXNOW_KEY, INDEXNOW_BASE_URL, ...
+$indexNow = IndexNowKit::create(Config::fromEnv());   // INDEXNOW_KEY, INDEXNOW_BASE_URL, ...
 
 foreach ($indexNow->submit(['/posts/hello', 'https://www.example.com/about']) as $result) {
     printf("%s %s %d %s\n", $result->engine, $result->status->value, $result->httpCode ?? 0, $result->error ?? '');
@@ -51,238 +51,231 @@ INDEXNOW_BASE_URL=https://www.example.com
 Поисковики подтверждают владение сайтом, запрашивая `https://{host}/{key}.txt`; тело файла — ровно ключ.
 
 ```php
-use IndexNowKit\Key\KeyGenerator;
-
-$key = KeyGenerator::generate();                       // 32 hex-символа, CSPRNG
-file_put_contents("public/$key.txt", $key);            // или отдавайте из роута: $indexNow->keys->isKnownKey($key)
+$key = IndexNowKit\Key\KeyGenerator::generate();       // 32 hex-символа, CSPRNG
+file_put_contents("public/$key.txt", $key);            // либо отвечайте на запрос сами:
+$body = (new KeyFileResponder($indexNow->keys))->bodyForPath($path, $host);   // null -> 404
 ```
 
-Файл должен отдаваться с `200 OK`, `text/plain`, без редиректов. Если он лежит в другом месте того же host, укажите
-`key_location`. Затем проверьте:
-
-```php
-use IndexNowKit\Check\Checker;
-
-$report = (new Checker($indexNow->config, $indexNow->keys, $transport))->run(liveProbe: false);
-foreach ($report->items() as ['level' => $level, 'message' => $message]) {
-    echo "[$level] $message\n";
-}
-```
-
-`Checker` находит ошибки конфигурации, скачивает каждый файл ключа и с `liveProbe: true` шлёт настоящий пробный запрос
-в каждый движок. `403` от движка всегда означает «файл ключа недоступен или не совпадает».
-
-## Конфигурация
-
-`Config::fromArray()` принимает вложенную структуру ниже (ту же, что показывают адаптеры), `Config::fromEnv()` читает
-переменные `INDEXNOW_*`, конструктор принимает именованные аргументы. Все значения проверяются при создании: плохая
-конфигурация падает на старте, а не при первой отправке.
-
-| Опция | Env | По умолчанию | Смысл |
-|---|---|---|---|
-| `enabled` | `INDEXNOW_ENABLED` | `true` | `false` отбрасывает все отправки (debug в логе) |
-| `key` | `INDEXNOW_KEY` | — | ключ по умолчанию для всех host, не перечисленных в `hosts` |
-| `hosts` | `INDEXNOW_HOSTS` (`a.com=KEY1,b.com=KEY2`) | `[]` | ключи по host; в форме массива `{key, key_location}` |
-| `key_location` | `INDEXNOW_KEY_LOCATION` | `null` | абсолютный URL файла ключа, если это не `/{key}.txt` |
-| `base_url` | `INDEXNOW_BASE_URL` | `null` | база для относительных URL; обязателен вне HTTP-запроса |
-| `engines` | `INDEXNOW_ENGINES` (`api` или `yandex,bing`) | `['api']` | имена движков или свои `https://` endpoint'ы |
-| `dispatch` | `INDEXNOW_DISPATCH` | `sync` | режим доставки, определяется адаптером; ядро его только показывает |
-| `batch.max_urls` | `INDEXNOW_BATCH_MAX_URLS` | `10000` | URL в одном запросе (максимум протокола 10 000) |
-| `debounce.per_url` | `INDEXNOW_DEBOUNCE_PER_URL` | `600` | секунд до повторной отправки того же URL (`0` = выкл.) |
-| `throttle.max_requests_per_minute` | `INDEXNOW_THROTTLE_PER_MINUTE` | `60` | запросов в минуту на процесс (`0` = без лимита) |
-| `http.timeout` | `INDEXNOW_HTTP_TIMEOUT` | `10.0` | секунды; применяется к клиентам, созданным discovery |
-| `http.user_agent` | `INDEXNOW_USER_AGENT` | `indexnowkit-php/x.y.z` | |
-| `serve_key_file` | `INDEXNOW_SERVE_KEY_FILE` | `true` | для адаптеров, отдающих `/{key}.txt` |
-| `dry_run` | `INDEXNOW_DRY_RUN` | `false` | писать запрос в лог вместо отправки |
-| `environment` | `INDEXNOW_ENV` / `APP_ENV` | — | всё кроме `prod`/`production` без ключа включает `dry_run` вместо ошибки |
-
-```php
-$config = Config::fromArray([
-    'key' => $_ENV['INDEXNOW_KEY'],
-    'base_url' => 'https://www.example.com',
-    'engines' => ['api'],
-    'debounce' => ['per_url' => 600],
-]);
-$config = $config->with(dryRun: true);   // неизменяемые копии по именам аргументов конструктора
-```
+Файл должен отдаваться с `200 OK`, `text/plain`, без редиректов; нужные заголовки даёт
+`KeyFileResponder::headers()`. Если он лежит в другом месте того же host, укажите `key_location`. `Check\Checker`
+проверяет конфигурацию, скачивает каждый файл ключа и с `liveProbe: true` отправляет настоящий пробный запрос.
+`403` всегда означает проблему с файлом ключа; про ротацию — в [docs/operations.md](docs/operations.md).
 
 ## Что происходит с URL
 
-1. **Нормализация** — `UrlNormalizer`: относительные пути дополняются `base_url`, схема и host приводятся к нижнему
-   регистру, IDN-хосты переводятся в punycode, убираются порты по умолчанию и фрагменты, схлопываются dot-сегменты.
-   Всё, что не является публичным `http(s)`-URL (другие схемы, логин/пароль, управляющие символы, слишком длинные
-   хосты), отбрасывается с warning в логе.
-2. **Дедупликация** внутри вызова.
-3. **Дебаунс** — URL, успешно отправленные за последние `debounce.per_url` секунд, пропускаются. По умолчанию
-   `MemoryDebounceStore` (на процесс); `Psr16DebounceStore` с любым PSR-16 кешем делает дебаунс общим для процессов.
-   Отказ хранилища не блокирует доставку: отправка идёт без дедупликации, в лог пишется warning.
-4. **Группировка по host** и подбор ключа (`KeyProviderInterface`). Host без ключа попадает в результат со статусом
-   `skipped` и никогда не отправляется под чужим ключом.
-5. **Нарезка** на батчи не больше `batch.max_urls`.
-6. **Троттлинг** (`TokenBucket`, один токен на HTTP-запрос) и **POST** одного батча на каждый endpoint:
-   `{"host", "key", "keyLocation"?, "urlList"}` как `application/json; charset=utf-8`.
-7. **Интерпретация** ответа в `Result` и отметка успешных URL в хранилище дебаунса.
+1. **Нормализация** — относительные пути раскрываются от `base_url`, схема и host приводятся к нижнему регистру,
+   IDN-хосты переводятся в punycode, порт по умолчанию и фрагмент убираются, точечные сегменты схлопываются. Всё,
+   что не является публичным `http(s)`-URL, отбрасывается с предупреждением.
+2. **Дедупликация** внутри вызова, затем **дебаунс**: URL, успешно отправленные за последние `debounce.per_url`
+   секунд, пропускаются. Отказавшее хранилище не блокирует доставку — просто перестаёт дедуплицировать и пишет
+   предупреждение.
+3. **Группировка по host** и поиск ключа. Хосты без ключа дают `skipped` и никогда не уходят под чужим ключом.
+4. **Нарезка** на батчи не больше `batch.max_urls`, **троттлинг** (один токен на HTTP-запрос) и **POST** одного
+   батча на каждый endpoint: `{"host", "key", "keyLocation"?, "urlList"}` как `application/json; charset=utf-8`.
+5. **Интерпретация** ответа в `Result` и отметка успешных URL в хранилище дебаунса.
 
 ## Результаты
 
-| `status` | HTTP | `retryable` | Смысл |
+| `status` | HTTP | `reason` | `retryable` | Смысл |
+|---|---|---|---|---|
+| `ok` | 200 | — | нет | принято |
+| `pending` | 202 | — | нет | принято, проверка ключа отложена; считается успехом |
+| `failed` | 400 | `invalid_request` | нет | некорректный запрос (баг: сообщите нам) |
+| `failed` | 403 | `invalid_key` | нет | файл ключа недоступен или не совпадает |
+| `failed` | 422 | `unprocessable` | нет | URL не принадлежат host / неверный `keyLocation` |
+| `failed` | 429 | `rate_limited` | да | `retryAfter` заполнен, если движок его прислал |
+| `failed` | 5xx | `server_error` | да | |
+| `failed` | — | `transport` | да | сетевой сбой или таймаут |
+| `failed` | — или другой | `unexpected` | см. ниже | некорректный HTTP-клиент (повторяемо) или статус, которого движок отдавать не должен (нет) |
+| `skipped` | — | `disabled` `dry_run` `debounced` `no_key` `invalid_url` | нет | ничего не отправлено |
+
+`Reason` — стабильный идентификатор для метрик и алертов, `Result::$error` — человеческая формулировка. Решение о
+повторе принимайте по `Result::$retryable`, а не по причине. `Result` также несёт `engine`, `endpoint`, `host`,
+`urls`, `httpCode` и `metricLabels()`; `Result::retryableUrls($results)` собирает URL, которые стоит повторить.
+
+```php
+$indexNow->submitter->addListener(fn (IndexNowKit\Result $r) => $metrics->increment('indexnow_results_total', $r->metricLabels()));
+```
+
+Строки лога уходят в PSR-3 логгер, переданный в `IndexNowKit::create()`. Уровни, точные тексты и чеклист
+«почему URL не отправился» — в [docs/operations.md](docs/operations.md).
+
+## Объявление страниц: `#[IndexNow]`
+
+`#[IndexNow]` **повторяем**: один атрибут на семейство публичных URL объекта. Ровно один источник на правило —
+`route`, `resolver`, `via`, `url` или `urls`. Политика уровня класса живёт в `#[IndexNowDefaults]`, её `when`
+объединяется по «И» с собственным `when` правила (страница черновика не публична, что бы ни говорило правило).
+
+```php
+use IndexNowKit\Attribute\{IndexNow, IndexNowDefaults, IndexNowUrl};
+use IndexNowKit\Attribute\Param\{Accessor, Call, Formatted, Placeholder, Value};
+
+#[IndexNowDefaults(when: 'isPublished', fields: ['slug', 'title', 'body', 'published'])]
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'])]          // страница статьи
+#[IndexNow(route: 'post_amp', params: ['slug' => 'slug'], when: 'hasAmp', whenFields: ['ampEnabled'])]
+#[IndexNow(via: 'category')]                                          // переотправить страницу категории
+#[IndexNow(via: 'tags')]                                              // и каждую страницу тега
+#[IndexNow(urls: ['/', '/blog'])]                                     // и два литеральных URL
+class Post {}
+```
+
+Типизированные источники параметров — рядом с обычной строкой-accessor (свойство, геттер, метод `is`/`has`,
+`точечный.путь`, `self`):
+
+```php
+#[IndexNow(route: 'post_show', params: [
+    'year'    => new Formatted('publishedAt', 'Y'),         // DateTimeInterface::format()
+    'cat'     => 'category.slug',                            // точечный путь через связь
+    'section' => new Value('blog'),                          // константа
+    'slug'    => new Call('slugFor', Placeholder::Locale),   // вызов метода, один URL на локаль
+])]
+```
+
+Остальные формы — все реальные случаи:
+
+```php
+#[IndexNow(url: 'publicUrl')]                       // свойство или метод, возвращающий string|iterable<string>|null
+#[IndexNow(resolver: SyliusChannelUrls::class)]     // класс или id сервиса UrlResolverInterface
+#[IndexNow(route: 'page_show', params: ['slug' => 'slug'], host: new Accessor('tenant.domain'))]  // мультидомен
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], locales: 'all')]                       // локализованные маршруты
+class Page {}
+
+class Offer
+{
+    #[IndexNowUrl(when: 'isLive')]                  // конвенция get_absolute_url()
+    public function getPublicUrl(): string { return '/offers/' . $this->code; }
+}
+```
+
+Правила наследуются от родительских классов и различаются по `name` (выводится из источника либо задаётся явно):
+правило наследника с именем предка **заменяет** его, а новое имя **добавляет** страницу.
+
+### Семантика удаления
+
+Видимость (`when`) вычисляется для каждого правила до и после изменения. `true → false` отправляет URL этого правила
+как **удаление**, чтобы поисковики переобошли 404; `false → true` — как создание; без перехода это обновление,
+отфильтрованное по `fields`. Удаление объекта, к которому правило неприменимо, не отправляет ничего: страница и так
+не была публичной.
+
+`when` часто задаётся геттером (`isPublished`), а в change set ORM лежит поле (`published`). Конвенция
+`isPublished → published`/`is_published` и `getStatus → status` применяется автоматически; если имена не связаны,
+перечислите поля в `whenFields`.
+
+Полная модель, таблица семантики и типы для адаптеров (`UrlRule`, `RuleSet`, `RuleRegistry`):
+[docs/attribute-reference.md](docs/attribute-reference.md).
+
+```php
+$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), $router, $locator));
+$indexNow->submitEntity($post, IndexNowKit\Event::Updated);
+$urls = $indexNow->urlsFor($post, Event::Deleted);   // вычислить, не отправляя
+$rows = $indexNow->explain($post, Event::Updated);   // ResolvedUrl: какое правило дало какой URL
+```
+
+`urlsFor()`, `explain()` и `submitEntity()` идут через `GuardedUrlResolver`, который никогда не бросает исключений:
+некорректный атрибут пишется в лог и не даёт URL, так что опечатка не может сломать flush.
+
+## Конфигурация
+
+| Опция | Env | По умолчанию | Смысл |
 |---|---|---|---|
-| `ok` | 200 | нет | принято |
-| `pending` | 202 | нет | принято, проверка ключа отложена; считается успехом |
-| `failed` | 400 | нет | некорректный запрос (это баг, сообщите) |
-| `failed` | 403 | нет | файл ключа недоступен или не совпадает |
-| `failed` | 422 | нет | URL не принадлежат host / `keyLocation` некорректен |
-| `failed` | 429, 5xx, сеть | да | временно; `retryAfter` заполнен, если движок его прислал |
-| `skipped` | — | нет | ничего не отправлено: `dry_run`, `disabled`, `debounced` или нет ключа для host (`error` объясняет) |
+| `enabled` | `INDEXNOW_ENABLED` | `true` | `false` отбрасывает все отправки (лог уровня `info`) |
+| `key` | `INDEXNOW_KEY` | — | ключ по умолчанию, для всех хостов вне `hosts` |
+| `hosts` | `INDEXNOW_HOSTS` (`a.com=KEY1,b.com=KEY2`) | `[]` | по хосту `{key, key_location, base_url}` |
+| `strict_hosts` | `INDEXNOW_STRICT_HOSTS` | `false` | ключ по умолчанию применяется только к хосту `base_url` |
+| `base_url` | `INDEXNOW_BASE_URL` | `null` | раскрывает относительные URL; обязателен вне HTTP-запросов |
+| `engines` | `INDEXNOW_ENGINES` | `['api']` | имена движков или свои `https://`-endpoint |
+| `dispatch` | `INDEXNOW_DISPATCH` | `sync` | режим доставки, определяемый адаптером; core только сообщает его |
+| `batch.max_urls` | `INDEXNOW_BATCH_MAX_URLS` | `10000` | URL в одном запросе (максимум протокола) |
+| `debounce.per_url` | `INDEXNOW_DEBOUNCE_PER_URL` | `600` | секунд до повторной отправки того же URL (`0` = выключено) |
+| `throttle.max_requests_per_minute` | `INDEXNOW_THROTTLE_PER_MINUTE` | `60` | запросов в минуту на процесс (`0` = без лимита) |
+| `http.timeout` | `INDEXNOW_HTTP_TIMEOUT` | `10.0` | секунды, применяются к клиентам, созданным через discovery |
+| `dry_run` | `INDEXNOW_DRY_RUN` | `false` | писать запрос в лог вместо отправки |
+| `environment` | `INDEXNOW_ENV` / `APP_ENV` | — | всё, кроме `prod`/`production`, без ключа включает `dry_run` |
 
-В `Result` также есть `engine`, `endpoint`, `host`, `urls`, `error`. `Result::urlsOf($results)` собирает URL
-повторяемых результатов. Слушатели пригодятся для метрик и аудита; исключение в слушателе логируется и не мешает
-остальным:
+Есть ещё `serve_key_file`, `http.user_agent` и `key_location`. Каждое значение проверяется в конструкторе, поэтому
+неверная настройка падает при старте, а не при первой отправке. Полный справочник, переопределения по хостам,
+`Config::with()`, `Config::OPTIONS` и `unknownOptions()`: [docs/configuration.md](docs/configuration.md).
 
-```php
-$indexNow->submitter->addListener(fn (IndexNowKit\Result $r) => $metrics->increment("indexnow.{$r->status->value}"));
-```
+## Повторы, очереди и массовые отправки
 
-Логи идут в PSR-3 логгер, переданный в `IndexNow::create()`: `debug` для успеха, `info` для 202 и dry-run,
-`warning` для 422/429/5xx/сети, `error` для 400/403. Пятый подряд 403 для host один раз пишется как `critical`
-(повод для алерта: ничего не индексируется), дальше `warning`, пока успех не сбросит счётчик. Ключ везде маскируется.
-
-## Повторы и очереди
-
-Внутри веб-запроса ядро само не повторяет отправку. Два варианта:
-
-```php
-use IndexNowKit\Retry\{RetryPolicy, RetryingSubmitter};
-
-// CLI, cron, воркеры: повтор в том же процессе с backoff (Retry-After; иначе 60 с → 120 с после 429, 5 с → 10 с после 5xx/сети; 3 попытки)
-$submitter = new RetryingSubmitter($indexNow->submitter, new RetryPolicy(maxAttempts: 3, baseDelay: 60));
-$submitter->submit($urls);
-
-// Очереди: кладите список URL в очередь, воркер вызывает submit(), а Result::urlsOf($results)
-// ставится обратно через (new RetryPolicy())->delayAfter($results, $attempt) секунд.
-```
-
-Копите URL в рамках единицы работы и отправляйте один раз в конце через `Collector` + `DispatcherInterface`:
+Внутри веб-запроса повторов нет: `429`/`5xx` возвращаются как `retryable`. Используйте `RetryingSubmitter` в CLI,
+cron и воркерах либо ставьте `Result::retryableUrls($results)` обратно в очередь через
+`(new RetryPolicy())->delayAfter($results, $attempt)` секунд. Собирайте URL за единицу работы, доставляйте один раз:
 
 ```php
 $indexNow->collect(['/posts/1', '/posts/2']);   // в любом месте запроса
-$indexNow->flush();                              // в конце: SyncDispatcher шлёт, CallableDispatcher кладёт в очередь
+$indexNow->flush();                              // в конце единицы работы
 ```
 
-## Сущности и атрибут `#[IndexNow]`
+Рецепт воркера и рекомендации по массовым выгрузкам — в [docs/retries-and-queues.md](docs/retries-and-queues.md).
 
-Пометьте классы, у которых есть публичная страница; атрибут один для всех PHP-адаптеров.
+`Sitemap\SitemapReader` потоково читает sitemap или его индекс в объекты `SitemapEntry`, при необходимости
+фильтруя по `<lastmod>`, — это нужный инструмент, чтобы переотправить массовое изменение:
+`$reader->read($sitemapUrl, new DateTimeImmutable('-1 day'))`. Индексы обходятся только в пределах того же origin,
+с ограничениями на глубину, количество документов и размер.
+
+## Тестирование
+
+`IndexNowKit\Testing` входит в публикуемый пакет: `FakeTransport` (записывает POST, отдаёт ответы из очереди),
+`ArrayLogger`, `FrozenClock`, `RecordingDispatcher`.
 
 ```php
-use IndexNowKit\Attribute\IndexNow;
+$transport = new FakeTransport();
+$indexNow = IndexNowKit::create($config, transport: $transport, debounce: new NullDebounceStore());
+$indexNow->submitEntity($post);
 
-#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: 'isPublished', fields: ['slug', 'title'])]
-final class Post { ... }
-
-#[IndexNow(resolver: PostUrls::class)]          // что угодно: несколько страниц, локали, внешний фронтенд
-final class Product { ... }
+self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['body']['urlList']);
 ```
 
-| Опция | Смысл |
-|---|---|
-| `route` / `params` | имя маршрута и `param => свойство, геттер, "self" или dotted.path`; нужен `RouteUrlResolverInterface` (его дают адаптеры) |
-| `resolver` | класс или id сервиса `UrlResolverInterface`, возвращающего URL объекта |
-| `when` | bool-свойство/метод; неопубликованное пропускается, `published → draft` отправляется как удаление |
-| `events` | подмножество `created`, `updated`, `deleted` (по умолчанию все) |
-| `fields` | для обновлений: отправлять только если изменилось одно из этих полей (проверяют адаптеры) |
-| `locales` | `current`, `all` или список — для локализованных маршрутов |
-
-```php
-$indexNow = IndexNow::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), $router, $locator));
-$indexNow->submitEntity($post, IndexNowKit\Event::Updated);
-$urls = $indexNow->urlsFor($post, Event::Deleted);     // вычислить без отправки
-```
-
-`urlsFor()`/`submitEntity()` проходят через `GuardedUrlResolver`: подписка на событие, проверка `when` и резолвер
-в одном месте, которое никогда не бросает исключений (ошибка уходит в лог, URL не возвращаются). ORM-хуки адаптеров
-используют тот же объект, поэтому опечатка в атрибуте не сломает flush.
-
-## Sitemap
-
-```php
-use IndexNowKit\Sitemap\SitemapReader;
-
-$reader = new SitemapReader($transport, logger: $logger);
-$urls = [];
-foreach ($reader->read('https://www.example.com/sitemap.xml', changedSince: new DateTimeImmutable('-1 day')) as $entry) {
-    $urls[] = $entry->url;                                // $entry->lastmod — DateTimeImmutable или null
-}
-$indexNow->submit($urls);
-```
-
-Индексы sitemap раскрываются (только те же схема, host и порт, 3 уровня, 1000 документов), документы и распакованный
-`.gz` ограничены 50 МиБ (параметр конструктора `maxXmlBytes`; пик памяти примерно вдвое больше документа),
-документы читаются потоково через `XMLReader`, внешние сущности отключены. Сломанный вложенный sitemap пропускается
-с warning; сломанный корневой бросает `TransportException`.
-
-## Несколько сайтов
-
-```php
-Config::fromArray([
-    'hosts' => [
-        'www.example.com' => 'KEY-FOR-EXAMPLE',
-        'shop.example.com' => ['key' => 'KEY-FOR-SHOP', 'key_location' => 'https://shop.example.com/keys/indexnow.txt'],
-    ],
-]);
-```
-
-Поддомены для IndexNow — отдельные host, каждому нужен свой файл ключа. С `key` без `hosts` один ключ используется для
-всех отправляемых host (файл ключа всё равно нужен на каждом), поэтому не передавайте в `submit()` URL из недоверенного
-ввода: чужой host уйдёт под вашим ключом (поисковик его отклонит, но запрос состоится). Реализуйте `KeyProviderInterface`,
-чтобы брать ключи из базы или реестра тенантов.
-
-## Ограничения
-
-- Один и тот же URL не отправляется повторно в течение `debounce.per_url` (по умолчанию 10 минут): так просит Яндекс.
-  URL, изменившийся дважды за минуту, уйдёт один раз; поисковики всё равно перечитывают текущую версию.
-- Внутри веб-запроса повторов нет: `429`/`5xx` возвращаются как `retryable`. Повторяйте из очереди или через
-  `RetryingSubmitter` в CLI и воркерах.
-- Только `http(s)`-URL на host, для которых есть ключ. Поддомены — отдельные host.
-- `TokenBucket` ограничивает частоту на процесс; лимиты между процессами — задача очереди.
-- Google через IndexNow недоступен.
+Больше рецептов — в [docs/testing.md](docs/testing.md).
 
 ## Точки расширения
 
-| Интерфейс | По умолчанию | Замените, чтобы |
+| Интерфейс | По умолчанию | Заменяйте, чтобы |
 |---|---|---|
-| `Http\TransportInterface` | `Psr18Transport::discover()` | использовать свой HTTP-стек (`Psr18Transport` принимает любой PSR-18 клиент) |
-| `Key\KeyProviderInterface` | `StaticKeyProvider` | брать ключи из базы, по тенантам |
-| `Url\UrlNormalizerInterface` | `UrlNormalizer` | вырезать трекинг-параметры, навязать слэш в конце, мапить host |
+| `Http\TransportInterface` | `Psr18Transport::discover()` | использовать свой HTTP-стек (`LazyTransport` откладывает его создание) |
+| `Key\KeyProviderInterface` | `StaticKeyProvider` | брать ключи из базы, по тенанту |
+| `Url\UrlNormalizerInterface` | `UrlNormalizer` | убирать трекинг-параметры, задавать политику слеша, маппить хосты |
 | `Url\UrlResolverInterface` | `AttributeUrlResolver` | превращать объекты в URL по-своему |
-| `Debounce\DebounceStoreInterface` | `MemoryDebounceStore` | `Psr16DebounceStore` или своё хранилище |
+| `Url\RouteUrlResolverInterface` | — (даёт адаптер) | подключить роутер своего фреймворка |
+| `Attribute\AttributeReaderInterface` | `AttributeReader` | `RuleRegistry` для правил в рантайме или свой источник метаданных |
+| `Collector\CollectorInterface` | `Collector` | надёжный outbox, буфер на тенанта |
+| `Debounce\DebounceStoreInterface` | `MemoryDebounceStore` | `Psr16DebounceStore` или своё |
 | `Throttle\ThrottleInterface` | `TokenBucket` | `NullThrottle`, общий лимитер |
 | `Dispatch\DispatcherInterface` | `SyncDispatcher` | `CallableDispatcher` для очереди, `NullDispatcher` |
 | `SubmitterInterface` | `Submitter` | декорировать (`RetryingSubmitter`), записывать, мокать |
-| `Attribute\AttributeReaderInterface` | `AttributeReader` | кешировать атрибуты в метаданных фреймворка |
 
-Всё передаётся в `IndexNow::create()` или собирается вручную: `Client` → `Submitter` → `Collector` +
-`DispatcherInterface` → `IndexNow`.
+Передайте любой из них в `IndexNowKit::create()` по имени аргумента или соберите граф вручную: `Client` →
+`Submitter` → `Collector` + `DispatcherInterface` → `IndexNowKit`. Пишете адаптер?
+[docs/adapters.md](docs/adapters.md).
 
 ## Исключения
 
-Все исключения реализуют `IndexNowKit\Exception\IndexNowException`:
+Все исключения реализуют `IndexNowKit\Exception\IndexNowException`: `ConfigurationException` (неверный `Config`,
+атрибут или настройка резолвера), `InvalidUrlException` (URL, который нельзя отправить, — перехватывается
+`Submitter` и отбрасывается с предупреждением), `InvalidArgumentException` (программные ошибки) и
+`Http\Exception\TransportException` (сетевой сбой, превращаемый `Client` в повторяемый `Result`; наружу его отдают
+только `SitemapReader` и `Checker`). Из хуков жизненного цикла не вылетает ничего — контракт ошибок описан в
+[docs/adapters.md](docs/adapters.md).
 
-- `ConfigurationException` — некорректный `Config`, атрибут или настройка резолвера (бросается при создании);
-- `InvalidUrlException` — URL, который нельзя отправить (`Submitter` ловит его и отбрасывает URL с warning);
-- `InvalidArgumentException` — ошибки программиста (пустой батч, длина ключа);
-- `Http\Exception\TransportException` — сетевой сбой; `Client` превращает его в `failed` и `retryable` результат,
-  наружу его отдают только `SitemapReader` и `Checker` для корневого документа.
+## Ограничения
+
+- Один и тот же URL не отправляется повторно в течение `debounce.per_url` (по умолчанию 10 минут): этого просит Яндекс.
+- Внутри веб-запроса повторов нет; `TokenBucket` ограничивает в пределах процесса. Межпроцессные лимиты — задача очереди.
+- Только `http(s)`-URL на хостах, для которых у вас есть ключ. Поддомены — отдельные хосты, каждому нужен свой файл ключа.
+- Массовые операции ORM обходят хуки сущностей во всех адаптерах: такие URL отправляйте сами.
+- До Google через IndexNow не достучаться.
 
 ## Требования
 
-PHP 8.2+, `ext-json`, `ext-filter`. Опционально: `ext-intl` (IDN по UTS #46; иначе pure-PHP punycode), `ext-xmlreader`
-и `ext-zlib` для `SitemapReader`. PSR-18 клиент с PSR-17 фабриками: `symfony/http-client` и Guzzle настраиваются
-автоматически (таймаут, без редиректов), остальные клиенты используются как есть.
+PHP 8.2+, `ext-json`, `ext-filter`, PSR-18 клиент с PSR-17 фабриками (`symfony/http-client` и Guzzle настраиваются
+автоматически — таймаут, без редиректов; остальные используются как есть). Опционально: `ext-intl` (IDN по UTS #46,
+иначе чистый PHP-punycode), `ext-xmlreader` и `ext-zlib` для `SitemapReader`.
 
 ## Версионирование
 
 SemVer. До 1.0 минорные версии могут содержать ломающие изменения; они перечислены в [CHANGELOG.md](CHANGELOG.md).
-Классы с пометкой `@internal` не входят в обещание обратной совместимости.
+Что покрыто обещанием совместимости, а что нет: [docs/bc.md](docs/bc.md).
 
 ## Другие пакеты
 
@@ -292,6 +285,7 @@ SemVer. До 1.0 минорные версии могут содержать л�
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (в планах) |
 | Python | `indexnowkit`, `indexnowkit-django` (в планах) |
 
-Спецификация и conformance-набор: [indexnowkit/spec](https://github.com/indexnowkit/spec).
+Обоснование архитектуры и межъязыковая модель: [docs/spec](../../../docs/spec).
+Conformance-набор: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
 MIT.

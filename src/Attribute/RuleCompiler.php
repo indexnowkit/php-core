@@ -66,6 +66,10 @@ final class RuleCompiler
                 }
                 foreach ($method->getAttributes(IndexNowUrl::class) as $attribute) {
                     $rule = self::fromMethodAttribute($attribute->newInstance(), $method, $defaults);
+                    if (isset($taken[$rule->name])) {
+                        throw new ConfigurationException(\sprintf('%s declares rule "%s" twice (#[IndexNow(url: ...)] on the class and #[IndexNowUrl] on the method); keep one or give it a name.', $current->getName(), $rule->name));
+                    }
+                    $taken[$rule->name] = true;
                     $rules[$rule->name] = $rule;
                 }
             }

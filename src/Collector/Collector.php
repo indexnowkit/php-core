@@ -53,7 +53,7 @@ final class Collector implements CollectorInterface
     public function reset(): void
     {
         if ($this->urls !== []) {
-            $this->logger->warning('indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (no kernel.terminate?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
+            $this->logger->warning('indexnow: {count} collected URL(s) discarded: the unit of work ended without flush() (request end hook not run?)', ['count' => \count($this->urls), 'urls' => \array_slice(array_keys($this->urls), 0, 20)]);
         }
         $this->urls = [];
     }

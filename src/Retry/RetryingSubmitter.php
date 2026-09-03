@@ -40,7 +40,7 @@ final class RetryingSubmitter implements SubmitterInterface
         $attempt = 1;
         $results = $this->inner->submit($urls);
         while (($delay = $this->policy->delayAfter($results, $attempt)) !== null) {
-            $retry = Result::urlsOf($results);
+            $retry = Result::retryableUrls($results);
             $this->logger->info('indexnow: retrying {count} URL(s) in {delay}s (attempt {attempt} of {max})', ['count' => \count($retry), 'delay' => $delay, 'attempt' => $attempt + 1, 'max' => $this->policy->maxAttempts]);
             if ($delay > 0) {
                 ($this->sleeper)($delay);

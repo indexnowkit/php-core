@@ -157,7 +157,7 @@ final class Client
     {
         $count = $this->forbidden[$host] = ($this->forbidden[$host] ?? 0) + 1;
         $ctx += ['key' => KeyValidator::mask($key), 'consecutive' => $count];
-        $message = 'indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run "indexnow check").';
+        $message = 'indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run the check command of your adapter, e.g. indexnow:check).';
         $level = match (true) {
             $count === self::FORBIDDEN_ESCALATION => 'critical',
             $count > self::FORBIDDEN_ESCALATION => 'warning',
