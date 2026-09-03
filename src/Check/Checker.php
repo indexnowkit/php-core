@@ -7,6 +7,7 @@ namespace IndexNowKit\Check;
 use IndexNowKit\Client;
 use IndexNowKit\Config;
 use IndexNowKit\Engine;
+use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
@@ -16,8 +17,8 @@ use IndexNowKit\Url\UrlNormalizer;
 use Psr\Log\NullLogger;
 
 /**
- * "indexnow check": validates config, fetches the key file over HTTP, performs a dry-run POST.
- * Answers the "why does it not work" question before the first real submission.
+ * "indexnow check": validates configuration, fetches every key file over HTTP and optionally sends a live
+ * probe. Answers "why does it not work" before the first real submission. Never throws.
  */
 final class Checker
 {
@@ -27,6 +28,9 @@ final class Checker
         private readonly TransportInterface $transport,
     ) {}
 
+    /**
+     * @param bool $liveProbe POST the site root to every endpoint (real request, even with dry_run on)
+     */
     public function run(bool $liveProbe = false): CheckReport
     {
         $report = new CheckReport();
@@ -44,7 +48,7 @@ final class Checker
             $report->ok(\sprintf('base_url: %s', $config->baseUrl));
         }
         $report->ok(\sprintf('engines: %s', implode(', ', array_map(Engine::labelFor(...), $config->endpoints))));
-        $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls));
+        $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d, throttle: %d/min, timeout: %ss', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls, $config->throttleMaxRequestsPerMinute, $config->httpTimeout));
 
         $hosts = $this->hostsToCheck();
         if ($hosts === []) {
@@ -52,46 +56,61 @@ final class Checker
 
             return $report;
         }
-
         foreach ($hosts as $host) {
-            $key = $this->keys->keyFor($host);
-            if ($key === null) {
-                $report->error(\sprintf('%s: no key configured.', $host));
-                continue;
-            }
-            if (!KeyValidator::isValid($key)) {
-                $report->error(\sprintf('%s: key %s is invalid (8-128 chars, [A-Za-z0-9-]).', $host, KeyValidator::mask($key)));
-                continue;
-            }
-            $keyUrl = $this->keys->keyLocationFor($host) ?? \sprintf('https://%s/%s.txt', $host, $key);
-            try {
-                $response = $this->transport->get($keyUrl);
-                if ($response->status !== 200) {
-                    $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served.', $host, self::maskUrl($keyUrl, $key), $response->status));
-                } elseif (trim($response->body) !== $key) {
-                    $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes).', $host, \strlen($response->body)));
-                } else {
-                    $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)));
-                }
-            } catch (TransportException $e) {
-                $report->error(\sprintf('%s: cannot fetch key file: %s', $host, $e->getMessage()));
-            }
-
-            if ($liveProbe && $config->enabled) {
-                $client = new Client($this->transport, $this->keys, $config->withDryRun(false), new NullLogger());
-                $probeUrl = (new UrlNormalizer('https://' . $host))->normalize('/');
-                foreach ($config->endpoints as $endpoint) {
-                    $result = $client->submitBatch($endpoint, $host, $key, [$probeUrl]);
-                    match ($result->status) {
-                        ResultStatus::Ok => $report->ok(\sprintf('%s: %s accepted probe (200)', $host, $result->engine)),
-                        ResultStatus::Pending => $report->warning(\sprintf('%s: %s answered 202, key verification pending. Retry check later.', $host, $result->engine)),
-                        default => $report->error(\sprintf('%s: %s answered %s: %s', $host, $result->engine, (string) $result->httpCode, (string) $result->error)),
-                    };
-                }
-            }
+            $this->checkHost($host, $liveProbe, $report);
         }
 
         return $report;
+    }
+
+    private function checkHost(string $host, bool $liveProbe, CheckReport $report): void
+    {
+        $key = $this->keys->keyFor($host);
+        if ($key === null) {
+            $report->error(\sprintf('%s: no key configured.', $host));
+
+            return;
+        }
+        if (!KeyValidator::isValid($key)) {
+            $report->error(\sprintf('%s: key %s is invalid (%d-%d chars, [A-Za-z0-9-]).', $host, KeyValidator::mask($key), KeyValidator::MIN_LENGTH, KeyValidator::MAX_LENGTH));
+
+            return;
+        }
+        $keyUrl = $this->keys->keyLocationFor($host) ?? \sprintf('https://%s/%s.txt', $host, $key);
+        $keyUrlHost = parse_url($keyUrl, PHP_URL_HOST);
+        if (!\is_string($keyUrlHost) || strtolower($keyUrlHost) !== strtolower($host)) {
+            $report->error(\sprintf('%s: key_location %s is on another host; engines answer 422 unless the key file is served from the submitted host.', $host, self::maskUrl($keyUrl, $key)));
+        }
+        try {
+            $response = $this->transport->get($keyUrl);
+            if ($response->status !== 200) {
+                $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served with 200 (no redirects).', $host, self::maskUrl($keyUrl, $key), $response->status));
+            } elseif (trim($response->body) !== $key) {
+                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes).', $host, \strlen($response->body)));
+            } else {
+                $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)));
+            }
+        } catch (TransportException $e) {
+            $report->error(\sprintf('%s: cannot fetch key file: %s', $host, self::maskUrl($e->getMessage(), $key)));
+        }
+
+        if ($liveProbe && $this->config->enabled) {
+            $this->probe($host, $key, $report);
+        }
+    }
+
+    private function probe(string $host, string $key, CheckReport $report): void
+    {
+        $client = new Client($this->transport, $this->keys, $this->config->with(dryRun: false), new NullLogger());
+        $probeUrl = 'https://' . $host . '/';
+        foreach ($this->config->endpoints as $endpoint) {
+            $result = $client->submitBatch($endpoint, $host, $key, [$probeUrl]);
+            match ($result->status) {
+                ResultStatus::Ok => $report->ok(\sprintf('%s: %s accepted probe (200)', $host, $result->engine)),
+                ResultStatus::Pending => $report->warning(\sprintf('%s: %s answered 202, key verification pending. Retry check later.', $host, $result->engine)),
+                default => $report->error(\sprintf('%s: %s answered %s: %s', $host, $result->engine, $result->httpCode !== null ? (string) $result->httpCode : 'no response', (string) $result->error)),
+            };
+        }
     }
 
     /**
@@ -99,16 +118,20 @@ final class Checker
      */
     private function hostsToCheck(): array
     {
-        $hosts = array_keys($this->config->hosts);
+        $hosts = $this->keys->managedHosts();
         if ($this->config->baseUrl !== null) {
-            $hosts[] = UrlNormalizer::hostOf((new UrlNormalizer())->normalize($this->config->baseUrl));
+            try {
+                $hosts[] = (new UrlNormalizer())->hostOf((new UrlNormalizer())->normalize($this->config->baseUrl));
+            } catch (InvalidUrlException) {
+                $hosts[] = (string) $this->config->baseHost();
+            }
         }
 
-        return array_values(array_unique(array_map('strtolower', $hosts)));
+        return array_values(array_unique(array_map('strtolower', array_filter($hosts))));
     }
 
-    private static function maskUrl(string $url, string $key): string
+    private static function maskUrl(string $text, string $key): string
     {
-        return str_replace($key, KeyValidator::mask($key), $url);
+        return str_replace($key, KeyValidator::mask($key), $text);
     }
 }

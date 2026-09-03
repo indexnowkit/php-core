@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use Attribute;
+use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
-use IndexNowKit\Url\Event;
 
 /**
  * Marks a persisted class whose public page should be pushed to search engines when it changes.

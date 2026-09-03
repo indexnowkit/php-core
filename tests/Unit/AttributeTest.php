@@ -6,10 +6,10 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow;
+use IndexNowKit\Attribute\ParamExtractor;
+use IndexNowKit\Attribute\PublishGuard;
+use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
-use IndexNowKit\Url\Event;
-use IndexNowKit\Url\ParamExtractor;
-use IndexNowKit\Url\PublishGuard;
 use PHPUnit\Framework\TestCase;
 
 #[IndexNow(route: 'post_show', params: ['slug' => 'slug', 'author' => 'author.name'], when: 'isPublished', events: ['created', 'updated'], fields: ['slug', 'title'])]

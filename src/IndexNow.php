@@ -5,37 +5,54 @@ declare(strict_types=1);
 namespace IndexNowKit;
 
 use IndexNowKit\Attribute\AttributeReader;
+use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Dispatch\DispatcherInterface;
 use IndexNowKit\Dispatch\SyncDispatcher;
+use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Http\Psr18Transport;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
-use IndexNowKit\Url\Event;
-use IndexNowKit\Url\PublishGuard;
+use IndexNowKit\Throttle\ThrottleInterface;
+use IndexNowKit\Throttle\TokenBucket;
+use IndexNowKit\Url\GuardedUrlResolver;
+use IndexNowKit\Url\NullUrlResolver;
+use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Facade wiring the default component graph. Framework adapters build the same graph through DI.
+ * Facade wiring the default component graph for framework-less usage. Adapters build the same graph
+ * through their DI container and expose this object as the application-facing service.
  */
 final class IndexNow
 {
+    private readonly GuardedUrlResolver $resolver;
+
     public function __construct(
         public readonly Config $config,
-        public readonly Submitter $submitter,
+        public readonly SubmitterInterface $submitter,
         public readonly Collector $collector,
         public readonly DispatcherInterface $dispatcher,
         public readonly KeyProviderInterface $keys,
-        public readonly AttributeReader $attributes = new AttributeReader(),
-        private readonly ?UrlResolverInterface $resolver = null,
+        public readonly AttributeReaderInterface $attributes = new AttributeReader(),
+        ?UrlResolverInterface $resolver = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+        $this->resolver = new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
+    }
 
+    /**
+     * Default graph: PSR-18 discovery (with http.timeout), in-memory debounce, token-bucket throttle,
+     * synchronous dispatch. Every piece can be replaced.
+     *
+     * @throws ConfigurationException when no HTTP client can be discovered
+     */
     public static function create(
         Config $config,
         ?TransportInterface $transport = null,
@@ -43,19 +60,26 @@ final class IndexNow
         ?DebounceStoreInterface $debounce = null,
         ?UrlResolverInterface $resolver = null,
         ?DispatcherInterface $dispatcher = null,
+        ?KeyProviderInterface $keys = null,
+        ?ThrottleInterface $throttle = null,
+        ?UrlNormalizerInterface $normalizer = null,
+        ?AttributeReaderInterface $attributes = null,
     ): self {
         $logger ??= new NullLogger();
-        $keys = StaticKeyProvider::fromConfig($config);
-        $client = new Client($transport ?? Psr18Transport::discover(), $keys, $config, $logger);
-        $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger);
+        $keys ??= StaticKeyProvider::fromConfig($config);
+        $normalizer ??= new UrlNormalizer($config->baseUrl);
+        $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
+        $client = new Client($transport ?? Psr18Transport::discover(timeout: $config->httpTimeout), $keys, $config, $logger, $throttle, $normalizer);
+        $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
 
-        return new self($config, $submitter, new Collector(), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, new AttributeReader(), $resolver, $logger);
+        return new self($config, $submitter, new Collector(), $dispatcher ?? new SyncDispatcher($submitter, $logger), $keys, $attributes ?? new AttributeReader(), $resolver, $logger);
     }
 
     /**
-     * Submit immediately (bypasses collector/dispatcher). Returns one Result per engine+host+chunk.
+     * Submit immediately (bypasses collector/dispatcher). Returns one Result per endpoint × host × batch.
      *
-     * @param iterable<string> $urls
+     * @param iterable<string> $urls absolute or base_url-relative
+     *
      * @return list<Result>
      */
     public function submit(iterable $urls): array
@@ -92,27 +116,20 @@ final class IndexNow
     }
 
     /**
+     * URLs an object change should trigger: attribute subscription + `when` guard + resolver. Never throws.
+     *
      * @return list<string>
      */
     public function urlsFor(object $subject, Event $event): array
     {
-        $attribute = $this->attributes->read($subject);
-        if ($attribute === null || !$attribute->listensTo($event)) {
-            return [];
-        }
-        if ($event !== Event::Deleted && !PublishGuard::isPublished($subject, $attribute)) {
-            return [];
-        }
-        if ($this->resolver === null) {
-            $this->logger->error('indexnow: no UrlResolver configured, cannot resolve {class}', ['class' => $subject::class]);
+        return $this->resolver->resolve($subject, $event);
+    }
 
-            return [];
-        }
-        $urls = [];
-        foreach ($this->resolver->resolve($subject, $event) as $url) {
-            $urls[] = $url;
-        }
-
-        return $urls;
+    /**
+     * Resolver with attribute subscription and `when` guard applied (adapters use it in ORM hooks).
+     */
+    public function resolver(): GuardedUrlResolver
+    {
+        return $this->resolver;
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Url;
 
+use IndexNowKit\Event;
+
 /**
  * Turns a domain object into zero or more public URLs. Implemented per framework (router-aware).
  */

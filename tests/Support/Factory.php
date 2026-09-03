@@ -10,7 +10,8 @@ use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Submitter;
-use IndexNowKit\Throttle\TokenBucket;
+use IndexNowKit\Throttle\NullThrottle;
+use IndexNowKit\Throttle\ThrottleInterface;
 
 final class Factory
 {
@@ -24,12 +25,12 @@ final class Factory
         return Config::fromArray($overrides + ['key' => self::KEY, 'base_url' => 'https://www.example.com', 'debounce' => ['per_url' => 0]]);
     }
 
-    public static function submitter(FakeTransport $transport, ?Config $config = null, ?ArrayLogger $logger = null, ?DebounceStoreInterface $debounce = null, ?TokenBucket $throttle = null): Submitter
+    public static function submitter(FakeTransport $transport, ?Config $config = null, ?ArrayLogger $logger = null, ?DebounceStoreInterface $debounce = null, ?ThrottleInterface $throttle = null): Submitter
     {
         $config ??= self::config();
         $logger ??= new ArrayLogger();
         $keys = StaticKeyProvider::fromConfig($config);
 
-        return new Submitter(new Client($transport, $keys, $config, $logger), $config, $debounce ?? new MemoryDebounceStore(), $logger, $throttle);
+        return new Submitter(new Client($transport, $keys, $config, $logger, $throttle ?? new NullThrottle()), $config, $debounce ?? new MemoryDebounceStore(), $logger);
     }
 }

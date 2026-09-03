@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Url;
-
-use IndexNowKit\Attribute\IndexNow;
+namespace IndexNowKit\Attribute;
 
 /**
  * Evaluates the attribute's "when" condition on the current object state.

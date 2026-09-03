@@ -6,6 +6,10 @@ namespace IndexNowKit\Debounce;
 
 use Psr\SimpleCache\CacheInterface;
 
+/**
+ * Debounce shared across processes through any PSR-16 cache. Keys are `{prefix}sha1(url)`, so they
+ * are valid for every backend regardless of URL characters.
+ */
 final class Psr16DebounceStore implements DebounceStoreInterface
 {
     public function __construct(private readonly CacheInterface $cache, private readonly string $prefix = 'indexnow_') {}

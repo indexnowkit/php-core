@@ -9,14 +9,11 @@ use ReflectionClass;
 /**
  * Reads #[IndexNow] from a class or its parents. Caches per class for the process lifetime.
  */
-final class AttributeReader
+final class AttributeReader implements AttributeReaderInterface
 {
     /** @var array<class-string, IndexNow|null> */
     private array $cache = [];
 
-    /**
-     * @param class-string|object $classOrObject
-     */
     public function read(string|object $classOrObject): ?IndexNow
     {
         $class = \is_object($classOrObject) ? $classOrObject::class : $classOrObject;
@@ -30,7 +27,7 @@ final class AttributeReader
     /**
      * @param ReflectionClass<object> $reflection
      */
-    public static function readUncached(ReflectionClass $reflection): ?IndexNow
+    private static function readUncached(ReflectionClass $reflection): ?IndexNow
     {
         for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
             $attributes = $current->getAttributes(IndexNow::class);

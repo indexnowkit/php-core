@@ -6,11 +6,11 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use IndexNowKit\Dispatch\CallableDispatcher;
+use IndexNowKit\Event;
 use IndexNowKit\IndexNow;
 use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Tests\Support\FakeTransport;
 use IndexNowKit\Url\CallableUrlResolver;
-use IndexNowKit\Url\Event;
 use PHPUnit\Framework\TestCase;
 
 #[IndexNowAttribute(resolver: 'any', when: 'published')]

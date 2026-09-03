@@ -7,34 +7,37 @@ namespace IndexNowKit;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\InvalidUrlException;
-use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Throwable;
 
 /**
- * Orchestrates one submission: normalize -> dedupe -> debounce -> throttle -> Client -> mark submitted.
+ * One submission: normalize -> dedupe -> debounce -> Client (group, chunk, throttle, POST) -> mark submitted.
+ *
+ * Ancillary failures (debounce store down, a listener throwing) are logged and never abort delivery.
  */
-final class Submitter
+final class Submitter implements SubmitterInterface
 {
     /** @var list<callable(Result): void> */
     private array $listeners = [];
 
-    private readonly UrlNormalizer $normalizer;
-    private readonly TokenBucket $throttle;
+    private readonly UrlNormalizerInterface $normalizer;
 
     public function __construct(
         private readonly Client $client,
         private readonly Config $config,
         private readonly DebounceStoreInterface $debounce = new MemoryDebounceStore(),
         private readonly LoggerInterface $logger = new NullLogger(),
-        ?TokenBucket $throttle = null,
+        ?UrlNormalizerInterface $normalizer = null,
     ) {
-        $this->normalizer = new UrlNormalizer($config->baseUrl);
-        $this->throttle = $throttle ?? new TokenBucket($config->throttleMaxRequestsPerMinute);
+        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl);
     }
 
     /**
+     * Called with every Result (also skipped ones), after the batch was sent. Exceptions are logged and swallowed.
+     *
      * @param callable(Result): void $listener
      */
     public function addListener(callable $listener): void
@@ -42,10 +45,6 @@ final class Submitter
         $this->listeners[] = $listener;
     }
 
-    /**
-     * @param iterable<string> $urls absolute or base_url-relative
-     * @return list<Result>
-     */
     public function submit(iterable $urls): array
     {
         $normalized = $this->prepare($urls);
@@ -53,84 +52,85 @@ final class Submitter
             return [];
         }
         if (!$this->config->enabled) {
-            $this->logger->debug('indexnow: disabled, dropping {count} URL(s)', ['count' => \count($normalized)]);
+            $this->logger->debug('indexnow: disabled, dropping {count} URL(s)', ['count' => \count($normalized), 'urls' => $normalized]);
 
             return [];
         }
 
         $ttl = $this->config->debouncePerUrl;
         if ($ttl > 0 && !$this->config->dryRun) {
-            $recent = $this->debounce->filterRecent($normalized, $ttl);
-            if ($recent !== []) {
-                $this->logger->debug('indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl]);
-                $normalized = array_values(array_diff($normalized, $recent));
-            }
+            $normalized = $this->withoutRecent($normalized, $ttl);
             if ($normalized === []) {
                 return [];
             }
         }
 
-        $results = [];
-        foreach (self::groupByHost($normalized) as $hostUrls) {
-            foreach (array_chunk($hostUrls, max(1, $this->config->batchMaxUrls)) as $chunk) {
-                $this->throttle->acquire();
-                foreach ($this->client->submitAll($chunk) as $result) {
-                    $results[] = $result;
-                    foreach ($this->listeners as $listener) {
-                        $listener($result);
-                    }
-                }
-            }
+        $results = $this->client->submitAll($normalized);
+        foreach ($results as $result) {
+            $this->notify($result);
         }
 
         if ($ttl > 0) {
-            $sent = [];
-            foreach ($results as $result) {
-                if ($result->isSuccess()) {
-                    $sent = [...$sent, ...$result->urls];
-                }
-            }
+            $sent = Result::urlsOf($results, static fn(Result $r): bool => $r->isSuccess());
             if ($sent !== []) {
-                $this->debounce->markSubmitted(array_values(array_unique($sent)), $ttl);
+                try {
+                    $this->debounce->markSubmitted($sent, $ttl);
+                } catch (Throwable $e) {
+                    $this->logger->warning('indexnow: debounce store failed after a successful submission, URLs may be re-sent within {ttl}s: {error}', ['ttl' => $ttl, 'error' => $e->getMessage()]);
+                }
             }
         }
 
         return $results;
     }
 
-    /**
-     * Normalize and dedupe, dropping invalid URLs with a warning.
-     *
-     * @param iterable<string> $urls
-     * @return list<string>
-     */
     public function prepare(iterable $urls): array
     {
         $seen = [];
         foreach ($urls as $url) {
             try {
-                $normalized = $this->normalizer->normalize($url);
+                $seen[$this->normalizer->normalize($url)] = true;
             } catch (InvalidUrlException $e) {
                 $this->logger->warning('indexnow: dropping URL: {error}', ['error' => $e->getMessage()]);
-                continue;
             }
-            $seen[$normalized] = true;
         }
 
         return array_keys($seen);
     }
 
     /**
+     * Debounce filter; fails open (submits everything) when the store is unavailable.
+     *
      * @param list<string> $urls
-     * @return array<string, list<string>>
+     *
+     * @return list<string>
      */
-    private static function groupByHost(array $urls): array
+    private function withoutRecent(array $urls, int $ttl): array
     {
-        $groups = [];
-        foreach ($urls as $url) {
-            $groups[UrlNormalizer::hostOf($url)][] = $url;
-        }
+        try {
+            $recent = $this->debounce->filterRecent($urls, $ttl);
+        } catch (Throwable $e) {
+            $this->logger->warning('indexnow: debounce store unavailable, submitting without de-duplication: {error}', ['error' => $e->getMessage()]);
 
-        return $groups;
+            return $urls;
+        }
+        if ($recent === []) {
+            return $urls;
+        }
+        $this->logger->debug('indexnow: debounced {count} URL(s) submitted within the last {ttl}s', ['count' => \count($recent), 'ttl' => $ttl]);
+        $skip = array_fill_keys($recent, true);
+
+        return array_values(array_filter($urls, static fn(string $url): bool => !isset($skip[$url])));
+    }
+
+    private function notify(Result $result): void
+    {
+        foreach ($this->listeners as $listener) {
+            try {
+                $listener($result);
+            } catch (Throwable $e) {
+                $this->logger->error('indexnow: result listener failed: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
+            }
+        }
     }
 }

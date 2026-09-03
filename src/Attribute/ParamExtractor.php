@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Url;
+namespace IndexNowKit\Attribute;
 
 use IndexNowKit\Exception\ConfigurationException;
 

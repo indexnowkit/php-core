@@ -7,9 +7,10 @@ namespace IndexNowKit;
 use IndexNowKit\Exception\ConfigurationException;
 
 /**
- * Known IndexNow endpoints. "api" is the shared endpoint that fans out to every participant.
+ * Known IndexNow endpoints. "api" is the shared endpoint that fans out to every participating engine,
+ * so it is the right default; name engines explicitly only to reach a single one.
  */
-enum Engine: string
+enum Engine : string
 {
     case Api = 'api';
     case Yandex = 'yandex';
@@ -18,7 +19,7 @@ enum Engine: string
     case Seznam = 'seznam';
     case Yep = 'yep';
 
-    public function endpoint(): string
+    public function endpoint() : string
     {
         return match ($this) {
             self::Api => 'https://api.indexnow.org/indexnow',
@@ -31,25 +32,34 @@ enum Engine: string
     }
 
     /**
-     * Resolve a configured engine value (enum name or full URL) into an endpoint URL.
+     * Resolve a configured engine value (case-insensitive name or full endpoint URL) into an endpoint URL.
+     * Custom endpoints must use https, except on loopback hosts (mock servers).
+     *
+     * @throws ConfigurationException
      */
-    public static function resolveEndpoint(string $value): string
+    public static function resolveEndpoint(string $value) : string
     {
+        $value = trim($value);
         $case = self::tryFrom(strtolower($value));
         if ($case !== null) {
             return $case->endpoint();
         }
-        if (str_starts_with($value, 'https://') || str_starts_with($value, 'http://')) {
-            return $value;
+        $parts = parse_url($value);
+        if (\is_array($parts) && isset($parts['scheme'], $parts['host'])) {
+            $scheme = strtolower($parts['scheme']);
+            if ($scheme === 'https' || ($scheme === 'http' && \in_array($parts['host'], ['localhost', '127.0.0.1', '[::1]'], true))) {
+                return $value;
+            }
+            throw new ConfigurationException(\sprintf('Custom IndexNow endpoint "%s" must use https (the key travels in the request body).', $value));
         }
 
-        throw new ConfigurationException(\sprintf('Unknown IndexNow engine "%s". Use one of: %s, or a full endpoint URL.', $value, implode(', ', array_map(static fn(self $e) => $e->value, self::cases()))));
+        throw new ConfigurationException(\sprintf('Unknown IndexNow engine "%s". Use one of: %s, or a full https endpoint URL.', $value, implode(', ', array_map(static fn(self $e) => $e->value, self::cases()))));
     }
 
     /**
-     * Human-readable name for logs: enum value for known endpoints, host for custom ones.
+     * Human-readable name for logs and results: enum value for known endpoints, host for custom ones.
      */
-    public static function labelFor(string $endpoint): string
+    public static function labelFor(string $endpoint) : string
     {
         foreach (self::cases() as $case) {
             if ($case->endpoint() === $endpoint) {

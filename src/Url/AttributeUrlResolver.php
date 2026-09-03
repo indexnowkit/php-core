@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Url;
 
-use IndexNowKit\Attribute\AttributeReader;
+use IndexNowKit\Attribute\AttributeReaderInterface;
+use IndexNowKit\Attribute\ParamExtractor;
+use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
 /**
@@ -13,7 +15,7 @@ use IndexNowKit\Exception\ConfigurationException;
 final class AttributeUrlResolver implements UrlResolverInterface
 {
     public function __construct(
-        private readonly AttributeReader $reader,
+        private readonly AttributeReaderInterface $reader,
         private readonly ?RouteUrlResolverInterface $router = null,
         private readonly ?ResolverLocatorInterface $locator = null,
     ) {}

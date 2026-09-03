@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Collector;
 
+use Countable;
+
 /**
- * Per-unit-of-work buffer (HTTP request, console command, queue message). Deduplicates, flushes once.
+ * Per-unit-of-work buffer (HTTP request, console command, queue message) of normalized URLs.
+ * Deduplicates, preserves insertion order, flushes once.
  */
-final class Collector
+final class Collector implements Countable
 {
     /** @var array<string, true> */
     private array $urls = [];
 
     /**
-     * @param iterable<string> $urls
+     * @param iterable<string> $urls already normalized (see SubmitterInterface::prepare())
      */
     public function add(iterable $urls): void
     {
@@ -33,6 +36,8 @@ final class Collector
     }
 
     /**
+     * Returns the buffered URLs and empties the buffer.
+     *
      * @return list<string>
      */
     public function drain(): array

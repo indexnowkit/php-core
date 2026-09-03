@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Url;
 
+use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
 final class ArrayResolverLocator implements ResolverLocatorInterface

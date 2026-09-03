@@ -10,102 +10,211 @@ use Exception;
 use Generator;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\TransportInterface;
-use SimpleXMLElement;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use XMLReader;
 
 /**
- * Iterates <loc> entries of a sitemap or sitemap index (recursively), gzip aware.
+ * Streams <loc> entries of a sitemap or sitemap index (recursively), gzip aware.
+ *
+ * Safety: nested sitemaps must live on the same host as the root sitemap (anything else is skipped with a
+ * warning), recursion depth and the total number of fetched documents are capped, gzip output is capped,
+ * external entities and network access are disabled in the XML parser. Documents are parsed with XMLReader
+ * so memory stays flat for 50 MB sitemaps. A failing nested sitemap is logged and skipped; a failing root
+ * sitemap throws.
  */
 final class SitemapReader
 {
-    private const NS = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+    public const MAX_XML_BYTES = 52_428_800;
+    public const MAX_SITEMAPS = 1000;
 
-    public function __construct(private readonly TransportInterface $transport, private readonly int $maxDepth = 3) {}
+    public function __construct(
+        private readonly TransportInterface $transport,
+        private readonly int $maxDepth = 3,
+        private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly int $maxSitemaps = self::MAX_SITEMAPS,
+    ) {}
+
+    /**
+     * @param DateTimeImmutable|null $changedSince only entries whose <lastmod> is newer (entries without lastmod are skipped)
+     *
+     * @return Generator<int, SitemapEntry>
+     *
+     * @throws TransportException when the root sitemap cannot be fetched or parsed
+     */
+    public function read(string $sitemapUrl, ?DateTimeImmutable $changedSince = null): Generator
+    {
+        $fetched = 0;
+
+        return $this->readNested($sitemapUrl, $sitemapUrl, $changedSince, 0, $fetched);
+    }
+
+    /**
+     * Parse an in-memory sitemap document (no fetching; nested sitemap indexes are ignored).
+     *
+     * @return Generator<int, SitemapEntry>
+     *
+     * @throws TransportException on invalid XML or gzip
+     */
+    public function parse(string $xml, string $source = '', ?DateTimeImmutable $changedSince = null): Generator
+    {
+        foreach ($this->entries($xml, $source) as [$kind, $loc, $lastmod]) {
+            if ($kind === 'url') {
+                $entry = self::entry($loc, $lastmod, $changedSince);
+                if ($entry !== null) {
+                    yield $entry;
+                }
+            }
+        }
+    }
 
     /**
      * @return Generator<int, SitemapEntry>
      *
      * @throws TransportException
      */
-    public function read(string $sitemapUrl, ?DateTimeImmutable $changedSince = null, int $depth = 0): Generator
+    private function readNested(string $url, string $root, ?DateTimeImmutable $changedSince, int $depth, int &$fetched): Generator
     {
-        $response = $this->transport->get($sitemapUrl);
+        ++$fetched;
+        $response = $this->transport->get($url);
         if ($response->status !== 200) {
-            throw new TransportException(\sprintf('Sitemap %s returned HTTP %d.', $sitemapUrl, $response->status));
+            throw new TransportException(\sprintf('Sitemap %s returned HTTP %d.', $url, $response->status));
         }
-        yield from $this->parse($response->body, $sitemapUrl, $changedSince, $depth);
-    }
-
-    /**
-     * @return Generator<int, SitemapEntry>
-     */
-    public function parse(string $xml, string $source = '', ?DateTimeImmutable $changedSince = null, int $depth = 0): Generator
-    {
-        if (str_starts_with($xml, "\x1f\x8b")) {
-            $decoded = gzdecode($xml);
-            if ($decoded === false) {
-                throw new TransportException(\sprintf('Sitemap %s: cannot gunzip.', $source));
+        foreach ($this->entries($response->body, $url) as [$kind, $loc, $lastmod]) {
+            if ($kind === 'url') {
+                $entry = self::entry($loc, $lastmod, $changedSince);
+                if ($entry !== null) {
+                    yield $entry;
+                }
+                continue;
             }
-            $xml = $decoded;
-        }
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $doc = simplexml_load_string($xml, SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
-        } finally {
-            libxml_use_internal_errors($previous);
-        }
-        if ($doc === false) {
-            throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
-        }
-        if ($doc->getName() === 'sitemapindex') {
-            if ($depth >= $this->maxDepth) {
+            if ($depth + 1 >= $this->maxDepth + 1) {
+                $this->logger->warning('indexnow: sitemap {url} nested deeper than {depth}, skipping', ['url' => $loc, 'depth' => $this->maxDepth]);
+                continue;
+            }
+            if ($fetched >= $this->maxSitemaps) {
+                $this->logger->warning('indexnow: more than {max} sitemaps referenced from {root}, skipping the rest', ['max' => $this->maxSitemaps, 'root' => $root]);
+
                 return;
             }
-            foreach (self::children($doc, 'sitemap') as $sitemap) {
-                $loc = trim((string) self::child($sitemap, 'loc'));
-                if ($loc !== '') {
-                    yield from $this->read($loc, $changedSince, $depth + 1);
-                }
-            }
-
-            return;
-        }
-
-        foreach (self::children($doc, 'url') as $url) {
-            $loc = trim((string) self::child($url, 'loc'));
-            if ($loc === '') {
+            if (!self::sameOrigin($loc, $root)) {
+                $this->logger->warning('indexnow: sitemap {url} is not on the host of {root}, skipping', ['url' => $loc, 'root' => $root]);
                 continue;
             }
-            $lastmodRaw = trim((string) self::child($url, 'lastmod'));
-            $lastmod = $lastmodRaw !== '' ? (DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $lastmodRaw) ?: self::parseDate($lastmodRaw)) : null;
-            if ($changedSince !== null && ($lastmod === null || $lastmod < $changedSince)) {
-                continue;
+            try {
+                yield from $this->readNested($loc, $root, $changedSince, $depth + 1, $fetched);
+            } catch (TransportException $e) {
+                $this->logger->warning('indexnow: skipping nested sitemap {url}: {error}', ['url' => $loc, 'error' => $e->getMessage()]);
             }
-            yield new SitemapEntry($loc, $lastmod);
         }
     }
 
     /**
-     * Children by name in the sitemap namespace, falling back to no namespace (some generators omit it).
+     * Streams ("url"|"sitemap", loc, lastmod) triples.
      *
-     * @return iterable<SimpleXMLElement>
+     * @return Generator<int, array{0: string, 1: string, 2: string}>
+     *
+     * @throws TransportException
      */
-    private static function children(SimpleXMLElement $el, string $name): iterable
+    private function entries(string $xml, string $source): Generator
     {
-        $ns = $el->children(self::NS)->{$name};
-        if (\count($ns) > 0) {
-            return $ns;
+        $xml = self::gunzip($xml, $source);
+        $previous = libxml_use_internal_errors(true);
+        $reader = new XMLReader();
+        try {
+            if (!$reader->XML($xml, 'UTF-8', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT)) {
+                throw new TransportException(\sprintf('Sitemap %s: invalid XML.', $source));
+            }
+            $reader->setParserProperty(XMLReader::SUBST_ENTITIES, false);
+            $reader->setParserProperty(XMLReader::LOADDTD, false);
+            $kind = null;
+            $loc = $lastmod = '';
+            $field = null;
+            while (true) {
+                $ok = $reader->read();
+                if (!$ok) {
+                    break;
+                }
+                if ($reader->nodeType === XMLReader::ELEMENT) {
+                    $name = $reader->localName;
+                    if ($reader->depth === 1 && ($name === 'url' || $name === 'sitemap')) {
+                        $kind = $name;
+                        $loc = $lastmod = '';
+                    } elseif ($kind !== null && $reader->depth === 2 && ($name === 'loc' || $name === 'lastmod')) {
+                        $field = $name;
+                        if ($reader->isEmptyElement) {
+                            $field = null;
+                        }
+                    }
+                } elseif ($field !== null && ($reader->nodeType === XMLReader::TEXT || $reader->nodeType === XMLReader::CDATA)) {
+                    if ($field === 'loc') {
+                        $loc .= $reader->value;
+                    } else {
+                        $lastmod .= $reader->value;
+                    }
+                } elseif ($reader->nodeType === XMLReader::END_ELEMENT) {
+                    if ($reader->depth === 2) {
+                        $field = null;
+                    } elseif ($reader->depth === 1 && $kind !== null) {
+                        if (trim($loc) !== '') {
+                            yield [$kind, trim($loc), trim($lastmod)];
+                        }
+                        $kind = null;
+                    }
+                }
+            }
+            $error = libxml_get_last_error();
+            if ($error !== false && $error->level >= LIBXML_ERR_ERROR) {
+                throw new TransportException(\sprintf('Sitemap %s: invalid XML at line %d: %s', $source, $error->line, trim($error->message)));
+            }
+        } finally {
+            $reader->close();
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
         }
-
-        return $el->children()->{$name};
     }
 
-    private static function child(SimpleXMLElement $el, string $name): ?SimpleXMLElement
+    /**
+     * @throws TransportException
+     */
+    private static function gunzip(string $body, string $source): string
     {
-        foreach (self::children($el, $name) as $c) {
-            return $c;
+        if (!str_starts_with($body, "\x1f\x8b")) {
+            return $body;
+        }
+        if (!\function_exists('gzdecode')) {
+            throw new TransportException(\sprintf('Sitemap %s is gzip-compressed but ext-zlib is not available.', $source));
+        }
+        $decoded = @gzdecode($body, self::MAX_XML_BYTES + 1);
+        if ($decoded === false) {
+            throw new TransportException(\sprintf('Sitemap %s: cannot gunzip.', $source));
+        }
+        if (\strlen($decoded) > self::MAX_XML_BYTES) {
+            throw new TransportException(\sprintf('Sitemap %s: decompressed size exceeds %d bytes.', $source, self::MAX_XML_BYTES));
         }
 
-        return null;
+        return $decoded;
+    }
+
+    private static function entry(string $loc, string $lastmodRaw, ?DateTimeImmutable $changedSince): ?SitemapEntry
+    {
+        $lastmod = $lastmodRaw !== '' ? (DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $lastmodRaw) ?: self::parseDate($lastmodRaw)) : null;
+        if ($changedSince !== null && ($lastmod === null || $lastmod < $changedSince)) {
+            return null;
+        }
+
+        return new SitemapEntry($loc, $lastmod);
+    }
+
+    private static function sameOrigin(string $url, string $root): bool
+    {
+        $a = parse_url($url);
+        $b = parse_url($root);
+        if (!\is_array($a) || !\is_array($b) || !isset($a['scheme'], $a['host'], $b['host'])) {
+            return false;
+        }
+
+        return \in_array(strtolower($a['scheme']), ['http', 'https'], true) && strtolower($a['host']) === strtolower($b['host']) && !isset($a['user']);
     }
 
     private static function parseDate(string $raw): ?DateTimeImmutable
