@@ -68,14 +68,23 @@ final class CheckerTest extends TestCase
         self::assertStringContainsString('No host to check', implode("\n", array_column($report->items(), 'message')));
     }
 
-    public function testKeyLocationOnAnotherHostIsAnError(): void
+    public function testKeyLocationOnAnotherHostIsAnErrorAndIsNeverFetched(): void
     {
-        $config = Config::fromArray(['key' => Factory::KEY, 'base_url' => 'https://www.example.com', 'key_location' => 'https://other.example.com/key.txt']);
-        $t = (new FakeTransport())->onGet('https://other.example.com/key.txt', new Response(200, Factory::KEY));
-        $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+        // Config refuses such a setup itself; a custom provider can still produce it, so Checker must not follow it.
+        $config = Factory::config();
+        $keys = new StaticKeyProvider(Factory::KEY, [], 'http://169.254.169.254/latest/meta-data/');
+        $t = (new FakeTransport())->onGet('http://169.254.169.254/latest/meta-data/', new Response(200, Factory::KEY));
+        $report = (new Checker($config, $keys, $t))->run();
 
         self::assertTrue($report->hasErrors());
         self::assertStringContainsString('is on another host', implode("\n", array_column($report->items(), 'message')));
+        self::assertSame([], $t->gets, 'no request to a foreign host');
+    }
+
+    public function testConfigRejectsKeyLocationOnAnotherHost(): void
+    {
+        $this->expectException(\IndexNowKit\Exception\ConfigurationException::class);
+        Config::fromArray(['key' => Factory::KEY, 'base_url' => 'https://www.example.com', 'key_location' => 'https://other.example.com/key.txt']);
     }
 
     public function testTransportFailureDoesNotLeakTheRawKey(): void

@@ -159,8 +159,13 @@ final class UrlNormalizer implements UrlNormalizerInterface
         return $result === '' || $result[0] !== '/' ? '/' . ltrim($result, '/') : $result;
     }
 
+    /**
+     * Short, log-safe rendering of a rejected URL: control characters escaped, length capped.
+     */
     private static function excerpt(string $url): string
     {
-        return \strlen($url) > 120 ? substr($url, 0, 117) . '...' : $url;
+        $safe = addcslashes($url, "\x00..\x1F\x7F");
+
+        return \strlen($safe) > 120 ? substr($safe, 0, 117) . '...' : $safe;
     }
 }

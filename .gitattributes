@@ -6,3 +6,4 @@
 /CONTRIBUTING.md       export-ignore
 
 * text=auto eol=lf
+/phpstan.neon.dist     export-ignore

@@ -16,6 +16,7 @@ use IndexNowKit\Url\UrlNormalizerInterface;
 use JsonException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Throwable;
 
 /**
  * Protocol client: groups already-normalized URLs by host, chunks them, throttles and POSTs one batch
@@ -109,6 +110,11 @@ final class Client
             $this->logger->warning('indexnow: {engine} transport error for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key)]);
 
             return new Result($engine, $host, $urls, ResultStatus::Failed, null, self::maskKey($e->getMessage(), $key), retryable: true, endpoint: $endpoint);
+        } catch (Throwable $e) {
+            // A misbehaving PSR-18 client must not take the request down, nor put $key into a logged stack trace.
+            $this->logger->error('indexnow: {engine} HTTP client failure for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key), 'class' => $e::class]);
+
+            return new Result($engine, $host, $urls, ResultStatus::Failed, null, self::maskKey(\sprintf('%s: %s', $e::class, $e->getMessage()), $key), retryable: true, endpoint: $endpoint);
         }
 
         return $this->interpret($endpoint, $engine, $host, $urls, $response->status, $response->body, $response->retryAfter, $key);

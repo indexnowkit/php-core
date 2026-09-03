@@ -148,8 +148,9 @@ $indexNow->submitter->addListener(fn (IndexNowKit\Result $r) => $metrics->increm
 ```
 
 Log lines use the PSR-3 logger you pass to `IndexNow::create()`: `debug` for successes, `info` for 202 and dry-run,
-`warning` for 422/429/5xx/network, `error` for 400/403 (the fifth consecutive 403 for a host is logged once as
-`critical`). Keys are masked everywhere.
+`warning` for 422/429/5xx/network, `error` for 400/403. The fifth consecutive 403 for a host is logged once as
+`critical` (alert on it: nothing is being indexed); further ones drop to `warning` until a success resets the count.
+Keys are masked everywhere.
 
 ## Retries and queues
 
@@ -237,6 +238,16 @@ Config::fromArray([
 Sub-domains are separate hosts for IndexNow: each needs its own key file. With a `key` and no `hosts`, the same key is
 used for every host you submit (each host still needs the key file). Implement `KeyProviderInterface` to load keys
 from a database or a tenant registry.
+
+## Limitations
+
+- The same URL is not re-sent within `debounce.per_url` (10 minutes by default): that is what Yandex asks for.
+  A URL that changes twice in a minute is submitted once; engines recrawl the current version anyway.
+- No retries inside a web request: `429`/`5xx` results are returned as `retryable`. Retry from a queue or with
+  `RetryingSubmitter` in CLI and workers.
+- Only `http(s)` URLs on hosts you hold a key for. Sub-domains are separate hosts.
+- `TokenBucket` throttles per process; multi-process rate limits belong to your queue.
+- Google is not reachable through IndexNow.
 
 ## Extension points
 

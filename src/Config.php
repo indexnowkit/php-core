@@ -72,6 +72,9 @@ final readonly class Config
         if ($keyLocation !== null && !self::isKeyFileUrl($keyLocation)) {
             throw new ConfigurationException(\sprintf('"key_location" must be an absolute http(s) URL to the key file, got "%s".', $keyLocation));
         }
+        if ($keyLocation !== null && $baseUrl !== null && self::hostOf($keyLocation) !== self::hostOf($baseUrl)) {
+            throw new ConfigurationException(\sprintf('"key_location" (%s) must be on the host of "base_url" (%s): engines only accept a key file served from the submitted host.', self::hostOf($keyLocation), self::hostOf($baseUrl)));
+        }
         if ($batchMaxUrls < 1 || $batchMaxUrls > self::MAX_BATCH_URLS) {
             throw new ConfigurationException(\sprintf('"batch.max_urls" must be between 1 and %d, got %d.', self::MAX_BATCH_URLS, $batchMaxUrls));
         }
@@ -269,6 +272,9 @@ final readonly class Config
                 if (!\is_string($location) || !self::isKeyFileUrl($location)) {
                     throw new ConfigurationException(\sprintf('"hosts.%s.key_location" must be an absolute http(s) URL.', $host));
                 }
+                if (self::hostOf($location) !== $host) {
+                    throw new ConfigurationException(\sprintf('"hosts.%s.key_location" must be on host %s, got %s.', $host, $host, self::hostOf($location)));
+                }
                 $locations[$host] = $location;
             }
         }
@@ -317,7 +323,14 @@ final readonly class Config
     {
         $parts = parse_url($url);
 
-        return \is_array($parts) && isset($parts['scheme'], $parts['host']) && \in_array(strtolower($parts['scheme']), ['http', 'https'], true) && !isset($parts['user'], $parts['pass']);
+        return \is_array($parts) && isset($parts['scheme'], $parts['host']) && \in_array(strtolower($parts['scheme']), ['http', 'https'], true) && !isset($parts['user']) && !isset($parts['pass']);
+    }
+
+    private static function hostOf(string $url): string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return \is_string($host) ? strtolower($host) : '';
     }
 
     private static function isKeyFileUrl(string $url): bool

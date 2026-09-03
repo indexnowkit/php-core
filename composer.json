@@ -3,10 +3,24 @@
     "description": "IndexNow client for PHP: notify Yandex, Bing, Naver, Seznam and Yep about changed URLs. Batching, debounce, throttle, retry policy, key file handling, sitemap reader. Framework-agnostic, PSR-18/PSR-3/PSR-16.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["indexnow", "seo", "search-engine", "yandex", "bing", "naver", "seznam", "sitemap", "psr-18", "indexing"],
+    "keywords": [
+        "indexnow",
+        "seo",
+        "search-engine",
+        "yandex",
+        "bing",
+        "naver",
+        "seznam",
+        "sitemap",
+        "psr-18",
+        "indexing"
+    ],
     "homepage": "https://github.com/indexnowkit/php",
     "authors": [
-        {"name": "Igor Pinchuk", "email": "i.pinchuk.work@gmail.com"}
+        {
+            "name": "Igor Pinchuk",
+            "email": "i.pinchuk.work@gmail.com"
+        }
     ],
     "support": {
         "issues": "https://github.com/indexnowkit/php/issues",
@@ -30,6 +44,7 @@
         "nyholm/psr7": "^1.8",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5",
         "symfony/cache": "^6.4 || ^7.0",
         "symfony/http-client": "^6.4 || ^7.0"
@@ -44,19 +59,28 @@
         "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl"
     },
     "autoload": {
-        "psr-4": {"IndexNowKit\\": "src/"}
+        "psr-4": {
+            "IndexNowKit\\": "src/"
+        }
     },
     "autoload-dev": {
-        "psr-4": {"IndexNowKit\\Tests\\": "tests/"}
+        "psr-4": {
+            "IndexNowKit\\Tests\\": "tests/"
+        }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "stan": "phpstan analyse --memory-limit=1G"
     },
     "config": {
         "sort-packages": true,
-        "allow-plugins": {"php-http/discovery": false}
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
     },
     "extra": {
-        "branch-alias": {"dev-main": "0.2-dev"}
+        "branch-alias": {
+            "dev-main": "0.2-dev"
+        }
     }
 }

@@ -1,0 +1,9 @@
+# Standalone configuration for the split repository; the monorepo uses php/phpstan.neon.dist with the same level and rules.
+includes:
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+parameters:
+    level: 9
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false

@@ -224,7 +224,10 @@ final class SitemapReader
             return false;
         }
 
-        return \in_array(strtolower($a['scheme']), ['http', 'https'], true) && strtolower($a['host']) === strtolower($b['host']) && !isset($a['user']);
+        return \in_array(strtolower($a['scheme']), ['http', 'https'], true)
+            && strtolower($a['host']) === strtolower($b['host'])
+            && ($a['port'] ?? null) === ($b['port'] ?? null)
+            && !isset($a['user'], $a['pass']) && !isset($a['user']) && !isset($a['pass']);
     }
 
     private static function parseDate(string $raw): ?DateTimeImmutable

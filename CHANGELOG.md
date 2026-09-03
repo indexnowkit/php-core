@@ -37,7 +37,10 @@ contain breaking changes, listed under "Changed".
 - `http.timeout` was validated but never applied.
 - Exceptions from result listeners, debounce stores, `json_encode` and the `when` guard could escape into the host application.
 - `SitemapReader` loaded whole documents with SimpleXML (now streams with XMLReader) and decompressed gzip without a cap.
-- `Checker` could leak the raw key through transport exception messages.
+- `Checker` could leak the raw key through transport exception messages, and fetched `key_location` URLs on foreign hosts
+  (now reported and skipped; `Config` rejects a `key_location` that is not on the host it serves).
+- A non-PSR exception from the HTTP client became an uncaught error carrying the key in its stack trace; it is now a
+  `failed`, retryable `Result` with a masked message.
 
 ## 0.1.0 — 2026-09-03
 

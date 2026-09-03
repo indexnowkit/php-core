@@ -13,7 +13,8 @@ final class KeyValidator
 {
     public const MIN_LENGTH = 8;
     public const MAX_LENGTH = 128;
-    public const PATTERN = '/^[A-Za-z0-9-]{8,128}$/';
+    public const ALPHABET = 'A-Za-z0-9-';
+    public const PATTERN = '/^[' . self::ALPHABET . ']{' . self::MIN_LENGTH . ',' . self::MAX_LENGTH . '}$/';
 
     private function __construct() {}
 

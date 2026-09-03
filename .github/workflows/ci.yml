@@ -24,4 +24,4 @@ jobs:
           coverage: none
       - run: composer update --no-interaction --prefer-dist
       - run: vendor/bin/phpunit
-      - run: vendor/bin/phpstan analyse src --level 9 --memory-limit=1G
+      - run: vendor/bin/phpstan analyse --memory-limit=1G

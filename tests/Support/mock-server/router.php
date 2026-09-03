@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * IndexNow mock server (PHP built-in server edition). Run: php -S 127.0.0.1:8089 tools/mock-server/router.php
+ * IndexNow mock server (PHP built-in server edition). Run: php -S 127.0.0.1:8089 packages/core/tests/Support/mock-server/router.php
  * Scenario via header X-Mock-Scenario or ?scenario=. Request log at GET /_mock/requests, DELETE clears.
  * MOCK_KEYS env (comma separated) makes GET /{key}.txt answer 200.
  */

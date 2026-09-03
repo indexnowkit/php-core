@@ -80,6 +80,8 @@ final class Checker
         $keyUrlHost = parse_url($keyUrl, PHP_URL_HOST);
         if (!\is_string($keyUrlHost) || strtolower($keyUrlHost) !== strtolower($host)) {
             $report->error(\sprintf('%s: key_location %s is on another host; engines answer 422 unless the key file is served from the submitted host.', $host, self::maskUrl($keyUrl, $key)));
+
+            return;
         }
         try {
             $response = $this->transport->get($keyUrl);

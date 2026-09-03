@@ -12,8 +12,10 @@ use Psr\Log\NullLogger;
 /**
  * Per-process token bucket: at most N requests per minute, blocking (usleep) when exhausted.
  *
- * 0 means unlimited. Cross-process throttling is the queue's job; in web requests the bucket only
- * kicks in when a single request would send more than N batches, which is rare (N × 10 000 URLs).
+ * 0 means unlimited. Cross-process throttling is the queue's job. The wait is a blocking usleep() without an
+ * upper bound: in a web request it only kicks in when one request sends more than N batches (N × 10 000 URLs),
+ * so keep max_requests_per_minute well above the number of batches a request can produce, or use NullThrottle
+ * there and throttle in the queue worker instead.
  */
 final class TokenBucket implements ThrottleInterface
 {
