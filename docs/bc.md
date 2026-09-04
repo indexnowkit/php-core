@@ -9,15 +9,15 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Console\ClassNameResolver`, `Adapter\ConfigFactory`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, the writers of `Check\CheckReport` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Console\ClassNameResolver`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Console\Definitions`, `Testing\KeyFileAssertions`, `Testing\CheckOutputAssertions` |
 | **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
-one directly, pin `^0.4.0` rather than `^0.4` and read the changelog before upgrading. Decorating a shipped
+one directly, pin `^0.5.0` rather than `^0.5` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
 both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` have no shipped implementation to
-decorate (one per framework adapter): pin `^0.4.0` and read the changelog.
+decorate (one per framework adapter): pin `^0.5.0` and read the changelog.
 
 ## Named arguments
 
@@ -47,8 +47,9 @@ accepts. Renaming a `Config` property is therefore a breaking change and appears
 
 ## Value objects and enums
 
-`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `Http\Response`, `Check\CheckItem` and
-the attribute classes are `final readonly`. Their properties are read-only public API: reading them is safe,
+`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `Http\Response`, `Check\CheckItem`, `Retry\WorkerOutcome`,
+`Console\CommandDefinition`, `Console\ArgumentDefinition`, `Console\OptionDefinition` and the attribute classes are
+`final readonly`. Their properties are read-only public API: reading them is safe,
 constructing them is safe, and new properties are only appended with defaults. Prefer the named constructors
 (`Result::ok()`, `Result::skipped()`, `Result::failed()`) over the constructor, so an appended parameter never
 reaches your call sites.
@@ -96,8 +97,8 @@ class, or on `Result::$reason`, never on message text.
 
 ## What is not covered
 
-- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`
-  and `Collector::reportLeak()`.
+- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`,
+  `Collector::reportLeak()` and the constructor of `Adapter\Services` (built by `ServicesBuilder::build()`).
 - Private and protected members of `final` classes, which is all of them: the library has no inheritance points by
   design, only interfaces.
 - Log message texts. They are documented in [operations.md](operations.md) so you can grep them, and they are
@@ -125,10 +126,10 @@ now the `indexnowkit/sitemap` package.
 
 ## Before 1.0
 
-Minor versions may break. The changes made in 0.2.0 and 0.4.0 are listed in the changelog; the shape of the breakage to
-expect is the same: renamed classes as the namespace layout settles, and signatures on the "may grow" interfaces as
-more adapters land. Application code that only uses the facade, `Config`, the attributes and `Result` has been
-stable across 0.1 and 0.2 and is expected to stay so.
+Minor versions may break. The changes made in 0.2.0 and 0.4.0 are listed in the changelog (0.5.0 was additive); the
+shape of the breakage to expect is the same: renamed classes as the namespace layout settles, and signatures on the
+"may grow" interfaces as more adapters land. Application code that only uses the facade, `Config`, the attributes and
+`Result` has been stable since 0.1 and is expected to stay so.
 
 If you need an extension point that does not exist, open an issue rather than reaching into `@internal` or copying a
 final class. Adapter-driven interface changes are exactly what the pre-1.0 window is for.

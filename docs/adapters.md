@@ -23,66 +23,85 @@ shapes exist, and most packages are one of them:
 
 ## 2. The 20-minute adapter
 
-Everything a minimal adapter needs, in one file, on the factories every shipped adapter uses. It passes A01, A07 and
-H01–H03; the core keeps this exact class under test (`tests/Unit/Adapter/TwentyMinuteAdapterTest.php`).
+Everything a minimal adapter needs, in one file, on layer 2 of the kit: `Adapter\ServicesBuilder` describes the
+graph (your container's pieces as closures, everything else from the core's factories), `Adapter\Services` builds
+it lazily, `Hook\ObserverHelper` is the never-throwing part of the model hooks. It passes A01, A04, A07 and H01–H03;
+the core keeps this exact class under test (`tests/Unit/Adapter/TwentyMinuteAdapterTest.php`).
 
 ```php
 final class IndexNowIntegration
 {
-    public readonly IndexNowKit $indexNow;
-    private readonly KeyFileResponder $keyFile;
+    public readonly Services $services;
+    private readonly ObserverHelper $hooks;
 
     /** @param array<string, mixed> $frameworkConfig the raw config array, your own blocks included */
     public function __construct(array $frameworkConfig, ?string $environment, LoggerInterface $logger, ?RouteUrlResolverInterface $router = null)
     {
         // Never throws: an invalid value is one critical log line and a disabled Config until it is fixed.
         $config = (new ConfigFactory(ownedOptions: ['myfw.route_prefix'], checkCommand: 'myfw indexnow:check'))->load($frameworkConfig, $environment, $logger);
-        $this->indexNow = IndexNowKit::create(
-            $config,
-            logger: $logger,
-            debounce: DebounceStoreFactory::fromConfig($config, fn (string $id) => $this->cache($id)),
-            resolver: AttributeUrlResolver::fromConfig($config, new AttributeReader(), $router, new ArrayResolverLocator([], locate: fn (string $id) => $this->service($id), hint: 'a service id'), $logger),
-        );
-        $this->keyFile = KeyFileResponder::fromConfig($config, $this->indexNow->keys);
+        $builder = (new ServicesBuilder($config, $logger))
+            ->httpClientLocator(fn (string $id): object => $this->service($id) ?? throw new RuntimeException($id))
+            ->debounceStore(fn (Services $s): DebounceStoreInterface => DebounceStoreFactory::fromConfig($s->config, fn (string $id) => $this->cache($id)))
+            ->resolverLocator(new ArrayResolverLocator([], locate: fn (string $id) => $this->service($id), hint: 'a service id'));
+        if ($router !== null) {
+            $builder->router($router);
+        }
+        $this->services = $builder->build();                      // no IO: nothing is built before it is used
+        $this->hooks = new ObserverHelper($this->services->kit(), $logger);
     }
 
     /** Model save hook. */
     public function onSaved(object $model, array $changedFields): void
     {
-        $urls = $this->indexNow->changes()->updated($model, $changedFields);
-        $this->indexNow->collect(ResolvedUrl::urls($urls));
+        $urls = $this->hooks->guard($model, static fn (ObjectChangeHandler $changes): array => $changes->updated($model, $changedFields));
+        $this->hooks->deliver($urls ?? []);
     }
 
-    /** Model delete hook: must run while the row still exists. */
+    /** Model delete hook, before the row disappears: resolve now, deliver once it is gone. */
     public function onDeleting(object $model): void
     {
-        $this->indexNow->collect(ResolvedUrl::urls($this->indexNow->changes()->deleted($model)));
+        $urls = $this->hooks->guard($model, static fn (ObjectChangeHandler $changes): array => $changes->deleted($model));
+        $this->hooks->rememberDeletion($model, $urls ?? []);
     }
 
-    /** End of the unit of work: after the response was sent, if the platform allows it. */
+    public function onDeleted(object $model): void
+    {
+        $this->hooks->deliver($this->hooks->takeDeletion($model) ?? []);
+    }
+
+    /** End of the unit of work: after the response was sent, if the platform allows it. Never throws. */
     public function onShutdown(): void
     {
-        $this->indexNow->flush();
+        $this->services->flushIfCollected();
     }
 
     /** GET /{key}.txt */
     public function keyFileResponse(string $path, string $host): ?array
     {
-        $body = $this->keyFile->bodyForPath($path, $host);
+        $body = $this->services->keyFileResponder()->bodyForPath($path, $host);
 
-        return $body === null ? null : [$body, $this->indexNow->config->keyFileHeaders()];
+        return $body === null ? null : [$body, $this->services->config->keyFileHeaders()];
     }
 
-    /** How your framework resolves `debounce.store` to a PSR-16 cache and `#[IndexNow(resolver: ...)]` ids to services. */
+    /** How your framework resolves `debounce.store` to a PSR-16 cache and `#[IndexNow(resolver: ...)]` / `http.client` ids to services. */
     private function cache(string $id): CacheInterface { /* your container */ }
     private function service(string $id): ?object { /* your container; null = unknown */ }
 }
 ```
 
-Everything below is refinement of those five methods. `IndexNowKit::create()` already takes `http.client`,
-`throttle`, `collector` and `dispatch` from the Config through the same factories (`Http\TransportFactory::lazy()`,
-`TokenBucket::fromConfig()`, `Collector::fromConfig()`, `Dispatch\DispatcherFactory::fromConfig()`); a container
-that builds the graph service by service calls them one by one.
+Everything below is refinement of those six methods. What the builder did not get comes from the factories of
+layer 1: `Http\TransportFactory::lazy()` (`http.client`, through your locator), `Debounce\DebounceStoreFactory`,
+`Dispatch\DispatcherFactory` (`dispatch`; give `queueFactory()` a closure for your queue), `fromConfig()` on
+`Collector`, `TokenBucket`, `AttributeUrlResolver` and `KeyFileResponder`. Override any node with `transport()`,
+`submitter()`, `dispatcher()`, `urlResolver()`, … and every dependent node uses the replacement; `build()` throws
+`ConfigurationException` for what is statically wrong (a `debounce.store` id without a store, a queue mode without
+a queue). `Services` also gives you `checker()` (add your lines with `checks()`), `submitterFactory()` for the
+commands, `rules()` for rules registered at runtime, and `hasCollected()`/`flushIfCollected()` for the request-end
+hook. The parity between the two layers is a test in the core (`ServicesParityTest`).
+
+A container that describes services (Symfony, Laravel) stays on layer 1 and calls the same factories service by
+service: its service ids and bindings are its public API, and a builder would hide them. `IndexNowKit::create()`
+is the plain-PHP form of the same graph.
 
 ## 3. The component graph
 
@@ -449,7 +468,10 @@ The golden rule: **nothing reaching a lifecycle hook may throw into the host app
 
 Use `IndexNowKit\Testing` (`FakeTransport`, `ArrayLogger`, `FrozenClock`, `RecordingDispatcher`) — see
 [testing.md](testing.md). Assert classification through `ObjectChangeHandler::*Events()` before any URL exists, and
-delivery through `RecordingDispatcher`.
+delivery through `RecordingDispatcher`. For the HTTP and command scenarios, parse your framework's response or
+output and hand it to `Testing\KeyFileAssertions` (H01–H03: status, content type, `Cache-Control` by directive,
+`Vary: Host` only with a hosts map) and `Testing\CheckOutputAssertions` (H04–H05: exit code with the output as the
+failure message, the ready line, the key file hint), so your tests do not carry a copy of the core's phrases.
 
 Then work through the conformance scenarios with the shipped kits (`Testing\Conformance\CoreConformanceTestCase`,
 `OrmConformanceTestCase`, see [testing.md](testing.md)): C01–C22 for anything that talks to the protocol, A01–A21 for
@@ -458,28 +480,32 @@ why — A13 (bulk operations bypass hooks) is a documented limitation everywhere
 
 ## 17. Packaging
 
-Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.4` (and `indexnowkit/sitemap ^0.1` for the `sitemap`
-command), keep the framework itself in `require` and the optional pieces in `suggest`. Run a version matrix in CI over the framework's supported majors and LTS releases,
+Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.5` (and `indexnowkit/sitemap ^0.1.1` for the `sitemap`
+command and its `Definitions`), keep the framework itself in `require` and the optional pieces in `suggest`. Run a version matrix in CI over the framework's supported majors and LTS releases,
 static analysis at the maximum level, and publish EN plus RU READMEs following the family table used here. The
 Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowkit/php/blob/main/docs/spec/91-roadmap.md).
 
 ## 18. Reference adapters
 
-All four adapters sit on layer 1 (the static factories and `Adapter\ConfigFactory` of this document); layer 2, a
-ready lazy set of services for runtime-assembled containers, is planned (spec 16 §3.2).
+The bundle and the Laravel package sit on layer 1 (the static factories and `Adapter\ConfigFactory`, one service or
+binding per node, because those ids are their public API); the Yii2 component sits on layer 2
+(`Adapter\ServicesBuilder`, the graph described once, the pieces exposed as delegates). All of them share
+`Hook\ObserverHelper` in the observers, `Retry\WorkerOutcome` in the queue jobs and `Console\Definitions` in the
+commands.
 
 | Section | `doctrine` | `symfony-bundle` | `laravel` | `yii2` |
 |---|---|---|---|---|
-| component graph | `src/IndexNowDoctrine.php` | `src/DependencyInjection/IndexNowKitLoader.php` | `src/IndexNowKitServiceProvider.php` | `src/IndexNowComponent.php` |
+| layer | — | 1 (services) | 1 (bindings) | 2 (`ServicesBuilder`) |
+| component graph | `src/IndexNowDoctrine.php` | `src/DependencyInjection/IndexNowKitLoader.php` | `src/IndexNowKitServiceProvider.php` | `src/IndexNowComponent.php` (`services()`) |
 | configuration | — | `src/DependencyInjection/{IndexNowKitConfiguration,ConfigFactory}.php` | `config/indexnow.php`, `src/Config/ConfigFactory.php` | `src/Config/ConfigFactory.php` |
 | router bridge | — | `src/Url/SymfonyRouteUrlResolver.php` | `src/Url/LaravelRouteUrlResolver.php` | `src/Url/YiiRouteUrlResolver.php` |
 | resolver lookup | — | `src/Url/ResolverLocatorFactory.php` (core `ArrayResolverLocator`) | in the provider (core `ArrayResolverLocator`) | in the component (core `ArrayResolverLocator`) |
-| model change hooks | `src/IndexNowListener.php` | via the Doctrine package | `src/Eloquent/IndexNowObserver.php` (observer + `afterCommit()`) | `src/ActiveRecord/IndexNowObserver.php`, `IndexNowBehavior.php` |
+| model change hooks | `src/IndexNowListener.php` | via the Doctrine package | `src/Eloquent/IndexNowObserver.php` (`ObserverHelper` + `afterCommit()`) | `src/ActiveRecord/IndexNowObserver.php` (`ObserverHelper` + staging), `IndexNowBehavior.php` |
 | commit safety | `src/Middleware/*` | `src/Doctrine/StagingSink.php` | Laravel's `afterCommit()` | core `VerifyingStaging` |
 | unit of work | — | `src/EventListener/FlushListener.php` | `terminating()`, `JobProcessed` | `EVENT_AFTER_SEND`, `EVENT_AFTER_REQUEST` |
-| delivery | — | `src/Messenger/*` | `src/Queue/*` | `src/Queue/*` (yii2-queue) |
+| delivery | — | `src/Messenger/*` (`WorkerOutcome`) | `src/Queue/*` (`WorkerOutcome`) | `src/Queue/*` (yii2-queue, `WorkerOutcome`) |
 | key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileController.php` |
-| diagnostics | — | `src/Command/*`, `src/DataCollector/*` | `src/Console/*`, `src/Check/*` | `src/Console/IndexNowController.php`, `src/Check/*` |
+| diagnostics | — | `src/Command/*` (`Definitions`), `src/DataCollector/*` | `src/Console/*` (`Definitions`), `src/Check/*` | `src/Console/IndexNowController.php` (`Definitions`), `src/Check/*` |
 | subject reader | — | — | `src/Eloquent/EloquentSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` |
 
 ## 19. Compatibility
@@ -496,11 +522,17 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
       `Dispatch\DispatcherFactory`, `fromConfig()`); no copied `match` over `debounce.store`, no own "not a PSR-18
       client" text, no own class-name resolution (`Console\ClassNameResolver`).
 - [ ] `#[IndexNow(resolver: ...)]` through `ArrayResolverLocator(locate:, hint:)`; the resolver is `GuardedUrlResolver`.
-- [ ] Deletions resolved before the row disappears; a commit boundary (`afterCommit`, `TransactionStaging`, `VerifyingStaging`).
+- [ ] Hooks over `Hook\ObserverHelper` (guard, deliver, remembered deletions; no own `WeakMap`, no own "cannot resolve"
+      text); deletions resolved before the row disappears; a commit boundary (`afterCommit`, `TransactionStaging`,
+      `VerifyingStaging`).
+- [ ] A queue job over `Retry\WorkerOutcome` (retryable vs final, the three log lines) plus your framework's action;
+      or a runtime-assembled container over `Adapter\ServicesBuilder` with `queueFactory()`.
 - [ ] Flush at the end of every unit of work (request, command, queue message); `Collector::reset()` in long-running runtimes.
 - [ ] `KeyFileResponder::fromConfig()` + `Config::keyFileHeaders()` on a route without session or CSRF; H01–H03 green.
-- [ ] Six commands over the core runners (`sitemap` from `indexnowkit/sitemap`), `check` with your `CheckInterface` lines
-      plus `Check\DebounceStoreCheck` (with a probe) and `Sitemap\Check\SitemapSpoolCheck`.
-- [ ] Conformance kits green (C01–C22, A01–A21 for an ORM, H01–H06); undocumented scenarios named in the README.
+- [ ] Six commands over the core runners (`sitemap` from `indexnowkit/sitemap`), their inputs from
+      `Console\Definitions` / `Sitemap\Console\Definitions` (no own option descriptions), `check` with your
+      `CheckInterface` lines plus `Check\DebounceStoreCheck` (with a probe) and `Sitemap\Check\SitemapSpoolCheck`.
+- [ ] Conformance kits green (C01–C22, A01–A21 for an ORM, H01–H06 through `Testing\KeyFileAssertions` and
+      `Testing\CheckOutputAssertions`); undocumented scenarios named in the README.
 - [ ] CI matrix over the framework's supported majors, phpstan level 9 on every flavour, EN + RU README with the family
       table, `docs/troubleshooting.md`, a changelog with migration notes.

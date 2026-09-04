@@ -267,8 +267,10 @@ Pass any of them to `IndexNowKit::create()` by name, or assemble the graph by ha
 have factories with one source of error texts — `Http\TransportFactory::lazy()` (`http.client`),
 `Debounce\DebounceStoreFactory::fromConfig()` (`debounce.store`), `Dispatch\DispatcherFactory::fromConfig()`
 (`dispatch`), `fromConfig()` on `Collector`, `TokenBucket`, `AttributeUrlResolver` and `KeyFileResponder` — and
-`Adapter\ConfigFactory` turns a raw framework array into a `Config` without ever throwing from a hook. Writing an
-adapter? [docs/adapters.md](docs/adapters.md).
+`Adapter\ConfigFactory` turns a raw framework array into a `Config` without ever throwing from a hook. A container
+that assembles at runtime describes the whole graph once with `Adapter\ServicesBuilder` and gets it lazily from
+`Adapter\Services`; ORM hooks share `Hook\ObserverHelper`, queue jobs `Retry\WorkerOutcome`, commands
+`Console\Definitions`. Writing an adapter? [docs/adapters.md](docs/adapters.md).
 
 ## Exceptions
 

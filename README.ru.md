@@ -269,8 +269,10 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 конфигурации, есть фабрики с единым источником текстов ошибок — `Http\TransportFactory::lazy()` (`http.client`),
 `Debounce\DebounceStoreFactory::fromConfig()` (`debounce.store`), `Dispatch\DispatcherFactory::fromConfig()`
 (`dispatch`), `fromConfig()` у `Collector`, `TokenBucket`, `AttributeUrlResolver` и `KeyFileResponder`, — а
-`Adapter\ConfigFactory` превращает сырой массив фреймворка в `Config`, никогда не бросая из хука. Пишете адаптер?
-[docs/adapters.md](docs/adapters.md).
+`Adapter\ConfigFactory` превращает сырой массив фреймворка в `Config`, никогда не бросая из хука. Контейнер, который
+собирается в рантайме, описывает весь граф один раз через `Adapter\ServicesBuilder` и лениво получает его из
+`Adapter\Services`; ORM-хуки делят `Hook\ObserverHelper`, задачи очередей — `Retry\WorkerOutcome`, команды —
+`Console\Definitions`. Пишете адаптер? [docs/adapters.md](docs/adapters.md).
 
 ## Исключения
 

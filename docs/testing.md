@@ -173,6 +173,30 @@ self::assertSame([], $transport->posts);
 Prefer it in application test suites where you care that a change *would* have been announced; prefer `FakeTransport`
 where you care about the exact payload.
 
+## Assertions for an adapter's HTTP and command tests
+
+The conformance scenarios H01–H05 are the same in every framework, only the way a response or a command output is
+captured differs. Two static helpers hold the assertions, so an adapter test parses its framework's objects and
+asserts once:
+
+```php
+use IndexNowKit\Testing\CheckOutputAssertions;
+use IndexNowKit\Testing\KeyFileAssertions;
+
+// H01: 200, text/plain, the key as the body, Cache-Control with public and max-age, Vary: Host only with a hosts map
+KeyFileAssertions::assertKeyFileResponse($response->getStatusCode(), $response->headers->all(), $response->getContent(), $key, maxAge: 300, expectVaryHost: true);
+// H02/H03: an unknown key, another host's key, key_file.enabled: false
+KeyFileAssertions::assertNotServed($response->getStatusCode());
+
+// H04/H05: the check command
+CheckOutputAssertions::assertExitCode(0, $exitCode, $output);        // the output is the failure message
+CheckOutputAssertions::assertReady($output, 'www.example.com');       // "<host>: key file OK" and the closing line
+CheckOutputAssertions::assertKeyFileHint($output, 403);              // the status and the hint about what the engines do
+```
+
+`Cache-Control` is compared by directive (frameworks order them differently), header names in any case, values as a
+string or a list.
+
 ## Conformance kits for adapters
 
 Two abstract PHPUnit cases turn docs/spec/03 into runnable scenarios against *your* wiring:

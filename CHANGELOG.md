@@ -3,6 +3,39 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.5.0] — 2026-09-05
+
+The second "adapter kit" release (docs/spec/16, wave B): what wave A left as three copies in the adapters — the
+lazy graph of a runtime-assembled container, the never-throwing part of an ORM observer, the retry decision of a
+queue worker, the option descriptions of the commands — is one thing in the core. Additive: nothing was removed or
+renamed. Adapters of this wave: doctrine 0.3.1, symfony-bundle 0.5.0, laravel 0.6.0, yii2 0.3.0, sitemap 0.1.1.
+
+### Added
+
+- **`Adapter\ServicesBuilder` / `Adapter\Services`** (layer 2 of the kit): describe the graph once — every node
+  optional, as an object or a `Closure(Services): object` called on first use, the framework's pieces as closures
+  (`httpClientLocator()`, `debounceStore()`, `queueFactory()`, `router()`, `resolverLocator()`, `checks()`,
+  `events()`) — and get it lazily: `transport()`, `keys()`, `client()`, `submitter()`, `collector()`,
+  `dispatcher()`, `rules()`, `urlResolver()`, `guardedResolver()`, `changes()`, `kit()`, `keyFileResponder()`,
+  `checker()`, `submitterFactory()`, plus `hasCollected()`/`flushIfCollected()` for the request-end hook. `build()`
+  does no IO and throws `ConfigurationException` for what is statically wrong. Every accessor is one factory call
+  or constructor of wave A; `ServicesParityTest` keeps the two layers identical. [docs/adapters.md](docs/adapters.md) §2.
+- **`Hook\ObserverHelper`**: `guard()` (resolve through the change handler, never throw, log at debug per URL),
+  `deliver()`, `rememberDeletion()`/`takeDeletion()` (the URLs of a row between the before and after hooks). The
+  log lines are in [docs/operations.md](docs/operations.md), "ORM hooks".
+- **`Retry\WorkerOutcome`**: `of($results)` splits retryable from final failures (`retryUrls`, `finalUrls`,
+  `finalReasons`, `retryAfter`), `delay($policy, $attempt)`, and the three log lines `retryLog()`, `gaveUpLog()`,
+  `finalLog()`. [docs/operations.md](docs/operations.md), "Queue workers".
+- **`Console\Definitions`** with `CommandDefinition`, `ArgumentDefinition`, `OptionDefinition`: the inputs of
+  `check`, `submit`, `submit-<subject>`, `explain` and `key:generate` declared once and rendered for symfony/console
+  (`applyTo()`), artisan (`laravelSignature()`) and Yii (`yiiOptions()`, `yiiAliases()`). The sitemap package adds
+  `Sitemap\Console\Definitions::sitemap()`.
+- **`Testing\KeyFileAssertions`** (H01–H03: status, content type, `Cache-Control` by directive, `Vary: Host` only
+  with a hosts map) and **`Testing\CheckOutputAssertions`** (H04–H05: exit code with the output as the failure
+  message, `assertReady()`, `assertKeyFileHint()`). [docs/testing.md](docs/testing.md).
+- Dev tooling: a `coverage` job in CI (pcov) with a recorded floor per package (`tests/coverage-floor.txt`,
+  `bin/coverage-floor`); the development image has pcov.
+
 ## [0.4.0] — 2026-09-05
 
 The "adapter kit" release (docs/spec/16, wave A): what every framework adapter copied is one thing in the core, and
