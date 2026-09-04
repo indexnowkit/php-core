@@ -259,7 +259,31 @@ Where the real commit signal comes from differs per framework: a DBAL driver mid
 `Connection::afterCommit()` (Laravel — its transaction manager already drops callbacks of a rolled-back savepoint, so
 the Laravel adapter needs no staging of its own; `ShouldHandleEventsAfterCommit` is *not* used, because a deferred
 `updated` handler runs after `syncOriginal()` and loses the old values), `transaction.on_commit` (Django). When the
-framework offers none, document the limitation instead of guessing. Satisfies A01, A02, A05.
+framework offers none, use `Transaction\VerifyingStaging` instead of guessing. Satisfies A01, A02, A05.
+
+### 8a. No commit signal at all: verify on commit
+
+Yii2 fires commit/rollback events only for the outermost transaction and nothing for savepoints; Yii3's `yiisoft/db`
+fires nothing. `Transaction\VerifyingStaging` holds URLs together with a *verifier*, a closure that re-reads the row
+by primary key and says whether the change actually landed (created/updated: the row exists with the new values,
+`VerifyingStaging::rowMatches($row, $expected)`; deleted: no row):
+
+```php
+$staging = new VerifyingStaging($logger);
+
+// in the ORM event, when a transaction is open:
+$staging->stage($connection, fn (): bool => $this->rowMatches($record, $written), $urls, Post::class . '#' . $id);
+
+// when the data layer says the transaction ended (commit event), or at the end of the request when it says nothing:
+$indexNow->collect($staging->flush($connection));   // runs the verifiers, drops what did not land (logged at debug)
+$staging->discard($connection);                     // on a rollback event: nothing to verify
+```
+
+One primary-key lookup per staged subject, only for changes inside an explicit transaction (autocommitted changes go
+straight to the collector). A change that did not land drops every URL it produced, including `via` pages and the
+old URL of a renamed page: announcing "deleted" for a page that still exists is the one outcome to avoid. A verifier
+that throws counts as landed (a stale URL costs one crawl, a lost one costs the update) and is logged at warning.
+Satisfies A02, A05, A05b, A05c without touching the connection configuration; the Yii adapters are the reference.
 
 ## 9. The unit of work
 

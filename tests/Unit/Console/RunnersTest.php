@@ -277,6 +277,12 @@ final class RunnersTest extends TestCase
         $display = $this->output->fetch();
         self::assertStringContainsString('No URL resolved', $display);
         self::assertStringContainsString('bin/console indexnow:explain', $display);
+        self::assertStringContainsString('php yii indexnow/explain', (function () use ($kit): string {
+            $runner = new SubmitSubjectsRunner($kit, $this->loader(), $this->submitters($kit), words: new Vocabulary(cli: 'php yii', explain: 'indexnow/explain'));
+            $runner->run($this->io(), new SubmitSubjectsOptions(ConsoleUntracked::class));
+
+            return $this->output->fetch();
+        })());
 
         self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SubmitSubjectsOptions(ConsolePost::class, ['1'], dryRun: true, json: true)));
         self::assertSame('dry_run', $this->json()[0]['reason']);

@@ -30,7 +30,7 @@ final class KeyGenerateRunner
         if ($envFile === null) {
             $io->writeln($key);
             $io->newLine();
-            $io->text(['Add to your environment:', '  INDEXNOW_KEY=' . $key, \sprintf('Then run: %s indexnow:check', $this->words->cli)]);
+            $io->text(['Add to your environment:', '  INDEXNOW_KEY=' . $key, \sprintf('Then run: %s %s', $this->words->cli, $this->words->check)]);
 
             return ExitCode::SUCCESS;
         }
@@ -44,7 +44,7 @@ final class KeyGenerateRunner
                 return ExitCode::SUCCESS;
             }
             $contents = (string) preg_replace('/^(\s*)INDEXNOW_KEY\s*=.*$/m', '$1' . $line, $contents, 1);
-            $io->warning('Rotating the key: submissions fail with 403 until the new key file is reachable (CDN caches!). Run indexnow:check afterwards.');
+            $io->warning(\sprintf('Rotating the key: submissions fail with 403 until the new key file is reachable (CDN caches!). Run %s afterwards.', $this->words->check));
         } else {
             $contents .= ($contents === '' || str_ends_with($contents, "\n") ? '' : "\n") . $line . "\n";
         }
@@ -54,7 +54,7 @@ final class KeyGenerateRunner
             return ExitCode::FAILURE;
         }
         $io->writeln(\sprintf('<info>INDEXNOW_KEY written to %s.</info>', $envFile));
-        $io->text(\sprintf('The key file is served at /<key>.txt %s. Verify with: %s indexnow:check', $this->words->keyFileServedBy, $this->words->cli));
+        $io->text(\sprintf('The key file is served at /<key>.txt %s. Verify with: %s %s', $this->words->keyFileServedBy, $this->words->cli, $this->words->check));
 
         return ExitCode::SUCCESS;
     }

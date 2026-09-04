@@ -3,6 +3,22 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.3.1] — 2026-09-04
+
+### Added
+
+- **`Transaction\VerifyingStaging`**: commit-safety for data layers without commit or savepoint signals (Yii2, Yii3).
+  URLs staged inside a transaction carry a verifier that re-reads the row by primary key; `flush()` hands over only
+  the changes that landed, `discard()` drops everything on a rollback, `rowMatches()` compares a re-read row with the
+  written values loosely (driver strings vs typed values). [docs/adapters.md](docs/adapters.md) §8a.
+- `Console\Vocabulary` gained `check`, `submit` and `explain`: the command names the runners print in hints, for
+  frameworks whose commands are not called `indexnow:<name>` (Yii2: `indexnow/check`).
+
+### Fixed
+
+- `#[IndexNow(via: ...)]` treated a related object that is iterable (Yii ActiveRecord iterates its attributes) as a
+  collection of scalars and produced nothing; an iterable object that carries rules is one related object.
+
 ## [0.3.0] — 2026-09-04
 
 ### Added
@@ -276,6 +292,7 @@ downstream piece — event classification, guards, locales, deletion semantics, 
 
 Initial release: protocol client, batching, debounce, throttle, `#[IndexNow]` attribute, sitemap reader, checker.
 
+[0.3.1]: https://github.com/indexnowkit/php-core/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/indexnowkit/php-core/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/indexnowkit/php-core/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/indexnowkit/php-core/compare/0.2.0...0.2.1

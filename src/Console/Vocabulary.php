@@ -18,6 +18,9 @@ final class Vocabulary
      * @param string $configLocation   where the operator fixes the configuration, printed with a configuration error
      * @param string $keyFileServedBy  how the key file route becomes active, printed after writing a key
      * @param string $sitemapUrlOption config key of the default sitemap URL, printed when none is known
+     * @param string $check            name of the check command, as typed after $cli
+     * @param string $submit           name of the submit command
+     * @param string $explain          name of the explain command
      */
     public function __construct(
         public readonly string $subject = 'object',
@@ -27,6 +30,9 @@ final class Vocabulary
         public readonly string $configLocation = 'the indexnow configuration and the INDEXNOW_* env vars',
         public readonly string $keyFileServedBy = 'by the key file route',
         public readonly string $sitemapUrlOption = 'sitemap.url',
+        public readonly string $check = 'indexnow:check',
+        public readonly string $submit = 'indexnow:submit',
+        public readonly string $explain = 'indexnow:explain',
     ) {}
 
     /** "1 entity" / "3 entities" */

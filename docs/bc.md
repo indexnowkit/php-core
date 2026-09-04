@@ -9,7 +9,7 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `SitemapReader`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Check\SitemapSpoolCheck` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `SitemapReader`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Check\SitemapSpoolCheck` |
 | **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Sitemap\SitemapSourceInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
@@ -29,7 +29,7 @@ arguments:
 IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $resolver);
 ```
 
-The same holds for the constructors of `Config`, `Client`, `Submitter`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`,
+The same holds for the constructors of `Config`, `Client`, `Submitter`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`, `VerifyingStaging`, `Console\Vocabulary`,
 `SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
 `Sitemap\Spool` is public for `create()`, `probeDisk()`, `uri()` and `close()`; its `stream_*` methods are the PHP stream-wrapper
 protocol and `@internal`.

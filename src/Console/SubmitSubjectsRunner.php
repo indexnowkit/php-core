@@ -69,7 +69,7 @@ final class SubmitSubjectsRunner
             return $this->explain($io, $resolved, $options->json);
         }
         if ($urls === [] && !$options->json) {
-            $io->note(\sprintf('No URL resolved: no #[IndexNow] rule applies to these %s for this event (run with --explain, or %s indexnow:explain <class> <id>).', $this->words->subjects, $this->words->cli));
+            $io->note(\sprintf('No URL resolved: no #[IndexNow] rule applies to these %s for this event (run with --explain, or %s %s <class> <id>).', $this->words->subjects, $this->words->cli, $this->words->explain));
         }
         $submitter = SubmitterFactory::choose($this->submitters, $this->indexNow, $options->force, $options->dryRun);
 

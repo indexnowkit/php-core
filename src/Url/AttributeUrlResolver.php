@@ -159,7 +159,8 @@ final class AttributeUrlResolver implements UrlResolverInterface
         if ($target === null) {
             return [];
         }
-        $targets = \is_object($target) && !is_iterable($target) ? [$target] : $target;
+        // An iterable object that carries rules is one related object (Yii ActiveRecord iterates its attributes), not a collection.
+        $targets = \is_object($target) && (!is_iterable($target) || !$this->reader->rules($target)->isEmpty()) ? [$target] : $target;
         if (!is_iterable($targets)) {
             throw new ConfigurationException(\sprintf('#[IndexNow(via: "%s")] on %s must point to an object or a collection of objects, got %s.', (string) $rule->via, $subject::class, get_debug_type($target)));
         }
