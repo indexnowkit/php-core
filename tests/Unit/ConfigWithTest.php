@@ -21,6 +21,19 @@ final class ConfigWithTest extends TestCase
         self::assertFalse($config->dryRun, 'original is untouched');
     }
 
+    public function testWithCoversTheKeyFileDebounceStoreAndHttpClientOptions(): void
+    {
+        $config = Config::fromArray(['key' => 'abcdefgh']);
+        $copy = $config->with(keyFileMaxAge: 30, debounceStore: 'redis', httpClient: 'App\Http\Client', serveKeyFile: false);
+
+        self::assertSame(30, $copy->keyFileMaxAge);
+        self::assertSame('redis', $copy->debounceStore);
+        self::assertSame('App\Http\Client', $copy->httpClient);
+        self::assertFalse($copy->serveKeyFile);
+        self::assertSame(300, $config->keyFileMaxAge, 'original is untouched');
+        self::assertSame('redis', $copy->with(dryRun: true)->debounceStore, 'a further copy keeps them');
+    }
+
     public function testWithRejectsUnknownOptionName(): void
     {
         $config = Config::fromArray(['key' => 'abcdefgh']);

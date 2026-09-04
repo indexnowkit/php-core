@@ -30,7 +30,20 @@ final class ConfigFromEnvTest extends TestCase
             'INDEXNOW_SERVE_KEY_FILE' => 'false',
             'INDEXNOW_DRY_RUN' => 'true',
             'INDEXNOW_ENV' => 'dev',
+            'INDEXNOW_KEY_FILE_CACHE_MAX_AGE' => '45',
+            'INDEXNOW_DEBOUNCE_STORE' => 'redis',
+            'INDEXNOW_HTTP_CLIENT' => 'app.http_client',
         ];
+    }
+
+    public function testKeyFileEnabledIsReadAndServeKeyFileStillWins(): void
+    {
+        $c = Config::fromEnv(['INDEXNOW_KEY' => 'abcdefgh', 'INDEXNOW_KEY_FILE_ENABLED' => 'false']);
+        self::assertFalse($c->serveKeyFile);
+        self::assertSame(300, $c->keyFileMaxAge, 'cache_max_age keeps its default when only enabled is set');
+
+        $c = Config::fromEnv(['INDEXNOW_KEY' => 'abcdefgh', 'INDEXNOW_KEY_FILE_ENABLED' => 'false', 'INDEXNOW_SERVE_KEY_FILE' => 'true']);
+        self::assertTrue($c->serveKeyFile, 'the explicit pre-0.4 variable wins');
     }
 
     public function testEveryDocumentedVariableIsRead(): void
@@ -52,6 +65,9 @@ final class ConfigFromEnvTest extends TestCase
         self::assertFalse($c->serveKeyFile);
         // dry_run is explicit true regardless of the ENV dev/prod safety net
         self::assertTrue($c->dryRun);
+        self::assertSame(45, $c->keyFileMaxAge);
+        self::assertSame('redis', $c->debounceStore);
+        self::assertSame('app.http_client', $c->httpClient);
     }
 
     public function testAppEnvIsUsedAsFallbackWhenIndexnowEnvIsAbsent(): void

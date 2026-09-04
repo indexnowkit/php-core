@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit;
 
 use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\KeyValidator;
 
 /**
@@ -84,12 +85,17 @@ final readonly class Config
     /** @var list<string> lower-cased names of environments treated as production */
     public array $productionEnvironments;
 
-    /** Every key fromArray() understands, dotted-path form. Adapters validate their own config against it with unknownOptions(). */
+    /**
+     * Every key fromArray() understands, dotted-path form. Adapters validate their own config against it with
+     * unknownOptions(). Nested keys are listed as `block.key` only: a bare block name would stop unknownOptions()
+     * from checking the keys inside it.
+     */
     public const OPTIONS = [
         'enabled', 'key', 'hosts', 'key_location', 'base_url', 'engines', 'dispatch', 'serve_key_file', 'dry_run',
         'strict_hosts', 'environment', 'production_environments', 'max_url_length', 'previous_key',
-        'batch.max_urls', 'debounce.per_url', 'debounce.key_prefix', 'throttle.max_requests_per_minute',
-        'http.timeout', 'http.user_agent',
+        'key_file.enabled', 'key_file.cache_max_age',
+        'batch.max_urls', 'debounce.per_url', 'debounce.key_prefix', 'debounce.store', 'throttle.max_requests_per_minute',
+        'http.timeout', 'http.user_agent', 'http.client',
         'logging.max_urls', 'logging.forbidden_escalation', 'logging.levels', 'logging.max_body', 'engine_aliases', 'locale_hosts',
         'retry.max_attempts', 'retry.base_delay', 'retry.multiplier', 'retry.max_delay', 'retry.server_error_delay',
         'resolver.max_via_depth', 'resolver.max_via_fanout', 'collector.max_urls', 'collector.detect_leaks',
@@ -118,6 +124,9 @@ final readonly class Config
      * @param int                                                                                          $logBody bytes of a response body kept in a failure log line
      * @param array<mixed, mixed>                                                                          $engineAliases short names for custom endpoints: `{corp: 'https://index.corp.example/indexnow'}`
      * @param array<mixed, mixed>                                                                          $localeHosts locale => host for multi-domain locales: `{en: 'www.example.com', de: 'example.de'}`
+     * @param int                                                                                          $keyFileMaxAge `Cache-Control: max-age` of the key file response (`key_file.cache_max_age`)
+     * @param string|null                                                                                  $debounceStore `debounce.store`: null = the adapter's default, `memory`, `none`, or an id the adapter resolves to its cache
+     * @param string|null                                                                                  $httpClient `http.client`: id or class of a PSR-18 client the adapter resolves; null = discovery
      *
      * @throws ConfigurationException
      */
@@ -157,9 +166,21 @@ final readonly class Config
         public int $logBody = self::DEFAULT_LOG_BODY,
         array $engineAliases = [],
         array $localeHosts = [],
+        public int $keyFileMaxAge = KeyFileResponder::DEFAULT_MAX_AGE,
+        public ?string $debounceStore = null,
+        public ?string $httpClient = null,
     ) {
         if ($logBody < 0) {
             throw new ConfigurationException(\sprintf('"logging.max_body" must be >= 0, got %d.', $logBody));
+        }
+        if ($keyFileMaxAge < 0) {
+            throw new ConfigurationException(\sprintf('"key_file.cache_max_age" must be >= 0 seconds, got %d.', $keyFileMaxAge));
+        }
+        if ($debounceStore === '') {
+            throw new ConfigurationException('"debounce.store" must be "memory", "none" or the id of a cache, not an empty string.');
+        }
+        if ($httpClient === '') {
+            throw new ConfigurationException('"http.client" must be the id or class of a PSR-18 client, not an empty string.');
         }
         $this->engineAliases = self::normalizeEngineAliases($engineAliases);
         $this->localeHosts = self::normalizeLocaleHosts($localeHosts);
@@ -363,6 +384,10 @@ final readonly class Config
         $retry = self::sub($data, 'retry');
         $resolver = self::sub($data, 'resolver');
         $collector = self::sub($data, 'collector');
+        $keyFile = self::sub($data, 'key_file');
+        // An explicit serve_key_file (the pre-0.4 name) wins over key_file.enabled, as every adapter did.
+        $serveKeyFile = $data['serve_key_file'] ?? null;
+        $serveKeyFile = \is_bool($serveKeyFile) ? $serveKeyFile : self::bool($serveKeyFile, null, 'serve_key_file') ?? self::bool($keyFile['enabled'] ?? null, null, 'key_file.enabled') ?? true;
         /** @var array<mixed, mixed> $logLevels */
         $logLevels = \is_array($logging['levels'] ?? null) ? $logging['levels'] : [];
         /** @var array<mixed, mixed> $engineAliases */
@@ -395,7 +420,7 @@ final readonly class Config
             throttleMaxRequestsPerMinute: self::int($throttle['max_requests_per_minute'] ?? null, self::DEFAULT_THROTTLE_PER_MINUTE, 'throttle.max_requests_per_minute'),
             httpTimeout: self::float($http['timeout'] ?? null, self::DEFAULT_HTTP_TIMEOUT, 'http.timeout'),
             userAgent: self::str($http['user_agent'] ?? null),
-            serveKeyFile: (bool) ($data['serve_key_file'] ?? true),
+            serveKeyFile: $serveKeyFile,
             dryRun: $dryRun,
             strictHosts: (bool) ($data['strict_hosts'] ?? false),
             environment: $environment,
@@ -418,6 +443,9 @@ final readonly class Config
             logBody: self::int($logging['max_body'] ?? null, self::DEFAULT_LOG_BODY, 'logging.max_body'),
             engineAliases: $engineAliases,
             localeHosts: $localeHosts,
+            keyFileMaxAge: self::int($keyFile['cache_max_age'] ?? null, KeyFileResponder::DEFAULT_MAX_AGE, 'key_file.cache_max_age'),
+            debounceStore: self::str($debounce['store'] ?? null),
+            httpClient: self::str($http['client'] ?? null),
         );
     }
 
@@ -430,7 +458,9 @@ final readonly class Config
      * INDEXNOW_USER_AGENT, INDEXNOW_SERVE_KEY_FILE, INDEXNOW_DRY_RUN, INDEXNOW_STRICT_HOSTS, INDEXNOW_MAX_URL_LENGTH,
      * INDEXNOW_PRODUCTION_ENVIRONMENTS ("prod,live"), INDEXNOW_LOG_URLS, INDEXNOW_FORBIDDEN_ESCALATION,
      * INDEXNOW_RETRY_MAX_ATTEMPTS, INDEXNOW_RETRY_BASE_DELAY, INDEXNOW_RETRY_MULTIPLIER, INDEXNOW_RETRY_MAX_DELAY,
-     * INDEXNOW_RETRY_SERVER_ERROR_DELAY, plus INDEXNOW_ENV / APP_ENV for the non-production dry-run safety net.
+     * INDEXNOW_RETRY_SERVER_ERROR_DELAY, INDEXNOW_KEY_FILE_ENABLED, INDEXNOW_KEY_FILE_CACHE_MAX_AGE,
+     * INDEXNOW_DEBOUNCE_STORE, INDEXNOW_HTTP_CLIENT, plus INDEXNOW_ENV / APP_ENV for the non-production dry-run
+     * safety net.
      *
      * @param array<string, mixed>|null $env defaults to getenv() + $_SERVER + $_ENV
      *
@@ -468,9 +498,10 @@ final readonly class Config
             'strict_hosts' => $bool($get('STRICT_HOSTS')),
             'environment' => $get('ENV') ?? (\is_string($appEnv) ? $appEnv : null),
             'batch' => $get('BATCH_MAX_URLS') !== null ? ['max_urls' => $get('BATCH_MAX_URLS')] : null,
-            'debounce' => $get('DEBOUNCE_PER_URL') !== null ? ['per_url' => $get('DEBOUNCE_PER_URL')] : null,
+            'debounce' => ($debounce = array_filter(['per_url' => $get('DEBOUNCE_PER_URL'), 'store' => $get('DEBOUNCE_STORE')], static fn($v) => $v !== null)) === [] ? null : $debounce,
             'throttle' => $get('THROTTLE_PER_MINUTE') !== null ? ['max_requests_per_minute' => $get('THROTTLE_PER_MINUTE')] : null,
-            'http' => ($http = array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT')], static fn($v) => $v !== null)) === [] ? null : $http,
+            'http' => ($http = array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT'), 'client' => $get('HTTP_CLIENT')], static fn($v) => $v !== null)) === [] ? null : $http,
+            'key_file' => ($keyFile = array_filter(['enabled' => $bool($get('KEY_FILE_ENABLED')), 'cache_max_age' => $get('KEY_FILE_CACHE_MAX_AGE')], static fn($v) => $v !== null)) === [] ? null : $keyFile,
         ], static fn($v) => $v !== null));
     }
 
@@ -517,6 +548,9 @@ final readonly class Config
             'logBody' => $this->logBody,
             'engineAliases' => $this->engineAliases,
             'localeHosts' => $this->localeHosts,
+            'keyFileMaxAge' => $this->keyFileMaxAge,
+            'debounceStore' => $this->debounceStore,
+            'httpClient' => $this->httpClient,
         ];
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {
@@ -552,6 +586,17 @@ final readonly class Config
     public function retryPolicy(): Retry\RetryPolicy
     {
         return new Retry\RetryPolicy($this->retryMaxAttempts, $this->retryBaseDelay, $this->retryMultiplier, $this->retryMaxDelay, $this->retryServerErrorDelay);
+    }
+
+    /**
+     * Response headers of the key file: `key_file.cache_max_age`, and `Vary: Host` when a `hosts` map makes the
+     * body depend on the host. Every adapter used to compute this itself.
+     *
+     * @return array<string, string>
+     */
+    public function keyFileHeaders(): array
+    {
+        return KeyFileResponder::headers($this->keyFileMaxAge, $this->hosts !== []);
     }
 
     /**
@@ -796,6 +841,24 @@ final readonly class Config
     private static function str(mixed $value): ?string
     {
         return \is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * "true"/"false"/"1"/"0"/"yes"/"no" and the like as booleans; any other scalar by PHP truthiness.
+     */
+    private static function bool(mixed $value, ?bool $default, string $option): ?bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (\is_bool($value)) {
+            return $value;
+        }
+        if (!\is_scalar($value)) {
+            throw new ConfigurationException(\sprintf('"%s" must be a boolean, got %s.', $option, get_debug_type($value)));
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
     }
 
     /**

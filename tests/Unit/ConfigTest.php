@@ -21,6 +21,32 @@ final class ConfigTest extends TestCase
         self::assertStringStartsWith('indexnowkit-php/', $c->userAgent());
     }
 
+    public function testKeyFileDebounceStoreAndHttpClientOptions(): void
+    {
+        $c = Config::fromArray(['key' => 'abcdefgh']);
+        self::assertTrue($c->serveKeyFile);
+        self::assertSame(300, $c->keyFileMaxAge);
+        self::assertNull($c->debounceStore);
+        self::assertNull($c->httpClient);
+        self::assertSame(['Content-Type' => 'text/plain; charset=utf-8', 'Cache-Control' => 'public, max-age=300'], $c->keyFileHeaders());
+
+        $c = Config::fromArray(['key' => 'abcdefgh', 'base_url' => 'https://a.example.com', 'hosts' => ['a.example.com' => 'abcdefgh'], 'key_file' => ['enabled' => 'false', 'cache_max_age' => '60'], 'debounce' => ['store' => 'cache.app'], 'http' => ['client' => 'app.client']]);
+        self::assertFalse($c->serveKeyFile, 'key_file.enabled is the new name of serve_key_file');
+        self::assertSame(60, $c->keyFileMaxAge);
+        self::assertSame('cache.app', $c->debounceStore);
+        self::assertSame('app.client', $c->httpClient);
+        self::assertSame('Host', $c->keyFileHeaders()['Vary'], 'a hosts map makes the key file body depend on the host');
+        self::assertSame('public, max-age=60', $c->keyFileHeaders()['Cache-Control']);
+
+        self::assertTrue(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => true, 'key_file' => ['enabled' => false]])->serveKeyFile, 'an explicit serve_key_file wins, as every adapter did');
+        self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => 'false'])->serveKeyFile, 'the string "false" is false');
+        self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => false, 'key_file' => ['enabled' => true]])->serveKeyFile);
+        self::assertNull(Config::fromArray(['key' => 'abcdefgh', 'debounce' => ['store' => ''], 'http' => ['client' => '']])->debounceStore, 'empty strings (unset env vars) are the default');
+        self::assertContains('key_file.enabled', Config::OPTIONS);
+        self::assertNotContains('key_file', Config::OPTIONS);
+        self::assertSame(['key_file.enabld'], Config::unknownOptions(['key_file' => ['enabld' => true, 'cache_max_age' => 1]]));
+    }
+
     public function testMissingKeyThrowsUnlessDryRunOrDisabled(): void
     {
         $this->expectException(ConfigurationException::class);

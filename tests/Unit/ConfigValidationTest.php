@@ -38,6 +38,9 @@ final class ConfigValidationTest extends TestCase
         yield 'throttle non-numeric string' => [['key' => 'abcdefgh', 'throttle' => ['max_requests_per_minute' => 'abc']]];
         yield 'http timeout non-numeric string' => [['key' => 'abcdefgh', 'http' => ['timeout' => 'abc']]];
         yield 'environment prod without key' => [['environment' => 'prod']];
+        yield 'negative key_file.cache_max_age' => [['key' => 'abcdefgh', 'key_file' => ['cache_max_age' => -1]]];
+        yield 'non-numeric key_file.cache_max_age' => [['key' => 'abcdefgh', 'key_file' => ['cache_max_age' => 'soon']]];
+        yield 'serve_key_file not a scalar' => [['key' => 'abcdefgh', 'serve_key_file' => ['yes']]];
         yield 'environment production without key' => [['environment' => 'PRODUCTION']];
     }
 
