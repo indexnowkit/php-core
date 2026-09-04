@@ -9,7 +9,7 @@ use IndexNowKit\ResultStatus;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Shared output of the submit / submit-<subject> / sitemap commands: a table, or JSON with --json.
+ * Shared output of the submit / submit-<subject> commands and of batched runs: a table, or JSON with --json.
  */
 final class ResultRenderer implements ResultFormatterInterface
 {
@@ -52,7 +52,7 @@ final class ResultRenderer implements ResultFormatterInterface
             return $summary->failed() ? ExitCode::FAILURE : ExitCode::SUCCESS;
         }
         if ($rows === []) {
-            $io->warning('Nothing submitted: the sitemap yielded no URL.');
+            $io->warning('Nothing submitted: the source yielded no URL.');
 
             return ExitCode::SUCCESS;
         }

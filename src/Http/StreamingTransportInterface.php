@@ -9,8 +9,8 @@ use IndexNowKit\Http\Exception\TransportException;
 /**
  * Optional extension of {@see TransportInterface}: GET a document without holding its body in memory.
  *
- * {@see \IndexNowKit\Sitemap\SitemapReader} uses it when available (a 50 MB sitemap then costs a temp file and a
- * few KiB of buffers instead of 100+ MB of strings) and falls back to {@see TransportInterface::get()} otherwise.
+ * Consumers that stream large documents use it when available (a 50 MB document then costs a temp file and a few
+ * KiB of buffers instead of 100+ MB of strings) and fall back to {@see TransportInterface::get()} otherwise.
  */
 interface StreamingTransportInterface extends TransportInterface
 {

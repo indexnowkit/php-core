@@ -16,8 +16,6 @@ use IndexNowKit\Console\ExplainRunner;
 use IndexNowKit\Console\KeyGenerateRunner;
 use IndexNowKit\Console\ResultRenderer;
 use IndexNowKit\Console\ResultSummary;
-use IndexNowKit\Console\SitemapOptions;
-use IndexNowKit\Console\SitemapRunner;
 use IndexNowKit\Console\SubjectLoaderInterface;
 use IndexNowKit\Console\SubmitRunner;
 use IndexNowKit\Console\SubmitSubjectsOptions;
@@ -324,103 +322,6 @@ final class RunnersTest extends TestCase
         self::assertSame(ExitCode::INVALID, $runner->run($this->io(), ConsolePost::class, '999'));
         self::assertStringContainsString('not found', $this->output->fetch());
         self::assertSame(ExitCode::INVALID, $runner->run($this->io(), ConsolePost::class, '1', 'moved'));
-    }
-
-    private function sitemapFile(): string
-    {
-        $file = tempnam(sys_get_temp_dir(), 'sitemap');
-        self::assertIsString($file);
-        file_put_contents($file, '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://www.example.com/s1</loc><lastmod>2026-01-01</lastmod></url><url><loc>https://www.example.com/s2</loc><lastmod>2020-01-01</lastmod></url></urlset>');
-
-        return $file;
-    }
-
-    #[TestDox('sitemap: streams a local sitemap in batches of batch.max_urls and prints a summary; --dry-run lists as text or JSON; --changed-since filters')]
-    public function testSitemap(): void
-    {
-        $kit = $this->kit(['batch' => ['max_urls' => 1]]);
-        $runner = new SitemapRunner($kit, $kit->sitemap(), $this->submitters($kit));
-        $file = $this->sitemapFile();
-        try {
-            self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SitemapOptions($file, dryRun: true)));
-            $display = $this->output->fetch();
-            self::assertStringContainsString(' * https://www.example.com/s1', $display);
-            self::assertStringContainsString('2 URL(s) found', $display);
-            self::assertSame([], $this->transport->posts);
-
-            self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SitemapOptions($file, dryRun: true, json: true)));
-            self::assertSame(['https://www.example.com/s1', 'https://www.example.com/s2'], $this->json());
-
-            self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SitemapOptions($file)));
-            $display = $this->output->fetch();
-            self::assertStringContainsString('2 URL(s) found', $display);
-            self::assertStringContainsString('batches', $display);
-            self::assertSame(['https://www.example.com/s1', 'https://www.example.com/s2'], $this->sentUrls());
-            self::assertCount(2, $this->transport->posts, 'batch.max_urls: 1 gives one request per URL');
-
-            $this->transport->posts = [];
-            self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SitemapOptions($file, changedSince: '2021-01-01', json: true)));
-            $rows = $this->json();
-            self::assertSame(1, $rows[0]['url_count']);
-            self::assertSame(['https://www.example.com/s1'], $this->sentUrls());
-        } finally {
-            @unlink($file);
-        }
-    }
-
-    #[TestDox('sitemap: no argument uses <base_url>/sitemap.xml; without base_url it is INVALID; an unparseable --changed-since is INVALID; an unreadable sitemap is a FAILURE')]
-    public function testSitemapDefaultsAndErrors(): void
-    {
-        $kit = $this->kit();
-        $runner = new SitemapRunner($kit, $kit->sitemap(), $this->submitters($kit), words: new Vocabulary(sitemapUrlOption: 'indexnow.sitemap.url'));
-        $this->transport->onGet('https://www.example.com/sitemap.xml', new Response(200, '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://www.example.com/d1</loc></url></urlset>'));
-
-        self::assertSame(ExitCode::SUCCESS, $runner->run($this->io(), new SitemapOptions()));
-        self::assertSame(['https://www.example.com/d1'], $this->sentUrls());
-
-        self::assertSame(ExitCode::INVALID, $runner->run($this->io(), new SitemapOptions(changedSince: 'not a date')));
-        self::assertStringContainsString('--changed-since', $this->output->fetch());
-
-        $this->transport->onGet('https://www.example.com/missing.xml', new Response(404));
-        self::assertSame(ExitCode::FAILURE, $runner->run($this->io(), new SitemapOptions('https://www.example.com/missing.xml')));
-        self::assertStringContainsString('Cannot read', $this->output->fetch());
-
-        $configured = new SitemapRunner($kit, $kit->sitemap(), $this->submitters($kit), 'https://www.example.com/sitemap.xml');
-        self::assertSame(ExitCode::SUCCESS, $configured->run($this->io(), new SitemapOptions(dryRun: true)));
-        self::assertStringContainsString('https://www.example.com/d1', $this->output->fetch());
-
-        $noBase = IndexNowKit::create(Config::fromArray(['key' => Factory::KEY, 'hosts' => ['www.example.com' => Factory::KEY]]), $this->transport);
-        self::assertSame(ExitCode::INVALID, (new SitemapRunner($noBase, $noBase->sitemap(), $this->submitters($noBase), words: new Vocabulary(sitemapUrlOption: 'indexnow.sitemap.url')))->run($this->io(), new SitemapOptions()));
-        self::assertStringContainsString('indexnow.sitemap.url', $this->output->fetch());
-    }
-
-    #[TestDox('sitemap: a truncated sitemap submits what was read and exits 1, as text or as JSON with the error on stderr')]
-    public function testSitemapPartialFailure(): void
-    {
-        $kit = $this->kit(['batch' => ['max_urls' => 1]]);
-        $runner = new SitemapRunner($kit, $kit->sitemap(), $this->submitters($kit));
-        $file = tempnam(sys_get_temp_dir(), 'sitemap');
-        self::assertIsString($file);
-        file_put_contents($file, '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://www.example.com/p1</loc></url><url><loc>https://www.example.com/p2</loc></url><url><loc>https://www.example.com/p3');
-        try {
-            self::assertSame(ExitCode::FAILURE, $runner->run($this->io(), new SitemapOptions($file)));
-            $display = $this->output->fetch();
-            self::assertStringContainsString('Cannot read', $display);
-            self::assertStringContainsString('read before the error were submitted', $display);
-            self::assertSame(['https://www.example.com/p1', 'https://www.example.com/p2'], $this->sentUrls());
-
-            $this->transport->posts = [];
-            self::assertSame(ExitCode::FAILURE, $runner->run($this->io(), new SitemapOptions($file, json: true)));
-            // BufferedOutput has no separate stderr: the error block lands before the JSON here, on a real console it goes to stderr.
-            $display = $this->output->fetch();
-            $start = strpos($display, "[\n");
-            self::assertIsInt($start);
-            $rows = json_decode(substr($display, $start), true, flags: JSON_THROW_ON_ERROR);
-            self::assertIsArray($rows);
-            self::assertSame(2, $rows[0]['batches'], 'stdout stays one JSON document');
-        } finally {
-            @unlink($file);
-        }
     }
 
     #[TestDox('key:generate prints the key with the env hint; --write-env adds INDEXNOW_KEY once, --force rotates it; an unwritable file is a FAILURE')]

@@ -21,8 +21,8 @@ use Symfony\Component\HttpClient\Psr18Client;
 use Throwable;
 
 /**
- * PSR-18 transport. POST responses are read up to 2 KiB (diagnostics only); GET responses up to 50 MiB
- * (the sitemap protocol maximum). {@see download()} streams a GET body into a sink so large documents never
+ * PSR-18 transport. POST responses are read up to 2 KiB (diagnostics only); GET responses up to 50 MiB (a generous
+ * cap for the largest documents consumers of this transport read). {@see download()} streams a GET body into a sink so large documents never
  * live in memory.
  */
 final class Psr18Transport implements StreamingTransportInterface
@@ -37,7 +37,7 @@ final class Psr18Transport implements StreamingTransportInterface
 
     /**
      * @param array<string, string> $extraHeaders  sent with every request (tests use X-Mock-Scenario)
-     * @param int                   $getBodyLimit  bytes of a GET body (sitemaps, key files) before the request fails
+     * @param int                   $getBodyLimit  bytes of a GET body (key files, streamed documents) before the request fails
      * @param int                   $postBodyLimit bytes of a POST response kept for diagnostics; the rest is discarded
      * @param int                   $maxRetryAfter clamp of a parsed Retry-After header, seconds
      */

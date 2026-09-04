@@ -94,7 +94,7 @@ final class Psr18TransportUnitTest extends TestCase
         $client = new StubPsr18Client(new Psr7Response(200, [], str_repeat('b', 5000)));
         $transport = new Psr18Transport($client, $f, $f);
 
-        $response = $transport->get('https://h.example.com/sitemap.xml');
+        $response = $transport->get('https://h.example.com/large-document.xml');
 
         self::assertSame(5000, \strlen($response->body));
     }
@@ -107,7 +107,7 @@ final class Psr18TransportUnitTest extends TestCase
         $sink = fopen('php://temp', 'w+');
         self::assertNotFalse($sink);
 
-        $response = $transport->download('https://h.example.com/sitemap.xml', $sink);
+        $response = $transport->download('https://h.example.com/large-document.xml', $sink);
 
         self::assertSame(200, $response->status);
         self::assertSame('', $response->body, 'download() never returns the body');
@@ -123,7 +123,7 @@ final class Psr18TransportUnitTest extends TestCase
         $transport = new Psr18Transport($client, $f, $f);
 
         try {
-            $transport->get('https://h.example.com/sitemap.xml');
+            $transport->get('https://h.example.com/large-document.xml');
             self::fail('expected a TransportException');
         } catch (TransportException $e) {
             self::assertStringContainsString('truncated, 100 of 1000 bytes', $e->getMessage());
@@ -134,7 +134,7 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertNotFalse($sink);
         $this->expectException(TransportException::class);
         $this->expectExceptionMessage('truncated, 100 of 1000 bytes');
-        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/sitemap.xml', $sink);
+        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/large-document.xml', $sink);
     }
 
     public function testContentLengthIsIgnoredForPostDiagnosticsAndEncodedBodies(): void
@@ -144,7 +144,7 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertSame(Psr18Transport::POST_BODY_LIMIT, \strlen((new Psr18Transport($client, $f, $f))->post('https://h.example.com/indexnow', '{}')->body));
 
         $client = new StubPsr18Client(new Psr7Response(200, ['Content-Length' => '1000', 'Content-Encoding' => 'gzip'], str_repeat('x', 100)));
-        self::assertSame(100, \strlen((new Psr18Transport($client, $f, $f))->get('https://h.example.com/sitemap.xml')->body), 'a decoded body is legitimately longer or shorter than Content-Length');
+        self::assertSame(100, \strlen((new Psr18Transport($client, $f, $f))->get('https://h.example.com/large-document.xml')->body), 'a decoded body is legitimately longer or shorter than Content-Length');
     }
 
     public function testConnectionLostMidBodyBecomesATransportException(): void
@@ -229,7 +229,7 @@ final class Psr18TransportUnitTest extends TestCase
 
         $this->expectException(TransportException::class);
         $this->expectExceptionMessage('connection lost after 100 bytes');
-        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/sitemap.xml', $sink);
+        (new Psr18Transport($client, $f, $f))->download('https://h.example.com/large-document.xml', $sink);
     }
 
     public function testDownloadOverConfiguredLimitThrows(): void
@@ -242,7 +242,7 @@ final class Psr18TransportUnitTest extends TestCase
 
         $this->expectException(TransportException::class);
         $this->expectExceptionMessage('larger than 4096 bytes');
-        $transport->download('https://h.example.com/sitemap.xml', $sink);
+        $transport->download('https://h.example.com/large-document.xml', $sink);
     }
 
     public function testGetBodyOverConfiguredLimitThrows(): void
@@ -252,7 +252,7 @@ final class Psr18TransportUnitTest extends TestCase
         $transport = new Psr18Transport($client, $f, $f, getBodyLimit: 10);
 
         $this->expectException(TransportException::class);
-        $transport->get('https://h.example.com/sitemap.xml');
+        $transport->get('https://h.example.com/large-document.xml');
     }
 
     /**

@@ -356,15 +356,15 @@ public function get(string $url): Response;
 ```
 
 Rules: never throw on an HTTP status code, throw `Http\Exception\TransportException` for network failures and
-timeouts, cap the body you read (`Psr18Transport` uses 2 KiB for POST diagnostics and 50 MiB for GET, the sitemap
-maximum). Parse `Retry-After` with `Response::parseRetryAfter($header)` so every adapter interprets delta-seconds
+timeouts, cap the body you read (`Psr18Transport` uses 2 KiB for POST diagnostics and 50 MiB for GET, a generous
+cap for the largest documents consumers of the transport read). Parse `Retry-After` with `Response::parseRetryAfter($header)` so every adapter interprets delta-seconds
 and HTTP-dates identically and applies the same clamp. Configure no redirects and a timeout.
 
 Implement `Http\StreamingTransportInterface` too when your stack can read a response body in chunks
 (`download(string $url, $sink): Response` writes the body to a stream resource and returns an empty-bodied
-`Response`). `SitemapReader` then never holds a sitemap in memory; with a plain `TransportInterface` it buffers each
-document once through `get()` and spools it to disk from there. `LazyTransport` and `Testing\FakeTransport`
-implement both.
+`Response`). Consumers that read large documents (the add-on packages) then never hold a document in memory; with a
+plain `TransportInterface` they buffer each document once through `get()`. `LazyTransport` and
+`Testing\FakeTransport` implement both.
 
 ## 13. Debounce, throttle, clock
 
@@ -386,27 +386,22 @@ is one). A framework command parses its arguments and calls the runner; every fr
 
 | Command | Runner | What the adapter supplies |
 |---|---|---|
-| `check` | `Console\CheckRunner` | a closure that builds `Config` from the raw configuration (throws `ConfigurationException`); `Check\CheckInterface` services for adapter wiring (is the ORM hook active? is the queue routed?) and the core's `Check\SitemapSpoolCheck` over the raw `sitemap` block |
+| `check` | `Console\CheckRunner` | a closure that builds `Config` from the raw configuration (throws `ConfigurationException`); `Check\CheckInterface` services for adapter wiring (is the ORM hook active? is the queue routed?) and the checks of the add-on packages |
 | `submit <url>...` | `Console\SubmitRunner` | — |
 | `submit-<subject> <class> [ids]` | `Console\SubmitSubjectsRunner` + `SubmitSubjectsOptions` | a `Console\SubjectLoaderInterface`: class resolution (FQCN or the framework's short name), objects by id, first N objects; `byIds()` / `all()` receive the `Event` so `deleted` can include soft-deleted rows |
 | `explain <class> <id>` | `Console\ExplainRunner` | the same loader |
-| `sitemap [url]` | `Console\SitemapRunner` + `SitemapOptions` | the `SitemapSourceInterface` service and `sitemap.url` from the config |
 | `key:generate` | `Console\KeyGenerateRunner` | the default env file path |
+
+The sixth command, which submits the site's own URL list, is an add-on package (see the family table in the README):
+its runner, options and check live there, and its `docs/adapters.md` says how to wire the command.
 
 Shared by all of them: `Console\SubmitterFactoryInterface` (`SubmitterFactory`: the separate submitter `--force` and
 `--dry-run` build, `SubmitterFactory::choose()` picks it or the application's), `Console\ResultFormatterInterface`
 (`ResultRenderer`: table or `--json`; an application replaces it to match its own CLI), `Console\ResultSummary`
-(the streamed sitemap run folds results into counts) and `Console\Vocabulary` (the words that differ: "entity" /
+(a run that submits in many batches folds results into counts) and `Console\Vocabulary` (the words that differ: "entity" /
 "model", `bin/console` / `php artisan`, where the configuration lives). Expose the three interfaces under stable
 service ids so an application can decorate them, and expose the runners too: a tenant loop over
 `SubmitSubjectsRunner` is a ten-line application command.
-
-Type the sitemap command against `SitemapSourceInterface` and expose the reader under an alias of it, so an
-application can decorate the source (filter, rewrite) or replace it (another format, a database). Expose the
-reader's knobs in your config under a `sitemap` block (`enabled`, `url`, `max_depth`, `max_sitemaps`, `max_bytes`,
-`allow_foreign_hosts`, `spool` = auto|disk|memory, `spool_dir`, `fetch_retries`); `SitemapRunner` streams, submits
-every `batch.max_urls` URLs, and submits the pending batch before reporting a mid-run failure (the re-run is
-idempotent, what was read is still worth announcing).
 
 `Checker` never throws and covers configuration, key files and a live probe; `CheckRunner` prints its report. The
 adapter-specific lines are `CheckInterface` services tagged for the checker, not special cases in the command.

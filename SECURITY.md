@@ -12,14 +12,12 @@ What the library does to stay safe inside your application:
   untrusted input therefore makes your application announce foreign hosts under your key; the engines reject them
   (403/422) but the requests still happen. Submit only URLs of your own hosts, or list them in `hosts`.
 - Custom endpoints must be `https` (the key travels in the request body).
-- `SitemapReader` follows nested sitemaps only on the origin of the root sitemap unless `allowForeignHosts` is set
-  (then the sitemap decides which http(s) hosts your server fetches from: enable it only for a sitemap you control),
-  caps recursion depth, document count, document size and gzip output, spools documents to anonymous temp files
-  (or memory, bounded by the size cap) and reads them back through the `indexnowkit-spool://` wrapper, which only
-  resolves spools this process opened, and disables external entities and network access in the XML parser.
+- The core fetches only the key files of the hosts it holds keys for (`check`) and the endpoints it submits to; it
+  never follows a URL taken from a document. Add-on packages that read documents through the transport document
+  their own rules.
 - A response shorter than its `Content-Length`, or a connection lost mid-body, is a `TransportException`, never a
   document.
-- HTTP bodies are capped (2 KiB for submissions, 50 MiB for sitemaps). `symfony/http-client` and Guzzle created by
+- HTTP bodies are capped (2 KiB for submissions, 50 MiB for documents read through `get()`/`download()`). `symfony/http-client` and Guzzle created by
   `Psr18Transport::discover()` get the timeout and no redirects; any other discovered or injected client keeps its own
   settings, so configure the timeout there.
 - Remote failures never throw into your code: they become `Result` objects and log entries.

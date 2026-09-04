@@ -8,9 +8,9 @@ use IndexNowKit\Result;
 use IndexNowKit\ResultStatus;
 
 /**
- * Aggregated output for commands that submit in many batches (`indexnow:sitemap`): results are folded into
- * (engine, host, status, http, reason) rows with URL counts as they arrive, so a million-URL run keeps a handful of
- * rows in memory instead of every Result with its URL list.
+ * Aggregated results of a run that submits in batches (a large subject set, a streamed source): results are folded
+ * into (engine, host, status, http, reason) rows with URL counts as they arrive, so a million-URL run keeps a handful
+ * of rows in memory instead of every Result with its URL list.
  */
 final class ResultSummary
 {

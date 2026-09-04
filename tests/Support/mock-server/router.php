@@ -26,26 +26,26 @@ $respond = static function (int $status, string $text = '', array $extra = []): 
 };
 
 /**
- * A urlset sitemap deliberately larger than 100 KB, used to regression-test that GET responses are
- * not truncated at the old 2 KB POST-diagnostics limit.
+ * A large XML document (>100 KB), used to regression-test that GET responses are not truncated at the 2 KB
+ * POST-diagnostics limit.
  */
-$sitemapXml = static function (): string {
+$largeXml = static function (): string {
     $urls = '';
     for ($i = 0; $i < 3000; ++$i) {
-        $urls .= '<url><loc>https://www.example.com/page-' . $i . '</loc></url>';
+        $urls .= '<entry>https://www.example.com/page-' . $i . '</entry>';
     }
 
-    return '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . $urls . '</urlset>';
+    return '<?xml version="1.0" encoding="UTF-8"?><entries>' . $urls . '</entries>';
 };
 
-if ($method === 'GET' && $path === '/sitemap.xml') {
-    $respond(200, $sitemapXml());
+if ($method === 'GET' && $path === '/large-document.xml') {
+    $respond(200, $largeXml());
 
     return;
 }
 
-if ($method === 'GET' && $path === '/sitemap.xml.gz') {
-    $respond(200, (string) gzencode($sitemapXml()));
+if ($method === 'GET' && $path === '/large-document.xml.gz') {
+    $respond(200, (string) gzencode($largeXml()));
 
     return;
 }

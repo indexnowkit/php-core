@@ -96,8 +96,8 @@ A migration that touches 50 000 rows is the one case where the defaults are wron
 
 - **Do not call `submit()` for 50 000 URLs inside a web request.** Chunk into `Config::MAX_BATCH_URLS`-sized
   submissions from a CLI command or a worker, with a `RetryingSubmitter` around them.
-- **Prefer the sitemap path.** `Sitemap\SitemapReader` streams entries and `changedSince` filters by `<lastmod>`,
-  so re-announcing yesterday's changes is one command, not a script.
+- **Prefer the site's own URL list.** The add-on package in the README family table streams it and filters by
+  modification date, so re-announcing yesterday's changes is one command, not a script.
 - **Watch the debounce store.** `MemoryDebounceStore` is bounded to 50 000 entries and evicts expired entries first,
   then the oldest. A run larger than that which also re-touches earlier URLs silently gets a shorter effective
   debounce window. Use `Psr16DebounceStore` on a shared cache for long runs.

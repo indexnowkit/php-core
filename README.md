@@ -1,9 +1,10 @@
 # IndexNow client for PHP — `indexnowkit/core`
 
 Tell Yandex, Bing and the other [IndexNow](https://www.indexnow.org) engines which URLs changed, from any PHP
-application. Batching, debounce, throttling, retry policy, key file handling and a sitemap reader, on top of
-PSR-18 / PSR-17 / PSR-3 / PSR-16 only. Framework adapters ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine))
-build on it; use it directly in plain PHP, a CMS plugin or a custom framework.
+application. Batching, debounce, throttling, retry policy, key file handling and the `#[IndexNow]` rule model, on
+top of PSR-18 / PSR-17 / PSR-3 / PSR-16 only. The framework adapters ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine),
+[Laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [Yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2)) and the add-on packages build on it; use it directly in plain PHP, a CMS
+plugin or a custom framework.
 
 [![Packagist](https://img.shields.io/packagist/v/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
 [![Downloads](https://img.shields.io/packagist/dt/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
@@ -28,8 +29,17 @@ to the shared endpoint `api.indexnow.org` reaches all of them; name engines expl
 composer require indexnowkit/core symfony/http-client nyholm/psr7   # any PSR-18 client + PSR-17 factories work
 ```
 
-If you use a framework, prefer its adapter: `indexnowkit/symfony-bundle`, `indexnowkit/doctrine`. They wire everything
-below through your container and hook into entity changes.
+If you use a framework, prefer its adapter: it wires everything below through your container and hooks into entity
+changes. The family:
+
+| Package | What |
+|---|---|
+| `indexnowkit/core` | this package: protocol client, rules, key file, the adapter kit |
+| [`indexnowkit/doctrine`](https://github.com/indexnowkit/php/tree/main/packages/doctrine) | Doctrine ORM listener plus a DBAL middleware, commit-safe |
+| [`indexnowkit/symfony-bundle`](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle) | Symfony: config, Messenger, key file route, commands, profiler panel |
+| [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: Eloquent observer, queue, key file route, artisan commands |
+| [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: ActiveRecord events with verify-on-commit, yii2-queue, console controller |
+| [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | reads a sitemap (index, gzip, text) and submits its URLs; the `sitemap` command of every adapter |
 
 ## Quick start
 
@@ -215,19 +225,8 @@ $indexNow->flush();                              // at the end of the unit of wo
 
 See [docs/retries-and-queues.md](docs/retries-and-queues.md) for the worker recipe and bulk/migration guidance.
 
-`Sitemap\SitemapReader` streams a sitemap or sitemap index into `SitemapEntry` objects, optionally filtered by
-`<lastmod>`, which is the right tool for re-announcing a bulk change:
-`$reader->read($sitemapUrl, new DateTimeImmutable('-1 day'))`. Memory stays flat whatever the size: documents are
-spooled (straight from the socket when the transport implements `Http\StreamingTransportInterface`, as
-`Psr18Transport` does), gzip is inflated chunk by chunk, XMLReader walks the spool, entries come out one by one.
-Submit them in batches of `Config::$batchMaxUrls` rather than collecting the generator into an array. The spool is a
-temp file, or memory on a read-only filesystem (`spool: SpoolMode::Auto|Disk|Memory`, `spoolDir:`); a network
-failure or 5xx while fetching a document is retried (`fetchRetries:`, default 2, 1/2/4 s apart), a truncated
-download is reported as such. Indexes are followed on the origin of the root sitemap only (`allowForeignHosts:
-true`, or the same-named `read()` argument, follows CDN-hosted parts), with caps on depth, document count and
-document size. The root may also be a local path or `file://` URL, and text sitemaps (one URL per line) are read
-like XML ones. `IndexNowKit::sitemap()` returns the reader built over the facade's transport (or the
-`SitemapSourceInterface` you passed to `create(sitemap:)`), and `$kit->transport` is the transport itself.
+Re-announcing a bulk change from the site's own URL list is the job of the add-on package in the family table
+(Install); `$kit->transport` is the transport such consumers read through.
 
 Adapters prove their wiring with `Testing\Conformance\CoreConformanceTestCase`: extend it, return the facade
 your container built and its `FakeTransport`, and the protocol scenarios of the spec run against it.
@@ -271,7 +270,7 @@ Pass any of them to `IndexNowKit::create()` by name, or assemble the graph by ha
 All exceptions implement `IndexNowKit\Exception\IndexNowException`: `ConfigurationException` (invalid `Config`,
 attribute or resolver setup), `InvalidUrlException` (a URL that cannot be submitted, caught by `Submitter` and
 dropped with a warning), `InvalidArgumentException` (programming errors) and `Http\Exception\TransportException`
-(network failure, turned into a retryable `Result` by `Client`; only `SitemapReader` exposes it; `Checker` turns it into an error line).
+(network failure, turned into a retryable `Result` by `Client`; consumers reading documents through the transport see it; `Checker` turns it into an error line).
 Nothing throws out of a lifecycle hook — see the error contract in [docs/adapters.md](docs/adapters.md).
 
 ## Limitations
@@ -286,7 +285,7 @@ Nothing throws out of a lifecycle hook — see the error contract in [docs/adapt
 
 PHP 8.2+, `ext-json`, `ext-filter`, a PSR-18 client with PSR-17 factories (`symfony/http-client` and Guzzle are
 configured automatically with the timeout and no redirects; other clients are used as is). Optional: `ext-intl`
-(IDN via UTS #46, otherwise a pure-PHP punycode encoder), `ext-xmlreader` and `ext-zlib` for `SitemapReader`.
+(IDN via UTS #46, otherwise a pure-PHP punycode encoder).
 
 ## Versioning
 
@@ -297,7 +296,7 @@ What is covered by the promise and what is not: [docs/bc.md](docs/bc.md).
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2) |
+| PHP | the family table under [Install](#install) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (planned) |
 | Python | `indexnowkit`, `indexnowkit-django` (planned) |
 

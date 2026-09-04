@@ -1,6 +1,6 @@
 {
     "name": "indexnowkit/core",
-    "description": "IndexNow client for PHP: notify Yandex, Bing, Naver, Seznam and Yep about changed URLs. Batching, debounce, throttle, retry policy, key file handling, sitemap reader. Framework-agnostic, PSR-18/PSR-3/PSR-16.",
+    "description": "IndexNow client for PHP: notify Yandex, Bing, Naver, Seznam and Yep about changed URLs. Batching, debounce, throttle, retry policy, key file handling. Framework-agnostic (PSR-18/PSR-3/PSR-16); adapters for Doctrine, Symfony, Laravel, Yii2, a sitemap add-on.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -11,7 +11,6 @@
         "bing",
         "naver",
         "seznam",
-        "sitemap",
         "psr-18",
         "indexing"
     ],
@@ -56,11 +55,9 @@
         "guzzlehttp/guzzle": "Alternative PSR-18 client, also configured automatically",
         "nyholm/psr7": "PSR-17 factories",
         "ext-intl": "UTS #46 IDN handling (a pure-PHP punycode encoder is used otherwise)",
-        "ext-xmlreader": "Required by Sitemap\\SitemapReader",
-        "ext-zlib": "Reading gzip-compressed sitemaps",
         "phpunit/phpunit": "To extend Testing\\Conformance\\CoreConformanceTestCase in an adapter's test suite",
         "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl",
-        "symfony/console": "Console\\*Runner: the shared bodies of the check/submit/explain/sitemap/key commands used by the framework adapters"
+        "symfony/console": "Console\\*Runner: the shared bodies of the check/submit/explain/key commands used by the framework adapters"
     },
     "autoload": {
         "psr-4": {
@@ -86,7 +83,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.3.x-dev"
+            "dev-main": "0.4.x-dev"
         }
     }
 }

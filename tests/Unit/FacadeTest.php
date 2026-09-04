@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
-use DateTimeImmutable;
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
 use IndexNowKit\Debounce\MemoryDebounceStore;
@@ -117,30 +116,6 @@ final class FacadeTest extends TestCase
 
         self::assertSame([], $results);
         self::assertCount(0, $t->posts);
-    }
-
-    public function testSitemapSourceDefaultsToAReaderOverTheSubmissionTransport(): void
-    {
-        $transport = new FakeTransport();
-        $transport->onGet('https://www.example.com/sitemap.xml', new \IndexNowKit\Http\Response(200, "https://www.example.com/a\nhttps://www.example.com/b\n"));
-        $kit = IndexNowKit::create(Factory::config(), transport: $transport);
-
-        self::assertSame($transport, $kit->transport);
-        self::assertInstanceOf(\IndexNowKit\Sitemap\SitemapReader::class, $kit->sitemap());
-        self::assertSame($kit->sitemap(), $kit->sitemap(), 'built once');
-        $urls = [];
-        foreach ($kit->sitemap()->read('https://www.example.com/sitemap.xml') as $entry) {
-            $urls[] = $entry->url;
-        }
-        self::assertSame(['https://www.example.com/a', 'https://www.example.com/b'], $urls, 'a text sitemap through the shared transport');
-
-        $custom = new class implements \IndexNowKit\Sitemap\SitemapSourceInterface {
-            public function read(string $sitemap, ?DateTimeImmutable $changedSince = null): iterable
-            {
-                yield new \IndexNowKit\Sitemap\SitemapEntry('https://www.example.com/custom', null);
-            }
-        };
-        self::assertSame($custom, IndexNowKit::create(Factory::config(), transport: $transport, sitemap: $custom)->sitemap());
     }
 
     public function testCollectorMaxUrlsFlushesEarly(): void

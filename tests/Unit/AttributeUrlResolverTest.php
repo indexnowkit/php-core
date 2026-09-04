@@ -77,7 +77,7 @@ final class MultiRoutePost
     public function __construct(public string $slug, public bool $amp = false) {}
 }
 
-#[IndexNowAttribute(urls: ['/sitemap.xml', 'https://static.example.com/robots.txt'])]
+#[IndexNowAttribute(urls: ['/feed.xml', 'https://static.example.com/robots.txt'])]
 final class LiteralUrlsPost {}
 
 #[IndexNowAttribute(url: 'publicUrl')]
@@ -250,7 +250,7 @@ final class AttributeUrlResolverTest extends TestCase
 
         $urls = $resolver->resolve(new LiteralUrlsPost(), Event::Updated);
 
-        self::assertSame(['/sitemap.xml', 'https://static.example.com/robots.txt'], $urls);
+        self::assertSame(['/feed.xml', 'https://static.example.com/robots.txt'], $urls);
     }
 
     public function testUrlAccessorReturningAStringYieldsOneUrl(): void

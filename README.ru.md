@@ -1,9 +1,10 @@
 # IndexNow-клиент для PHP — `indexnowkit/core`
 
 Сообщайте Яндексу, Bing и остальным поисковикам с поддержкой [IndexNow](https://yandex.ru/support/webmaster/ru/indexing-options/index-now),
-какие URL изменились, из любого PHP-приложения. Батчи, дебаунс, троттлинг, политика повторов, файл ключа и чтение
-sitemap поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки к фреймворку. Адаптеры ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle),
-[Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine)) построены на этом пакете; напрямую он нужен для чистого PHP, плагинов CMS и своих фреймворков.
+какие URL изменились, из любого PHP-приложения. Батчи, дебаунс, троттлинг, политика повторов, файл ключа и модель
+правил `#[IndexNow]` поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки к фреймворку. Адаптеры ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle),
+[Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [Laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [Yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2)) и пакеты-дополнения построены на этом пакете;
+напрямую он нужен для чистого PHP, плагинов CMS и своих фреймворков.
 
 [English version](README.md)
 
@@ -27,8 +28,17 @@ sitemap поверх PSR-18 / PSR-17 / PSR-3 / PSR-16, без привязки �
 composer require indexnowkit/core symfony/http-client nyholm/psr7   # подойдёт любой PSR-18 клиент с PSR-17 фабриками
 ```
 
-Если у вас фреймворк, берите адаптер: `indexnowkit/symfony-bundle`, `indexnowkit/doctrine`. Они собирают всё описанное
-ниже через контейнер и подключаются к изменениям сущностей.
+Если у вас фреймворк, берите адаптер: он собирает всё описанное ниже через контейнер и подключается к изменениям
+сущностей. Семейство:
+
+| Пакет | Что |
+|---|---|
+| `indexnowkit/core` | этот пакет: клиент протокола, правила, файл ключа, набор для адаптеров |
+| [`indexnowkit/doctrine`](https://github.com/indexnowkit/php/tree/main/packages/doctrine) | слушатель Doctrine ORM и DBAL middleware, безопасно к коммиту |
+| [`indexnowkit/symfony-bundle`](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle) | Symfony: конфигурация, Messenger, маршрут файла ключа, команды, панель профайлера |
+| [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: observer Eloquent, очередь, маршрут файла ключа, artisan-команды |
+| [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: события ActiveRecord с проверкой на коммите, yii2-queue, консольный контроллер |
+| [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | читает sitemap (индекс, gzip, текст) и отправляет его URL; команда `sitemap` каждого адаптера |
 
 ## Быстрый старт
 
@@ -217,19 +227,8 @@ $indexNow->flush();                              // в конце единицы
 
 Рецепт воркера и рекомендации по массовым выгрузкам — в [docs/retries-and-queues.md](docs/retries-and-queues.md).
 
-`Sitemap\SitemapReader` потоково читает sitemap или его индекс в объекты `SitemapEntry`, при необходимости
-фильтруя по `<lastmod>`, — это нужный инструмент, чтобы переотправить массовое изменение:
-`$reader->read($sitemapUrl, new DateTimeImmutable('-1 day'))`. Память не зависит от размера: документы
-складываются в spool (прямо из сокета, если транспорт реализует `Http\StreamingTransportInterface`, как
-`Psr18Transport`), gzip распаковывается по кускам, XMLReader идёт по spool, записи отдаются по одной.
-Отправляйте их порциями по `Config::$batchMaxUrls`, а не собирайте генератор в массив. Spool — временный файл
-либо память на read-only файловой системе (`spool: SpoolMode::Auto|Disk|Memory`, `spoolDir:`); сетевой сбой или
-5xx при загрузке документа повторяется (`fetchRetries:`, по умолчанию 2, через 1/2/4 с), недокачанный документ
-так и называется. Индексы обходятся только в пределах origin корневого sitemap (`allowForeignHosts: true` или
-одноимённый аргумент `read()` разрешает части на CDN), с ограничениями на глубину, количество документов и размер
-документа. Корень может быть локальным путём или `file://`, текстовые sitemap (URL на строку) читаются как XML.
-`IndexNowKit::sitemap()` отдаёт reader поверх транспорта фасада (или `SitemapSourceInterface`, переданный в
-`create(sitemap:)`), `$kit->transport` — сам транспорт.
+Переотправить массовое изменение по списку URL самого сайта — задача пакета-дополнения из таблицы семейства
+(Установка); `$kit->transport` — транспорт, через который такие потребители читают документы.
 
 Адаптер подтверждает свою обвязку через `Testing\Conformance\CoreConformanceTestCase`: наследуешь, отдаёшь
 фасад из своего контейнера и его `FakeTransport`, и сценарии протокола из спеки гоняются против него.
@@ -274,8 +273,8 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 Все исключения реализуют `IndexNowKit\Exception\IndexNowException`: `ConfigurationException` (неверный `Config`,
 атрибут или настройка резолвера), `InvalidUrlException` (URL, который нельзя отправить, — перехватывается
 `Submitter` и отбрасывается с предупреждением), `InvalidArgumentException` (программные ошибки) и
-`Http\Exception\TransportException` (сетевой сбой, превращаемый `Client` в повторяемый `Result`; наружу его отдают
-только `SitemapReader`; `Checker` превращает его в строку отчёта). Из хуков жизненного цикла не вылетает ничего — контракт ошибок описан в
+`Http\Exception\TransportException` (сетевой сбой, превращаемый `Client` в повторяемый `Result`; наружу его видят
+потребители, читающие документы через транспорт; `Checker` превращает его в строку отчёта). Из хуков жизненного цикла не вылетает ничего — контракт ошибок описан в
 [docs/adapters.md](docs/adapters.md).
 
 ## Ограничения
@@ -290,7 +289,7 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 
 PHP 8.2+, `ext-json`, `ext-filter`, PSR-18 клиент с PSR-17 фабриками (`symfony/http-client` и Guzzle настраиваются
 автоматически — таймаут, без редиректов; остальные используются как есть). Опционально: `ext-intl` (IDN по UTS #46,
-иначе чистый PHP-punycode), `ext-xmlreader` и `ext-zlib` для `SitemapReader`.
+иначе чистый PHP-punycode).
 
 ## Версионирование
 
@@ -301,7 +300,7 @@ SemVer. До 1.0 минорные версии могут содержать л�
 
 | | |
 |---|---|
-| PHP | [symfony-bundle](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2) |
+| PHP | таблица семейства в разделе [Установка](#установка) |
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (в планах) |
 | Python | `indexnowkit`, `indexnowkit-django` (в планах) |
 

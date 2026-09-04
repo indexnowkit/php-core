@@ -9,8 +9,8 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `SitemapReader`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Check\SitemapSpoolCheck` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Sitemap\SitemapSourceInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
@@ -30,9 +30,7 @@ IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $
 ```
 
 The same holds for the constructors of `Config`, `Client`, `Submitter`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`, `VerifyingStaging`, `Console\Vocabulary`,
-`SitemapReader`, `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
-`Sitemap\Spool` is public for `create()`, `probeDisk()`, `uri()` and `close()`; its `stream_*` methods are the PHP stream-wrapper
-protocol and `@internal`.
+`RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
 `RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` (`extract()`, `read()`, `condition()`, `registerReader()`,
 `unregisterReader()`) are public static helpers in the same "call" tier: adapters call them to compile their own declarations and to
 plug in a `SubjectReaderInterface`; their signatures only grow by appended optional parameters.
@@ -49,7 +47,7 @@ accepts. Renaming a `Config` property is therefore a breaking change and appears
 
 ## Value objects and enums
 
-`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `SitemapEntry`, `Http\Response`, `Check\CheckItem` and
+`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `Http\Response`, `Check\CheckItem` and
 the attribute classes are `final readonly`. Their properties are read-only public API: reading them is safe,
 constructing them is safe, and new properties are only appended with defaults. Prefer the named constructors
 (`Result::ok()`, `Result::skipped()`, `Result::failed()`) over the constructor, so an appended parameter never
@@ -76,8 +74,7 @@ These are the values to reference instead of hard-coding, and they are covered b
 `Config::OPTIONS`, `Result::NO_ENGINE`, `Client::FORBIDDEN_ESCALATION`, `KeyValidator::MIN_LENGTH`,
 `KeyValidator::MAX_LENGTH`, `KeyValidator::ALPHABET`, `KeyValidator::PATTERN`, `KeyFileResponder::PATH_PATTERN`,
 `KeyFileResponder::CONTENT_TYPE`, `KeyFileResponder::DEFAULT_MAX_AGE`, `Http\Response::MAX_RETRY_AFTER`,
-`Psr18Transport::POST_BODY_LIMIT`, `Psr18Transport::GET_BODY_LIMIT`, `SitemapReader::MAX_XML_BYTES`,
-`SitemapReader::MAX_SITEMAPS`, `UrlNormalizer::MAX_URL_LENGTH`, `UrlNormalizer::MAX_HOST_LENGTH`, `UrlNormalizer::MAX_LABEL_LENGTH`,
+`Psr18Transport::POST_BODY_LIMIT`, `Psr18Transport::GET_BODY_LIMIT`, `UrlNormalizer::MAX_URL_LENGTH`, `UrlNormalizer::MAX_HOST_LENGTH`, `UrlNormalizer::MAX_LABEL_LENGTH`,
 `ParamExtractor::SELF`, `Version::VERSION`.
 
 Enums (`ResultStatus`, `Reason`, `Event`, `Engine`, `Check\CheckLevel`, `Attribute\RuleSource`, `Attribute\Param\Placeholder`)

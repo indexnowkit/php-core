@@ -21,7 +21,7 @@ interface ResultFormatterInterface
     public function results(SymfonyStyle $io, array $results, bool $json): int;
 
     /**
-     * Aggregated results of a batched run (`indexnow:sitemap`).
+     * Aggregated results of a run that submits in batches (a large subject set, a streamed source).
      *
      * @return int exit code ({@see ExitCode})
      */

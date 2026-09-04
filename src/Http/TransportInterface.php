@@ -22,7 +22,7 @@ interface TransportInterface
     public function post(string $url, string $json, array $headers = []): Response;
 
     /**
-     * GET a document in full (key file, sitemap). Implementations should cap the body size.
+     * GET a document in full (a key file, any document a consumer reads). Implementations should cap the body size.
      *
      * @throws TransportException on network failure, timeout or when the body exceeds the cap
      */
