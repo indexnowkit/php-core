@@ -41,6 +41,17 @@ final class ConfigTest extends TestCase
         self::assertTrue(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => true, 'key_file' => ['enabled' => false]])->serveKeyFile, 'an explicit serve_key_file wins, as every adapter did');
         self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => 'false'])->serveKeyFile, 'the string "false" is false');
         self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => false, 'key_file' => ['enabled' => true]])->serveKeyFile);
+        self::assertTrue(Config::serveKeyFileFrom([]), 'serveKeyFileFrom(): the default');
+        self::assertTrue(Config::serveKeyFileFrom(['serve_key_file' => true, 'key_file' => ['enabled' => false]]), 'serveKeyFileFrom(): the explicit serve_key_file wins');
+        self::assertFalse(Config::serveKeyFileFrom(['serve_key_file' => '0', 'key_file' => ['enabled' => true]]), 'serveKeyFileFrom(): the same string parsing as fromArray()');
+        self::assertFalse(Config::serveKeyFileFrom(['key_file' => ['enabled' => 'false']]), 'serveKeyFileFrom(): key_file.enabled when serve_key_file is unset');
+        self::assertTrue(Config::serveKeyFileFrom(['serve_key_file' => '', 'key_file' => ['enabled' => 1]]), 'serveKeyFileFrom(): an empty string (unset env var) is unset');
+        try {
+            Config::serveKeyFileFrom(['key_file' => ['enabled' => []]]);
+            self::fail('a non-scalar key_file.enabled is rejected');
+        } catch (ConfigurationException $e) {
+            self::assertStringContainsString('"key_file.enabled" must be a boolean', $e->getMessage());
+        }
         self::assertNull(Config::fromArray(['key' => 'abcdefgh', 'debounce' => ['store' => ''], 'http' => ['client' => '']])->debounceStore, 'empty strings (unset env vars) are the default');
         self::assertContains('key_file.enabled', Config::OPTIONS);
         self::assertNotContains('key_file', Config::OPTIONS);

@@ -16,7 +16,9 @@ classes that moved.
   `key_file.cache_max_age` (`keyFileMaxAge`), `debounce.store` (`debounceStore`) and `http.client` (`httpClient`),
   in `fromArray()`, `fromEnv()` (`INDEXNOW_KEY_FILE_ENABLED`, `INDEXNOW_KEY_FILE_CACHE_MAX_AGE`,
   `INDEXNOW_DEBOUNCE_STORE`, `INDEXNOW_HTTP_CLIENT`), `with()` and `OPTIONS` (dotted keys only).
-  `Config::keyFileHeaders()` is the key file response headers (max-age, `Vary: Host` with a `hosts` map).
+  `Config::keyFileHeaders()` is the key file response headers (max-age, `Vary: Host` with a `hosts` map);
+  `Config::serveKeyFileFrom(array $raw)` is the `serve_key_file` / `key_file.enabled` rule over a raw array, for the
+  adapter code that runs before a `Config` exists (a route registered at boot, a check over the raw options).
 - **`Adapter\ConfigFactory`**: the raw framework array to `Config` path of every adapter — defaults merged under
   the raw values, `dispatch: auto` resolved by a closure, the mode checked against what the adapter delivers,
   `base_url` required for worker modes, an adapter post-check; `build()` throws, `load()` never does (warning on

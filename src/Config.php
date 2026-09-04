@@ -385,9 +385,7 @@ final readonly class Config
         $resolver = self::sub($data, 'resolver');
         $collector = self::sub($data, 'collector');
         $keyFile = self::sub($data, 'key_file');
-        // An explicit serve_key_file (the pre-0.4 name) wins over key_file.enabled, as every adapter did.
-        $serveKeyFile = $data['serve_key_file'] ?? null;
-        $serveKeyFile = \is_bool($serveKeyFile) ? $serveKeyFile : self::bool($serveKeyFile, null, 'serve_key_file') ?? self::bool($keyFile['enabled'] ?? null, null, 'key_file.enabled') ?? true;
+        $serveKeyFile = self::serveKeyFileFrom($data);
         /** @var array<mixed, mixed> $logLevels */
         $logLevels = \is_array($logging['levels'] ?? null) ? $logging['levels'] : [];
         /** @var array<mixed, mixed> $engineAliases */
@@ -447,6 +445,23 @@ final readonly class Config
             debounceStore: self::str($debounce['store'] ?? null),
             httpClient: self::str($http['client'] ?? null),
         );
+    }
+
+    /**
+     * Whether the raw configuration asks the application to serve the key file: the explicit `serve_key_file`
+     * (the pre-0.4 name) wins over `key_file.enabled`, then the default is true. The one place with that rule,
+     * for adapters that read the raw array before a `Config` exists (a route registered at boot, a check over the
+     * component options); `fromArray()` uses it too, with the same string parsing.
+     *
+     * @param array<string, mixed> $data the raw array `fromArray()` takes
+     *
+     * @throws ConfigurationException when either value is not a boolean
+     */
+    public static function serveKeyFileFrom(array $data): bool
+    {
+        $keyFile = self::sub($data, 'key_file');
+
+        return self::bool($data['serve_key_file'] ?? null, null, 'serve_key_file') ?? self::bool($keyFile['enabled'] ?? null, null, 'key_file.enabled') ?? true;
     }
 
     /**

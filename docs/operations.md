@@ -39,7 +39,6 @@ logs). Keys are masked everywhere, including inside response bodies and exceptio
 |---|---|
 | `warning` | `indexnow: unknown option(s) in the indexnow configuration: {options}` (dotted keys, the typo check) |
 | `critical` | `indexnow: invalid configuration, IndexNow is disabled until it is fixed: {error} (run "{check}")` — nothing is sent until the value is fixed |
-| `critical` | `indexnow: invalid sitemap configuration, the sitemap command is disabled until it is fixed: {error}` (Laravel, Yii2) |
 
 ### Submission pipeline (`Submitter`)
 
