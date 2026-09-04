@@ -10,7 +10,7 @@ use IndexNowKit\ResultStatus;
 /**
  * What a queue worker decides after one submission: which URLs to retry, which were rejected for good, and the
  * log lines for both. The worker keeps only its framework's action: Laravel releases the job with {@see delay()},
- * Messenger throws its recoverable exception with {@see $retryAfter}, yii2-queue retries without a delay.
+ * Messenger throws its recoverable exception with {@see $retryAfter}, yii2-queue re-pushes a job with {@see delay()}.
  */
 final readonly class WorkerOutcome
 {

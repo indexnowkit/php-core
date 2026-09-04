@@ -84,7 +84,7 @@ Turn the `indexnow` channel to `debug` while diagnosing: the four debug lines ab
 | Level | Message |
 |---|---|
 | `info` | `indexnow: {count} URL(s) of job {id} will be retried{delay}{attempt}` — `{delay}` is ` in {n}s` where the job sets the delay (Laravel), `{attempt}` is ` (attempt {n})` where the job knows it |
-| `error` | `indexnow: giving up on {count} URL(s) of job {id} after {attempt} attempt(s)` (Laravel; Messenger and yii2-queue report exhausted retries themselves) |
+| `error` | `indexnow: giving up on {count} URL(s) of job {id} after {attempt} attempt(s)` (Laravel and yii2-queue; Messenger reports exhausted retries itself) |
 | `error` | `indexnow: {count} URL(s) of job {id} rejected permanently ({reasons}); run "{check}"` — `{reasons}` lists `<engine> <status>`: `api 403`, `yandex 422` |
 
 ### Delivery hand-off
