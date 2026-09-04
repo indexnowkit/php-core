@@ -12,19 +12,19 @@ final class CheckReport
     /** @var list<CheckItem> */
     private array $items = [];
 
-    /** @internal writers are for Checker and adapter-side checks */
+    /** An "all good" line. Writers are public: every CheckInterface implementation calls them. */
     public function ok(string $message): void
     {
         $this->items[] = new CheckItem(CheckLevel::Ok, $message);
     }
 
-    /** @internal */
+    /** Something to look at that does not stop submissions. */
     public function warning(string $message): void
     {
         $this->items[] = new CheckItem(CheckLevel::Warning, $message);
     }
 
-    /** @internal */
+    /** A problem that stops submissions or the key file; makes the check command exit 1. */
     public function error(string $message): void
     {
         $this->items[] = new CheckItem(CheckLevel::Error, $message);

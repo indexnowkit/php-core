@@ -8,6 +8,7 @@ use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleSource;
 use IndexNowKit\Attribute\UrlRule;
+use IndexNowKit\Config;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 use Psr\Log\LoggerInterface;
@@ -19,7 +20,7 @@ use Stringable;
  * related object, accessor, literal URLs). The `when` guard and the event subscription are applied per rule
  * here, the only place that knows which rule is being built.
  */
-final class AttributeUrlResolver implements UrlResolverInterface
+final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
 {
     /**
      * @param array<string, string> $localeHosts locale => host ({@see Config::$localeHosts}): a rule without `host` generates each
@@ -34,6 +35,15 @@ final class AttributeUrlResolver implements UrlResolverInterface
         private readonly int $maxViaFanout = 100,
         private readonly array $localeHosts = [],
     ) {}
+
+    /**
+     * The resolver an adapter wires: `resolver.max_via_depth`, `resolver.max_via_fanout` and `locale_hosts` from the
+     * Config, the framework's router bridge and resolver locator.
+     */
+    public static function fromConfig(Config $config, AttributeReaderInterface $reader, ?RouteUrlResolverInterface $router = null, ?ResolverLocatorInterface $locator = null, LoggerInterface $logger = new NullLogger()): self
+    {
+        return new self($reader, $router, $locator, $logger, $config->resolverMaxViaDepth, $config->resolverMaxViaFanout, $config->localeHosts);
+    }
 
     /**
      * @return list<string>

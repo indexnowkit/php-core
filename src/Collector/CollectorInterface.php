@@ -23,6 +23,11 @@ interface CollectorInterface extends Countable
     public function isEmpty(): bool;
 
     /**
+     * URLs held right now, without copying them ({@see \IndexNowKit\IndexNowKit::collect()} compares it with `collector.max_urls`).
+     */
+    public function count(): int;
+
+    /**
      * Buffered URLs without draining (profilers, diagnostics).
      *
      * @return list<string>

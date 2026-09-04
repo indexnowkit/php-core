@@ -135,16 +135,4 @@ final readonly class Result
         return array_keys($urls);
     }
 
-    /**
-     * @deprecated since 0.2.0, use {@see retryableUrls()} or {@see urlsWhere()}; the default filter (retryable only) contradicts the name
-     *
-     * @param iterable<Result>              $results
-     * @param (callable(Result): bool)|null $filter
-     *
-     * @return list<string>
-     */
-    public static function urlsOf(iterable $results, ?callable $filter = null): array
-    {
-        return self::urlsWhere($results, $filter ?? static fn(Result $r): bool => $r->retryable);
-    }
 }

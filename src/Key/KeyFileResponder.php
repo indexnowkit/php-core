@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Key;
 
+use IndexNowKit\Config;
+
 /**
  * Framework-agnostic key-file endpoint: the adapter matches the request path, this class decides the answer.
  * Serve the body with HTTP 200, {@see CONTENT_TYPE} and no redirect; answer 404 when it returns null
@@ -18,6 +20,15 @@ final readonly class KeyFileResponder
     public const DEFAULT_MAX_AGE = 300;
 
     public function __construct(private KeyProviderInterface $keys, private bool $enabled = true) {}
+
+    /**
+     * The responder an adapter wires: `key_file.enabled` (serveKeyFile) over the adapter's key provider; the
+     * response headers are {@see \IndexNowKit\Config::keyFileHeaders()}.
+     */
+    public static function fromConfig(Config $config, KeyProviderInterface $keys): self
+    {
+        return new self($keys, $config->serveKeyFile);
+    }
 
     /**
      * Body to serve for a request path (`/abc...123.txt`), or null for 404.

@@ -25,9 +25,7 @@ final class Collector implements CollectorInterface
     /**
      * @param bool $detectLeaks log a warning at process shutdown when URLs were collected but never drained
      *                          (a PHP-FPM request that died before the terminate hook): the only trace such a loss leaves
-     */
-    /**
-     * @param int $logUrls URLs listed in a leak/discard log line ({@see Config::$logUrls})
+     * @param int  $logUrls     URLs listed in a leak/discard log line ({@see Config::$logUrls})
      */
     public function __construct(private readonly LoggerInterface $logger = new NullLogger(), bool $detectLeaks = true, private readonly int $logUrls = Config::DEFAULT_LOG_URLS)
     {
@@ -37,6 +35,14 @@ final class Collector implements CollectorInterface
                 $weak->get()?->reportLeak();
             });
         }
+    }
+
+    /**
+     * The collector an adapter wires: `collector.detect_leaks` and `logging.max_urls`.
+     */
+    public static function fromConfig(Config $config, LoggerInterface $logger = new NullLogger()): self
+    {
+        return new self($logger, $config->collectorDetectLeaks, $config->logUrls);
     }
 
     /**

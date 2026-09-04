@@ -71,8 +71,8 @@ if ($retry !== [] && $delay !== null) {
 ```
 
 `Result::retryableUrls()` deduplicates and keeps first-occurrence order. `Result::allUrls()` and
-`Result::urlsWhere($results, $predicate)` cover the other selections; `Result::urlsOf()` is deprecated because its
-default filter (retryable only) contradicts its name.
+`Result::urlsWhere($results, $predicate)` cover the other selections (`Result::urlsOf()`, deprecated since 0.2.0,
+is gone in 0.4).
 
 A worker has no request context, so `base_url` must be configured or every relative URL is dropped as invalid.
 A dispatcher must never throw into user code: `SyncDispatcher` and `CallableDispatcher` log and swallow.

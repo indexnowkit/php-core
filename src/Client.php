@@ -24,8 +24,7 @@ use Throwable;
  */
 final class Client implements ClientInterface
 {
-    /** After this many consecutive 403s for a host the log escalates once to critical. */
-    /** Default of `logging.forbidden_escalation`; the effective value is {@see Config::$forbiddenEscalation}. */
+    /** Default of `logging.forbidden_escalation`, the number of consecutive 403s for a host after which the log escalates once to critical; the effective value is {@see Config::$forbiddenEscalation}. */
     public const FORBIDDEN_ESCALATION = Config::DEFAULT_FORBIDDEN_ESCALATION;
 
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Throttle;
 
 use IndexNowKit\Clock\SystemClock;
+use IndexNowKit\Config;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -41,6 +42,14 @@ final class TokenBucket implements ThrottleInterface
         $this->tokens = (float) $perMinute;
         $this->lastRefill = $this->nowMicro();
         $this->sleeper = $sleeper ?? static fn(int $us) => usleep($us);
+    }
+
+    /**
+     * The throttle an adapter wires: `throttle.max_requests_per_minute`, system clock, real sleep.
+     */
+    public static function fromConfig(Config $config, LoggerInterface $logger = new NullLogger()): self
+    {
+        return new self($config->throttleMaxRequestsPerMinute, logger: $logger);
     }
 
     public function acquire(): void

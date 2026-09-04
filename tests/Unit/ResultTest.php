@@ -24,28 +24,28 @@ final class ResultTest extends TestCase
         self::assertFalse((new Result('api', 'h.example.com', [], ResultStatus::Failed))->isSuccess());
     }
 
-    public function testUrlsOfDefaultsToRetryableResults(): void
+    public function testRetryableUrlsKeepsRetryableResultsOnly(): void
     {
         $retryable = new Result('api', 'h.example.com', ['/a', '/b'], ResultStatus::Failed, retryable: true);
         $notRetryable = new Result('api', 'h.example.com', ['/c'], ResultStatus::Failed);
 
-        self::assertSame(['/a', '/b'], Result::urlsOf([$retryable, $notRetryable]));
+        self::assertSame(['/a', '/b'], Result::retryableUrls([$retryable, $notRetryable]));
     }
 
-    public function testUrlsOfDeduplicatesAcrossResults(): void
+    public function testRetryableUrlsDeduplicatesAcrossResults(): void
     {
         $a = new Result('api', 'h1.example.com', ['/a', '/shared'], ResultStatus::Failed, retryable: true);
         $b = new Result('api', 'h2.example.com', ['/shared', '/b'], ResultStatus::Failed, retryable: true);
 
-        self::assertSame(['/a', '/shared', '/b'], Result::urlsOf([$a, $b]));
+        self::assertSame(['/a', '/shared', '/b'], Result::retryableUrls([$a, $b]));
     }
 
-    public function testUrlsOfAcceptsCustomFilter(): void
+    public function testUrlsWhereAppliesThePredicate(): void
     {
         $ok = new Result('api', 'h.example.com', ['/a'], ResultStatus::Ok);
         $failed = new Result('api', 'h.example.com', ['/b'], ResultStatus::Failed);
 
-        $urls = Result::urlsOf([$ok, $failed], static fn(Result $r): bool => $r->isSuccess());
+        $urls = Result::urlsWhere([$ok, $failed], static fn(Result $r): bool => $r->isSuccess());
 
         self::assertSame(['/a'], $urls);
     }

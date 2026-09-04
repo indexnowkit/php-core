@@ -16,8 +16,8 @@ use Throwable;
  * attribute, missing accessor, router failure) becomes an error log entry plus an empty list, so a typo in
  * an attribute never breaks the host application's flush. Silent outcomes are logged at debug level.
  *
- * With the default AttributeUrlResolver the guards (`when`, `events`) are applied per rule inside it; a
- * hand-written top-level resolver keeps the class-level event subscription check here.
+ * With a {@see RuleAwareUrlResolverInterface} (the default AttributeUrlResolver) the guards (`when`, `events`) are
+ * applied per rule inside it; a plain top-level resolver keeps the class-level event subscription check here.
  */
 final class GuardedUrlResolver implements UrlResolverInterface
 {
@@ -41,7 +41,7 @@ final class GuardedUrlResolver implements UrlResolverInterface
     public function explain(object $subject, Event $event): array
     {
         try {
-            if ($this->inner instanceof AttributeUrlResolver) {
+            if ($this->inner instanceof RuleAwareUrlResolverInterface) {
                 $resolved = [];
                 foreach ($this->attributes->rules($subject) as $rule) {
                     $resolved = [...$resolved, ...$this->resolveRule($subject, $rule, $event)];
@@ -76,7 +76,7 @@ final class GuardedUrlResolver implements UrlResolverInterface
      */
     public function isRuleAware(): bool
     {
-        return $this->inner instanceof AttributeUrlResolver;
+        return $this->inner instanceof RuleAwareUrlResolverInterface;
     }
 
     /**
@@ -89,7 +89,7 @@ final class GuardedUrlResolver implements UrlResolverInterface
      */
     public function resolveRule(object $subject, UrlRule $rule, Event $event, bool $ignoreWhen = false): array
     {
-        if (!$this->inner instanceof AttributeUrlResolver) {
+        if (!$this->inner instanceof RuleAwareUrlResolverInterface) {
             return $this->explain($subject, $event);
         }
         try {

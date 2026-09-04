@@ -8,13 +8,12 @@ use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Collector\CollectorInterface;
+use IndexNowKit\Debounce\DebounceStoreFactory;
 use IndexNowKit\Debounce\DebounceStoreInterface;
-use IndexNowKit\Debounce\MemoryDebounceStore;
+use IndexNowKit\Dispatch\DispatcherFactory;
 use IndexNowKit\Dispatch\DispatcherInterface;
-use IndexNowKit\Dispatch\SyncDispatcher;
 use IndexNowKit\Exception\ConfigurationException;
-use IndexNowKit\Http\LazyTransport;
-use IndexNowKit\Http\Psr18Transport;
+use IndexNowKit\Http\TransportFactory;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
@@ -60,12 +59,15 @@ final class IndexNowKit
     }
 
     /**
-     * Default graph: PSR-18 discovery (with http.timeout), in-memory debounce, token-bucket throttle,
-     * synchronous dispatch. Every piece can be replaced. A custom $submitter (e.g. RetryingSubmitter) brings its
-     * own pipeline, so combining it with $transport/$debounce/$throttle/$normalizer is rejected instead of ignored.
-     * Parameter NAMES are part of the BC promise (new ones are only appended): always use named arguments.
+     * Default graph through the factories every adapter uses: PSR-18 discovery with http.timeout
+     * (`Http\TransportFactory::lazy()`), the debounce store of `debounce.store` (memory by default,
+     * `Debounce\DebounceStoreFactory`), token-bucket throttle, the dispatcher of `dispatch` (sync or none;
+     * `Dispatch\DispatcherFactory`). Every piece can be replaced. A custom $submitter (e.g. RetryingSubmitter)
+     * brings its own pipeline, so combining it with $transport/$debounce/$throttle/$normalizer is rejected instead
+     * of ignored. Parameter NAMES are part of the BC promise (new ones are only appended): always use named arguments.
      *
-     * @throws ConfigurationException when no HTTP client can be discovered, or on an incompatible combination
+     * @throws ConfigurationException when no HTTP client can be discovered, on an incompatible combination, or on a
+     *                                `dispatch`/`debounce.store`/`http.client` value that needs a framework to resolve it
      */
     public static function create(
         Config $config,
@@ -90,13 +92,14 @@ final class IndexNowKit
             }
         } else {
             $normalizer ??= new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
-            $throttle ??= new TokenBucket($config->throttleMaxRequestsPerMinute, logger: $logger);
-            $transport ??= new LazyTransport(static fn(): TransportInterface => Psr18Transport::discover(timeout: $config->httpTimeout));
+            $throttle ??= TokenBucket::fromConfig($config, $logger);
+            $transport ??= TransportFactory::lazy($config);
             $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);
-            $submitter = new Submitter($client, $config, $debounce ?? new MemoryDebounceStore(), $logger, $normalizer);
+            $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config), $logger, $normalizer);
         }
+        $dispatcher ??= DispatcherFactory::fromConfig($config, $submitter, $logger);
 
-        return new self($config, $submitter, $collector ?? new Collector($logger, $config->collectorDetectLeaks, $config->logUrls), $dispatcher ?? new SyncDispatcher($submitter, $logger, $config->logUrls), $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport);
+        return new self($config, $submitter, $collector ?? Collector::fromConfig($config, $logger), $dispatcher, $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport);
     }
 
     /**
@@ -122,6 +125,20 @@ final class IndexNowKit
     }
 
     /**
+     * Resolve the URLs of many objects and submit them in one call (one request per host and batch): the manual
+     * path after a bulk update that fired no hooks. De-duplicated across the whole set, so 100 posts of one
+     * category yield the category page once.
+     *
+     * @param iterable<object> $subjects
+     *
+     * @return list<Result>
+     */
+    public function submitAll(iterable $subjects, Event $event = Event::Updated): array
+    {
+        return $this->submit($this->urlsForAll($subjects, $event));
+    }
+
+    /**
      * Queue URLs in the collector; flush() sends them through the dispatcher (adapters call it at request end).
      *
      * @param iterable<string> $urls
@@ -129,7 +146,7 @@ final class IndexNowKit
     public function collect(iterable $urls): void
     {
         $this->collector->add($this->submitter->prepare($urls));
-        if ($this->config->collectorMaxUrls > 0 && \count($this->collector->all()) >= $this->config->collectorMaxUrls) {
+        if ($this->config->collectorMaxUrls > 0 && $this->collector->count() >= $this->config->collectorMaxUrls) {
             $this->logger->info('indexnow: collector reached {max} URL(s) (collector.max_urls), flushing early', ['max' => $this->config->collectorMaxUrls]);
             $this->flush();
         }
@@ -151,6 +168,23 @@ final class IndexNowKit
     public function urlsFor(object $subject, Event $event = Event::Updated): array
     {
         return $this->resolver->resolve($subject, $event);
+    }
+
+    /**
+     * URLs the rules of many objects yield, de-duplicated across the set. Never throws.
+     *
+     * @param iterable<object> $subjects
+     *
+     * @return list<string>
+     */
+    public function urlsForAll(iterable $subjects, Event $event = Event::Updated): array
+    {
+        $resolved = [];
+        foreach ($subjects as $subject) {
+            $resolved = [...$resolved, ...$this->resolver->explain($subject, $event)];
+        }
+
+        return ResolvedUrl::urls($resolved);
     }
 
     /**

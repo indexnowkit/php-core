@@ -33,4 +33,3 @@ jobs:
         run: composer run ci:install:${{ matrix.deps }}
       - run: vendor/bin/phpunit
       - run: vendor/bin/phpstan analyse --memory-limit=1G
-        if: matrix.deps == 'highest'

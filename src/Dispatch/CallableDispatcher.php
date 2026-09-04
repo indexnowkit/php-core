@@ -19,9 +19,7 @@ final class CallableDispatcher implements DispatcherInterface
 
     /**
      * @param callable(list<string>): void $callable
-     */
-    /**
-     * @param int $logUrls URLs listed in the failure log line ({@see Config::$logUrls})
+     * @param int                          $logUrls  URLs listed in the failure log line ({@see Config::$logUrls})
      */
     public function __construct(callable $callable, private readonly LoggerInterface $logger = new NullLogger(), private readonly int $logUrls = Config::DEFAULT_LOG_URLS)
     {

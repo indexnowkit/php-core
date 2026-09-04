@@ -12,9 +12,13 @@ use Stringable;
  */
 final class ArrayLogger extends AbstractLogger
 {
-    /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
+    /** @var list<array{level: string, message: string, context: array<mixed>}> */
     public array $records = [];
 
+    /**
+     * @param mixed        $level
+     * @param array<mixed> $context
+     */
     public function log($level, string|Stringable $message, array $context = []): void
     {
         $this->records[] = ['level' => \is_scalar($level) ? (string) $level : 'unknown', 'message' => (string) $message, 'context' => $context];
