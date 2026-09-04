@@ -265,7 +265,11 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 | `SubmitterInterface` | `Submitter` | декорировать (`RetryingSubmitter`), записывать, мокать |
 
 Передайте любой из них в `IndexNowKit::create()` по имени аргумента или соберите граф вручную: `Client` →
-`Submitter` → `Collector` + `DispatcherInterface` → `IndexNowKit`. Пишете адаптер?
+`Submitter` → `Collector` + `DispatcherInterface` → `IndexNowKit`. У узлов, которые адаптер собирает из своей
+конфигурации, есть фабрики с единым источником текстов ошибок — `Http\TransportFactory::lazy()` (`http.client`),
+`Debounce\DebounceStoreFactory::fromConfig()` (`debounce.store`), `Dispatch\DispatcherFactory::fromConfig()`
+(`dispatch`), `fromConfig()` у `Collector`, `TokenBucket`, `AttributeUrlResolver` и `KeyFileResponder`, — а
+`Adapter\ConfigFactory` превращает сырой массив фреймворка в `Config`, никогда не бросая из хука. Пишете адаптер?
 [docs/adapters.md](docs/adapters.md).
 
 ## Исключения

@@ -58,7 +58,10 @@ Config::fromArray([
 | `throttle.max_requests_per_minute` | `throttleMaxRequestsPerMinute` | `60` | outgoing requests per minute, per process; `0` = unlimited |
 | `http.timeout` | `httpTimeout` | `10.0` | seconds, applied only to clients the library creates itself |
 | `http.user_agent` | `userAgent` | `null` | overrides `indexnowkit-php/<version> (+https://github.com/indexnowkit/php)` |
-| `serve_key_file` | `serveKeyFile` | `true` | whether an adapter should answer `GET /{key}.txt` |
+| `key_file.enabled` | `serveKeyFile` | `true` | whether an adapter should answer `GET /{key}.txt`; `serve_key_file` is the deprecated name and wins when both are set |
+| `key_file.cache_max_age` | `keyFileMaxAge` / `keyFileHeaders()` | `300` | `Cache-Control: max-age` of the key file response; short on purpose, a cached old file turns every submission into a 403 after a rotation |
+| `debounce.store` | `debounceStore` | `null` | `memory` (per process), `none`, or an id the adapter resolves to its shared cache; `null` = the adapter's default (Laravel `cache`, bundle `cache.app`, Yii2 `cache`, plain PHP `memory`) |
+| `http.client` | `httpClient` | `null` | id or class of a PSR-18 client the adapter resolves; `null` = discovery |
 | `dry_run` | `dryRun` | `false` | log the request instead of sending it |
 | `environment` | `environment` | `null` | application environment; drives the non-production safety net below |
 | `production_environments` | `productionEnvironments` | `['prod', 'production']` | environment names (case-insensitive) that count as production; replaces the default list |
@@ -103,7 +106,10 @@ to read from somewhere else, and a second argument to change the `INDEXNOW_` pre
 | `INDEXNOW_THROTTLE_PER_MINUTE` | `throttle.max_requests_per_minute` |
 | `INDEXNOW_HTTP_TIMEOUT` | `http.timeout` |
 | `INDEXNOW_USER_AGENT` | `http.user_agent` |
-| `INDEXNOW_SERVE_KEY_FILE` | `serve_key_file` |
+| `INDEXNOW_KEY_FILE_ENABLED` (`INDEXNOW_SERVE_KEY_FILE` still wins) | `key_file.enabled` |
+| `INDEXNOW_KEY_FILE_CACHE_MAX_AGE` | `key_file.cache_max_age` |
+| `INDEXNOW_DEBOUNCE_STORE` | `debounce.store` |
+| `INDEXNOW_HTTP_CLIENT` | `http.client` |
 | `INDEXNOW_DRY_RUN` | `dry_run` |
 | `INDEXNOW_ENV`, else `APP_ENV` | `environment` |
 | `INDEXNOW_PRODUCTION_ENVIRONMENTS` | `production_environments`, comma-separated |
@@ -176,7 +182,10 @@ $config->baseHost();                       // lower-cased host of base_url, or n
 
 `Config::OPTIONS` lists every key `fromArray()` understands, in dotted form. `Config::unknownOptions($data, $allowed)`
 returns the keys of an array that are neither core options nor listed in `$allowed`, so an adapter can warn about
-`debounce.per_urls` instead of silently ignoring it.
+`debounce.per_urls` instead of silently ignoring it. List nested keys as `block.key`, never as a bare `block`: a bare
+name stops the check from looking inside the block. Adapters get this through `Adapter\ConfigFactory::load()`
+(`ownedOptions:`), which also merges the adapter's defaults, resolves `dispatch: auto` and turns an invalid
+value into a `critical` log line and a disabled `Config` instead of an exception.
 
 ```php
 $unknown = Config::unknownOptions($userConfig, ['messenger', 'messenger.bus', 'doctrine.enabled']);

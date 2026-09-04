@@ -263,7 +263,12 @@ More recipes in [docs/testing.md](docs/testing.md).
 | `SubmitterInterface` | `Submitter` | decorate (`RetryingSubmitter`), record, mock |
 
 Pass any of them to `IndexNowKit::create()` by name, or assemble the graph by hand: `Client` → `Submitter` →
-`Collector` + `DispatcherInterface` → `IndexNowKit`. Writing an adapter? [docs/adapters.md](docs/adapters.md).
+`Collector` + `DispatcherInterface` → `IndexNowKit`. The pieces a framework adapter wires from its configuration
+have factories with one source of error texts — `Http\TransportFactory::lazy()` (`http.client`),
+`Debounce\DebounceStoreFactory::fromConfig()` (`debounce.store`), `Dispatch\DispatcherFactory::fromConfig()`
+(`dispatch`), `fromConfig()` on `Collector`, `TokenBucket`, `AttributeUrlResolver` and `KeyFileResponder` — and
+`Adapter\ConfigFactory` turns a raw framework array into a `Config` without ever throwing from a hook. Writing an
+adapter? [docs/adapters.md](docs/adapters.md).
 
 ## Exceptions
 

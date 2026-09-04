@@ -3,6 +3,51 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.4.0] — 2026-09-04
+
+The "adapter kit" release (docs/spec/16, wave A): what every framework adapter copied is one thing in the core, and
+the sitemap reader is its own package. Adapters of this wave: doctrine 0.3.0, symfony-bundle 0.4.0, laravel 0.5.0,
+yii2 0.2.0, sitemap 0.1.0. **Upgrade the adapter, not the core alone**: an adapter of the previous wave imports
+classes that moved.
+
+### Added
+
+- **`Config`** knows `key_file.enabled` (alias of `serve_key_file`, which still wins when both are set),
+  `key_file.cache_max_age` (`keyFileMaxAge`), `debounce.store` (`debounceStore`) and `http.client` (`httpClient`),
+  in `fromArray()`, `fromEnv()` (`INDEXNOW_KEY_FILE_ENABLED`, `INDEXNOW_KEY_FILE_CACHE_MAX_AGE`,
+  `INDEXNOW_DEBOUNCE_STORE`, `INDEXNOW_HTTP_CLIENT`), `with()` and `OPTIONS` (dotted keys only).
+  `Config::keyFileHeaders()` is the key file response headers (max-age, `Vary: Host` with a `hosts` map).
+- **`Adapter\ConfigFactory`**: the raw framework array to `Config` path of every adapter — defaults merged under
+  the raw values, `dispatch: auto` resolved by a closure, the mode checked against what the adapter delivers,
+  `base_url` required for worker modes, an adapter post-check; `build()` throws, `load()` never does (warning on
+  unknown keys, critical + disabled Config on an invalid value). [docs/adapters.md](docs/adapters.md) §4.
+- **Factories** with one source of the error texts: `Http\TransportFactory::lazy()` / `psr18()`,
+  `Debounce\DebounceStoreFactory::fromConfig()`, `Dispatch\DispatcherFactory::fromConfig()`, and `fromConfig()` on
+  `Collector`, `TokenBucket`, `AttributeUrlResolver`, `KeyFileResponder`. `IndexNowKit::create()` is built on them.
+- `Console\ClassNameResolver` (the class argument of `submit-<subject>`/`explain`), `Check\DebounceStoreCheck` (the
+  debounce line of `check` over an adapter probe), `Url\ArrayResolverLocator(locate:, hint:)` (the container-backed
+  resolver locator of every adapter), `Url\RuleAwareUrlResolverInterface` (a custom resolver `GuardedUrlResolver`
+  guards per rule), `IndexNowKit::submitAll()` / `urlsForAll()` (de-duplicated across the set),
+  `CollectorInterface::count()`. `Check\CheckReport::ok()/warning()/error()` are public API.
+
+### Changed
+
+- **Removed: the sitemap reader.** `IndexNowKit::sitemap()`, the `$sitemap` parameter of the constructor and of
+  `create()`, `Console\SitemapRunner`, `Console\SitemapOptions`, `Check\SitemapSpoolCheck` and `Sitemap\*` moved to
+  [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) (`composer require
+  indexnowkit/sitemap`; the adapters require it). `Console\Vocabulary::$sitemapUrlOption` is gone: the option name
+  is an argument of `Sitemap\Console\SitemapRunner`. The core no longer suggests `ext-xmlreader`/`ext-zlib`; the
+  test router serves `/large-document.xml[.gz]` instead of `/sitemap.xml[.gz]`. Migration table in the sitemap
+  package changelog.
+- **Removed: `Result::urlsOf()`** (deprecated since 0.2.0): `Result::retryableUrls()` or `Result::urlsWhere()`.
+- `IndexNowKit::create()` with a `dispatch` outside `sync`/`none` and no `$dispatcher` throws
+  `ConfigurationException` (it silently used `SyncDispatcher` before).
+- `Config::fromArray()` reads booleans with `filter_var`: the strings `"false"`/`"0"` are false (they were true).
+- `ResultRenderer::summary()` says `Nothing submitted: the source yielded no URL.`; transport docblocks speak of
+  documents, not sitemaps.
+- `serve_key_file` is deprecated in favour of `key_file.enabled` (both work; the explicit `serve_key_file` wins).
+- Dev tooling: phpstan runs on every CI flavour; `phpstan/*` floors are the current releases.
+
 ## [0.3.1] — 2026-09-04
 
 ### Added

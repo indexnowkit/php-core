@@ -33,6 +33,14 @@ response resets the counter. Every other level in these tables is the default of
 and can be raised or lowered per outcome; `logging.max_urls` decides how many URLs a line lists (0 for PII-sensitive
 logs). Keys are masked everywhere, including inside response bodies and exception messages.
 
+### Configuration (`Adapter\ConfigFactory`, adapters)
+
+| Level | Message |
+|---|---|
+| `warning` | `indexnow: unknown option(s) in the indexnow configuration: {options}` (dotted keys, the typo check) |
+| `critical` | `indexnow: invalid configuration, IndexNow is disabled until it is fixed: {error} (run "{check}")` — nothing is sent until the value is fixed |
+| `critical` | `indexnow: invalid sitemap configuration, the sitemap command is disabled until it is fixed: {error}` (Laravel, Yii2) |
+
 ### Submission pipeline (`Submitter`)
 
 | Level | Message |

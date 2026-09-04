@@ -9,15 +9,15 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config`, `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Console\SubmitterFactory`, `Console\Vocabulary`, `Console\ClassNameResolver`, `Adapter\ConfigFactory`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, the writers of `Check\CheckReport` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Console\SubmitterFactoryInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
-one directly, pin `^0.2.0` rather than `^0.2` and read the changelog before upgrading. Decorating a shipped
+one directly, pin `^0.4.0` rather than `^0.4` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
 both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` have no shipped implementation to
-decorate (one per framework adapter): pin `^0.2.0` and read the changelog.
+decorate (one per framework adapter): pin `^0.4.0` and read the changelog.
 
 ## Named arguments
 
@@ -96,9 +96,8 @@ class, or on `Result::$reason`, never on message text.
 
 ## What is not covered
 
-- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`,
-  `Collector::reportLeak()` and the writer methods of `Check\CheckReport` (`ok()`, `warning()`, `error()`), which exist for
-  `Checker` and for adapter-side checks. Reading a report through `items()` and `hasErrors()` is public.
+- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`
+  and `Collector::reportLeak()`.
 - Private and protected members of `final` classes, which is all of them: the library has no inheritance points by
   design, only interfaces.
 - Log message texts. They are documented in [operations.md](operations.md) so you can grep them, and they are
@@ -118,11 +117,15 @@ replacement, and is listed in the changelog. Currently deprecated:
 
 | Since | Member | Use instead |
 |---|---|---|
-| 0.2.0 | `Result::urlsOf()` | `Result::retryableUrls()`, or `Result::urlsWhere()` with an explicit predicate |
+| 0.4.0 | `serve_key_file` (`Config::fromArray()`, `fromEnv()`: `INDEXNOW_SERVE_KEY_FILE`) | `key_file.enabled` / `INDEXNOW_KEY_FILE_ENABLED`; the explicit `serve_key_file` still wins while both exist |
+
+Removed after their deprecation window: `Result::urlsOf()` (deprecated 0.2.0, removed 0.4.0). Moved out of the core
+in 0.4.0 without a deprecation window (the pre-1.0 rule): `IndexNowKit::sitemap()` and everything under `Sitemap\`,
+now the `indexnowkit/sitemap` package.
 
 ## Before 1.0
 
-Minor versions may break. The changes made in 0.2.0 are listed in the changelog; the shape of the breakage to
+Minor versions may break. The changes made in 0.2.0 and 0.4.0 are listed in the changelog; the shape of the breakage to
 expect is the same: renamed classes as the namespace layout settles, and signatures on the "may grow" interfaces as
 more adapters land. Application code that only uses the facade, `Config`, the attributes and `Result` has been
 stable across 0.1 and 0.2 and is expected to stay so.
