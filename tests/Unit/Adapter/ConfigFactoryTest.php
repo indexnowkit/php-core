@@ -146,4 +146,23 @@ final class ConfigFactoryTest extends TestCase
         self::assertSame(3, $config->logUrls);
         self::assertSame('queue', $config->dispatch);
     }
+
+    #[TestDox('ignoreBlocks: the block of an absent optional package is skipped by unknownOptions() entirely; owned keys stay dotted, a dotted entry is refused')]
+    public function testIgnoreBlocks(): void
+    {
+        $factory = new ConfigFactory(ownedOptions: ['queue.connection'], dispatchModes: ['queue', 'sync'], needBaseUrl: [], ignoreBlocks: ['sitemap']);
+        $raw = ['key' => self::KEY, 'sitemap' => ['spool' => 'memory', 'spol' => 'disk', 'enabled' => false], 'queue' => ['connection' => 'redis', 'delay' => 1], 'typo' => 1];
+
+        self::assertSame(['queue.delay', 'typo'], $factory->unknownOptions($raw), 'sitemap.* is not reported, the rest is');
+        self::assertSame(['queue.delay', 'typo'], $factory->unknownOptions(['sitemap' => true] + $raw), 'a scalar under the ignored name is skipped too');
+        self::assertTrue($factory->build($raw, null)->enabled, 'the ignored block does not reach Config::fromArray() as a problem');
+
+        $logger = new ArrayLogger();
+        $factory->load(['key' => self::KEY, 'sitemap' => ['spol' => 'disk']], null, $logger);
+        self::assertSame([], $logger->messages('warning'), 'a configuration written for the package stays silent without it');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('"sitemap.enabled"');
+        new ConfigFactory(ignoreBlocks: ['sitemap.enabled']);
+    }
 }

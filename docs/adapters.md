@@ -103,6 +103,29 @@ A container that describes services (Symfony, Laravel) stays on layer 1 and call
 service: its service ids and bindings are its public API, and a builder would hide them. `IndexNowKit::create()`
 is the plain-PHP form of the same graph.
 
+### Optional packages
+
+`indexnowkit/sitemap` is `suggest`ed, not required: an adapter must work without it and say so where the user looks.
+The recipe, the same in the three reference adapters:
+
+- **One predicate per adapter**: `class_exists(\IndexNowKit\Sitemap\SitemapReader::class)`, overridable for
+  tests (a constructor parameter of the bundle's configuration and loader; an `@internal` static field
+  `SitemapSupport::$installed` in Laravel and Yii2).
+- **Separate classes behind it**: every file with a `use IndexNowKit\Sitemap\*` is instantiated only when the
+  predicate holds (`<Adapter>\Sitemap\SitemapServices` that registers the reader, the spool check and the runner;
+  `<Adapter>\Console\SitemapCommand`). A `::class` constant on an absent class is safe; `SitemapConfig::OPTIONS`,
+  `SitemapReader::MAX_*` or `Sitemap\Console\Definitions` in a file that is loaded without the package are a fatal.
+- **A stub command with the same name** (`SitemapNotInstalledCommand`, or the Yii action) that ignores its
+  arguments, prints `indexnowkit/sitemap is not installed: composer require indexnowkit/sitemap` and exits
+  `ExitCode::FAILURE`: a cron that ran `sitemap` before the package went optional gets a sentence, not "command not found".
+- **`Check\StaticCheck`** in the checker: `sitemap: not installed (composer require indexnowkit/sitemap)` at level
+  ok, or `sitemap: not installed, the sitemap block in the configuration is ignored (composer require
+  indexnowkit/sitemap)` when the configuration still carries a `sitemap` block. That line is the only place the
+  absence is mentioned: no log line at boot or on a request.
+- **`ConfigFactory(ignoreBlocks: ['sitemap'])`** without the package (and `...SitemapConfig::OPTIONS` in
+  `ownedOptions` with it), so a configuration written for the package does not warn as "unknown option" once the
+  package is gone. `ownedOptions` stays dotted: a bare `sitemap` in it would hide every typo inside the block.
+
 ## 3. The component graph
 
 ```
@@ -480,8 +503,9 @@ why — A13 (bulk operations bypass hooks) is a documented limitation everywhere
 
 ## 17. Packaging
 
-Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.5` (and `indexnowkit/sitemap ^0.1.1` for the `sitemap`
-command and its `Definitions`), keep the framework itself in `require` and the optional pieces in `suggest`. Run a version matrix in CI over the framework's supported majors and LTS releases,
+Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.5`, keep the framework itself in `require` and the
+optional pieces in `suggest` (`indexnowkit/sitemap ^0.1.1` for the `sitemap` command and its `Definitions`, wired as
+in §2 "Optional packages"; keep it in `require-dev` so the tests cover both states). Run a version matrix in CI over the framework's supported majors and LTS releases,
 static analysis at the maximum level, and publish EN plus RU READMEs following the family table used here. The
 Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowkit/php/blob/main/docs/spec/91-roadmap.md).
 
@@ -515,9 +539,10 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
 
 ## 20. Definition of Done for an adapter
 
-- [ ] `Adapter\ConfigFactory` declared with dotted `ownedOptions` (plus `SitemapConfig::OPTIONS`); a regression test that
-      a typo inside an owned block (`key_file.enabld`) is warned about; an invalid runtime value disables IndexNow with
-      one `critical` line and never throws from a hook.
+- [ ] `Adapter\ConfigFactory` declared with dotted `ownedOptions` (plus `SitemapConfig::OPTIONS` when the package is
+      installed, `ignoreBlocks: ['sitemap']` when it is not); a regression test that a typo inside an owned block
+      (`key_file.enabld`) is warned about; an invalid runtime value disables IndexNow with one `critical` line and
+      never throws from a hook.
 - [ ] The graph is built through the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`,
       `Dispatch\DispatcherFactory`, `fromConfig()`); no copied `match` over `debounce.store`, no own "not a PSR-18
       client" text, no own class-name resolution (`Console\ClassNameResolver`).
@@ -532,6 +557,10 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
 - [ ] Six commands over the core runners (`sitemap` from `indexnowkit/sitemap`), their inputs from
       `Console\Definitions` / `Sitemap\Console\Definitions` (no own option descriptions), `check` with your
       `CheckInterface` lines plus `Check\DebounceStoreCheck` (with a probe) and `Sitemap\Check\SitemapSpoolCheck`.
+- [ ] `indexnowkit/sitemap` in `suggest` and `require-dev`, behind one predicate (§2 "Optional packages"): without it
+      the `sitemap` command is a stub that explains what to install and exits 1, `check` prints the `StaticCheck`
+      line, a `sitemap` block in the configuration warns about nothing, every other command works, and nothing is
+      logged at boot; a test set with the predicate forced to false.
 - [ ] Conformance kits green (C01–C22, A01–A21 for an ORM, H01–H06 through `Testing\KeyFileAssertions` and
       `Testing\CheckOutputAssertions`); undocumented scenarios named in the README.
 - [ ] CI matrix over the framework's supported majors, phpstan level 9 on every flavour, EN + RU README with the family

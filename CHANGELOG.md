@@ -3,6 +3,22 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.5.1] — 2026-09-05
+
+Wave C of docs/spec/16: `indexnowkit/sitemap` goes back to `suggest` in the adapters (symfony-bundle 0.6.0, laravel
+0.7.0, yii2 0.4.0). The core gains the two pieces an adapter needs to keep an optional package optional; nothing changes
+for applications.
+
+### Added
+
+- **`Check\StaticCheck(CheckLevel $level, string $line)`**: one fixed line of `check`, decided when the adapter is
+  wired — `sitemap: not installed (composer require indexnowkit/sitemap)` when the optional package is absent.
+- **`Adapter\ConfigFactory(..., array $ignoreBlocks = [])`**: top-level blocks `unknownOptions()` skips entirely, so a
+  configuration written for an optional package does not warn once the package is gone (`ignoreBlocks: ['sitemap']`).
+  Appended with a default: every existing call compiles. Block names only; a dotted key is a `LogicException`.
+- [docs/adapters.md](docs/adapters.md) §2 "Optional packages": the predicate, the classes behind it, the stub command,
+  `StaticCheck`, `ignoreBlocks`; §20 lists the same as Definition of Done items.
+
 ## [0.5.0] — 2026-09-05
 
 The second "adapter kit" release (docs/spec/16, wave B): what wave A left as three copies in the adapters — the

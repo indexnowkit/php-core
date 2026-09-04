@@ -42,8 +42,11 @@ final class ConfigFactory
      *        `production_environments`) are refused: merging them with the raw values would be ambiguous.
      * @param (Closure(Config): ?string)|null  $validate      the adapter's post-check; a string is the message of the ConfigurationException
      * @param string                           $checkCommand  how the check command is invoked in this framework, printed in the critical log line
+     * @param list<string>                     $ignoreBlocks  top-level blocks {@see unknownOptions()} skips entirely: the block of an optional
+     *        package that is not installed (`['sitemap']` without indexnowkit/sitemap), so a configuration written
+     *        for the package does not warn once the package is gone. Block names, not dotted keys.
      *
-     * @throws LogicException on a list in $defaults or an unknown default dispatch mode
+     * @throws LogicException on a list in $defaults, an unknown default dispatch mode or a dotted key in $ignoreBlocks
      */
     public function __construct(
         private readonly array $ownedOptions = [],
@@ -53,9 +56,15 @@ final class ConfigFactory
         private readonly array $defaults = [],
         private readonly ?Closure $validate = null,
         private readonly string $checkCommand = 'indexnow:check',
+        private readonly array $ignoreBlocks = [],
     ) {
         if ($dispatchModes === []) {
             throw new LogicException('ConfigFactory: $dispatchModes must name at least one mode.');
+        }
+        foreach ($ignoreBlocks as $block) {
+            if (str_contains($block, '.')) {
+                throw new LogicException(\sprintf('ConfigFactory: $ignoreBlocks names top-level blocks, got the key "%s". Owned keys belong to $ownedOptions.', $block));
+            }
         }
         foreach ($defaults as $key => $value) {
             if (\is_array($value) && array_is_list($value)) {
@@ -140,7 +149,8 @@ final class ConfigFactory
     }
 
     /**
-     * Dotted keys of $raw that neither Config::OPTIONS nor the adapter's owned options know.
+     * Dotted keys of $raw that neither Config::OPTIONS nor the adapter's owned options know; the ignored blocks are
+     * left out entirely.
      *
      * @param array<string, mixed> $raw
      *
@@ -148,6 +158,10 @@ final class ConfigFactory
      */
     public function unknownOptions(array $raw): array
     {
+        if ($this->ignoreBlocks !== []) {
+            $raw = array_diff_key($raw, array_flip($this->ignoreBlocks));
+        }
+
         return Config::unknownOptions($raw, $this->ownedOptions);
     }
 
