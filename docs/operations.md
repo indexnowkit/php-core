@@ -71,6 +71,22 @@ filtered out in most production setups.
 Turn the `indexnow` channel to `debug` while diagnosing: the four debug lines above are the difference between
 "nothing happened" and "the rule decided not to".
 
+### ORM hooks (`Hook\ObserverHelper`, the observers of every adapter)
+
+| Level | Message |
+|---|---|
+| `debug` | `indexnow: {source} ({event}) -> {url}` — one line per resolved URL, with the rule that produced it |
+| `error` | `indexnow: cannot resolve the URLs of {class}: {error}` — the hook went on, the object was not submitted |
+| `error` | `indexnow: cannot collect {count} URL(s): {error}` |
+
+### Queue workers (`Retry\WorkerOutcome`, the jobs of every adapter)
+
+| Level | Message |
+|---|---|
+| `info` | `indexnow: {count} URL(s) of job {id} will be retried{delay}{attempt}` — `{delay}` is ` in {n}s` where the job sets the delay (Laravel), `{attempt}` is ` (attempt {n})` where the job knows it |
+| `error` | `indexnow: giving up on {count} URL(s) of job {id} after {attempt} attempt(s)` (Laravel; Messenger and yii2-queue report exhausted retries themselves) |
+| `error` | `indexnow: {count} URL(s) of job {id} rejected permanently ({reasons}); run "{check}"` — `{reasons}` lists `<engine> <status>`: `api 403`, `yandex 422` |
+
 ### Delivery hand-off
 
 | Level | Message |
