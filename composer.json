@@ -74,7 +74,9 @@
     },
     "scripts": {
         "test": "phpunit",
-        "stan": "phpstan analyse --memory-limit=1G"
+        "stan": "phpstan analyse --memory-limit=1G",
+        "ci:install:highest": "@composer update --no-interaction --prefer-dist",
+        "ci:install:lowest": "@composer update --no-interaction --prefer-dist --prefer-lowest --prefer-stable"
     },
     "config": {
         "sort-packages": true,
