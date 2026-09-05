@@ -86,6 +86,13 @@ final readonly class Config
     public array $productionEnvironments;
 
     /**
+     * Whether `dry_run` was set by the configuration rather than left to its default: false when
+     * {@see fromArray()} saw no `dry_run` key (or a null one). `check` tells the two apart outside
+     * production: an unset dry_run there is an error, an explicit `dry_run: false` a warning.
+     */
+    public bool $dryRunExplicit;
+
+    /**
      * Every key fromArray() understands, dotted-path form. Adapters validate their own config against it with
      * unknownOptions(). Nested keys are listed as `block.key` only: a bare block name would stop unknownOptions()
      * from checking the keys inside it.
@@ -127,6 +134,7 @@ final readonly class Config
      * @param int                                                                                          $keyFileMaxAge `Cache-Control: max-age` of the key file response (`key_file.cache_max_age`)
      * @param string|null                                                                                  $debounceStore `debounce.store`: null = the adapter's default, `memory`, `none`, or an id the adapter resolves to its cache
      * @param string|null                                                                                  $httpClient `http.client`: id or class of a PSR-18 client the adapter resolves; null = discovery
+     * @param bool                                                                                         $dryRunExplicit whether $dryRun was chosen by the configuration; see {@see $dryRunExplicit}
      *
      * @throws ConfigurationException
      */
@@ -169,7 +177,9 @@ final readonly class Config
         public int $keyFileMaxAge = KeyFileResponder::DEFAULT_MAX_AGE,
         public ?string $debounceStore = null,
         public ?string $httpClient = null,
+        bool $dryRunExplicit = true,
     ) {
+        $this->dryRunExplicit = $dryRunExplicit;
         if ($logBody < 0) {
             throw new ConfigurationException(\sprintf('"logging.max_body" must be >= 0, got %d.', $logBody));
         }
@@ -400,6 +410,7 @@ final readonly class Config
         $engines = \is_array($data['engines'] ?? null) ? array_values($data['engines']) : [Engine::Api->value];
         $key = self::str($data['key'] ?? null);
         $dryRun = (bool) ($data['dry_run'] ?? false);
+        $dryRunExplicit = ($data['dry_run'] ?? null) !== null;
         $environment = self::str($data['environment'] ?? null);
         if ($key === null && $hosts === [] && $environment !== null && !\in_array(strtolower($environment), array_map('strtolower', $productionEnvironments), true)) {
             $dryRun = true;
@@ -444,6 +455,7 @@ final readonly class Config
             keyFileMaxAge: self::int($keyFile['cache_max_age'] ?? null, KeyFileResponder::DEFAULT_MAX_AGE, 'key_file.cache_max_age'),
             debounceStore: self::str($debounce['store'] ?? null),
             httpClient: self::str($http['client'] ?? null),
+            dryRunExplicit: $dryRunExplicit,
         );
     }
 
@@ -522,6 +534,7 @@ final readonly class Config
 
     /**
      * Copy with some values replaced, by constructor parameter name: `$config->with(dryRun: true, engines: ['yandex'])`.
+     * Changing `dryRun` makes the copy explicit ({@see $dryRunExplicit}); other changes keep the flag as it is.
      *
      * @throws ConfigurationException
      */
@@ -566,6 +579,7 @@ final readonly class Config
             'keyFileMaxAge' => $this->keyFileMaxAge,
             'debounceStore' => $this->debounceStore,
             'httpClient' => $this->httpClient,
+            'dryRunExplicit' => $this->dryRunExplicit || \array_key_exists('dryRun', $changes),
         ];
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {

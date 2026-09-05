@@ -9,10 +9,12 @@ use IndexNowKit\Check\CheckItem;
 use IndexNowKit\Check\CheckLevel;
 use IndexNowKit\Config;
 use IndexNowKit\Http\Response;
+use IndexNowKit\Key\KeyValidator;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Tests\Support\Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -102,6 +104,50 @@ final class CheckerTest extends TestCase
         $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
 
         self::assertTrue($report->hasErrors());
+    }
+
+    #[TestDox('environment: unset says nothing; staging with a key and dry_run unset is an error; explicit dry_run: false a warning; production an ok line')]
+    public function testEnvironmentLineHasFourStates(): void
+    {
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $lines = function (array $overrides) use ($t): array {
+            $config = Factory::config($overrides);
+            $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+
+            return array_values(array_map(static fn(CheckItem $i): string => $i->level->value . ' ' . $i->message, array_filter($report->items(), static fn(CheckItem $i): bool => str_contains($i->message, 'environment'))));
+        };
+
+        self::assertSame([], $lines([]), 'plain PHP without APP_ENV/INDEXNOW_ENV: nothing to judge');
+
+        $staging = $lines(['environment' => 'staging']);
+        self::assertCount(2, $staging);
+        self::assertSame('error environment "staging" is not in production_environments but dry_run is off: changes WILL be sent to search engines under key ' . KeyValidator::mask(Factory::KEY) . '. Set INDEXNOW_DRY_RUN=1 or INDEXNOW_ENABLED=0 outside production, or set dry_run: false explicitly if this environment submits on purpose.', $staging[0]);
+        self::assertSame('warning environment: staging (not in production_environments: prod, production)', $staging[1]);
+
+        $explicit = $lines(['environment' => 'staging', 'dry_run' => false]);
+        self::assertCount(2, $explicit);
+        self::assertSame('warning environment "staging" is not in production_environments but dry_run is explicitly false, assuming this environment submits on purpose: changes are sent to search engines under key ' . KeyValidator::mask(Factory::KEY) . '.', $explicit[0]);
+        self::assertSame('warning environment: staging (not in production_environments: prod, production)', $explicit[1]);
+
+        self::assertSame(['ok environment: prod'], $lines(['environment' => 'prod']));
+        self::assertSame(['ok environment: dev (not in production_environments: prod, production)'], $lines(['environment' => 'dev', 'dry_run' => true]), 'dry_run on: nothing leaves, no error');
+        self::assertSame(['ok environment: dev (not in production_environments: prod, production)'], $lines(['environment' => 'dev', 'enabled' => false]), 'disabled: nothing leaves');
+        self::assertSame($staging, $lines(['environment' => 'staging', 'dry_run' => null]), 'a null dry_run (an unset env var read by a config file) counts as unset');
+    }
+
+    public function testDryRunExplicitFollowsTheConfiguration(): void
+    {
+        self::assertFalse(Factory::config()->dryRunExplicit);
+        self::assertFalse(Factory::config(['dry_run' => null])->dryRunExplicit);
+        self::assertTrue(Factory::config(['dry_run' => false])->dryRunExplicit);
+        self::assertTrue(Factory::config(['dry_run' => true])->dryRunExplicit);
+        self::assertTrue(Factory::config()->withDryRun(false)->dryRunExplicit);
+        self::assertTrue(Factory::config()->with(dryRun: true)->dryRunExplicit);
+        self::assertFalse(Factory::config()->with(engines: ['yandex'])->dryRunExplicit, 'other changes keep the flag');
+        self::assertTrue((new Config(key: Factory::KEY))->dryRunExplicit, 'the constructor is code: explicit by default');
+        self::assertTrue(Config::fromEnv(['INDEXNOW_KEY' => Factory::KEY, 'INDEXNOW_DRY_RUN' => '0'])->dryRunExplicit);
+        self::assertFalse(Config::fromEnv(['INDEXNOW_KEY' => Factory::KEY])->dryRunExplicit);
     }
 
     public function testDisabledDryRunAndMissingBaseUrlAreWarnings(): void

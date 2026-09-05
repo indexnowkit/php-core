@@ -54,6 +54,7 @@ final class Checker implements CheckerInterface
                 $report->warning('dry_run is on: requests are logged, not sent.');
             }
         }
+        $this->checkEnvironment($report);
         if ($config->strictHosts) {
             $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped');
         } elseif ($config->hosts !== [] && $config->key !== null) {
@@ -84,6 +85,35 @@ final class Checker implements CheckerInterface
         $this->extraChecks($report);
 
         return $report;
+    }
+
+    /**
+     * The `environment` line. Outside production with a key and dry_run off, real requests leave a staging
+     * copy: an error when dry_run was merely left unset, a warning when the configuration says `dry_run: false`
+     * on purpose (a preview environment that submits). Without an environment name there is nothing to judge.
+     */
+    private function checkEnvironment(CheckReport $report): void
+    {
+        $config = $this->config;
+        if ($config->environment === null) {
+            return;
+        }
+        if ($config->isProduction()) {
+            $report->ok(\sprintf('environment: %s', $config->environment));
+
+            return;
+        }
+        $submits = $config->enabled && !$config->dryRun && ($config->key !== null || $config->hosts !== []);
+        if ($submits) {
+            $under = $config->key !== null ? 'key ' . KeyValidator::mask($config->key) : \sprintf('the keys of %d host(s)', \count($config->hosts));
+            if ($config->dryRunExplicit) {
+                $report->warning(\sprintf('environment "%s" is not in production_environments but dry_run is explicitly false, assuming this environment submits on purpose: changes are sent to search engines under %s.', $config->environment, $under));
+            } else {
+                $report->error(\sprintf('environment "%s" is not in production_environments but dry_run is off: changes WILL be sent to search engines under %s. Set INDEXNOW_DRY_RUN=1 or INDEXNOW_ENABLED=0 outside production, or set dry_run: false explicitly if this environment submits on purpose.', $config->environment, $under));
+            }
+        }
+        $line = \sprintf('environment: %s (not in production_environments: %s)', $config->environment, implode(', ', $config->productionEnvironments));
+        $submits ? $report->warning($line) : $report->ok($line);
     }
 
     private function extraChecks(CheckReport $report): void
