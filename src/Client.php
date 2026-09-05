@@ -9,6 +9,7 @@ use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\KeyValidator;
+use IndexNowKit\Retry\ForbiddenCounter;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Url\UrlNormalizerFactory;
@@ -23,22 +24,19 @@ use Throwable;
  * Protocol client: groups already-normalized URLs by host, chunks them, throttles and POSTs one batch
  * per endpoint. Never throws on HTTP status codes or network errors, only on programming errors.
  *
- * The 403 escalation counts consecutive rejections per host: in the process by default, in the PSR-16 cache the
- * adapter shares between web workers and queue workers when one is given ({@see __construct()} `$failureCache`), so
- * the one `critical` line is written once per fleet, not once per worker.
+ * The 403 escalation ({@see ForbiddenCounter}) counts consecutive rejections per host: in the process by default,
+ * in the PSR-16 cache the adapter shares between web workers and queue workers when one is given ({@see __construct()}
+ * `$failureCache`), so the one `critical` line is written once per fleet, not once per worker.
  */
 final class Client implements ClientInterface
 {
     /** Default of `logging.forbidden_escalation`, the number of consecutive 403s for a host after which the log escalates once to critical; the effective value is {@see Config::$forbiddenEscalation}. */
     public const FORBIDDEN_ESCALATION = Config::DEFAULT_FORBIDDEN_ESCALATION;
     /** Default of `$failureCacheTtl`: a 403 streak older than an hour without a new 403 is forgotten. */
-    public const FAILURE_CACHE_TTL = 3600;
-
-    /** @var array<string, int> host => consecutive 403 count (without a failure cache, or while it is unavailable) */
-    private array $forbidden = [];
+    public const FAILURE_CACHE_TTL = ForbiddenCounter::TTL;
 
     private readonly UrlNormalizerInterface $normalizer;
-    private bool $failureCacheWarned = false;
+    private readonly ForbiddenCounter $counter;
 
     /**
      * @param CacheInterface|null $failureCache    PSR-16 cache shared by every process of the application (the adapters
@@ -56,10 +54,11 @@ final class Client implements ClientInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ThrottleInterface $throttle = new NullThrottle(),
         ?UrlNormalizerInterface $normalizer = null,
-        private readonly ?CacheInterface $failureCache = null,
-        private readonly int $failureCacheTtl = self::FAILURE_CACHE_TTL,
+        ?CacheInterface $failureCache = null,
+        int $failureCacheTtl = self::FAILURE_CACHE_TTL,
     ) {
         $this->normalizer = $normalizer ?? UrlNormalizerFactory::fromConfig($config);
+        $this->counter = new ForbiddenCounter($failureCache, $config->debounceKeyPrefix, $config->forbiddenEscalation, $failureCacheTtl, $logger);
     }
 
     /**
@@ -151,7 +150,7 @@ final class Client implements ClientInterface
         $failed = fn(Reason $reason, ?string $error = null, bool $retryable = false, ?int $after = null): Result => Result::failed($engine, $host, $urls, $reason, $error, $status, $retryable, $after, $endpoint);
 
         if ($status !== 403) {
-            $this->resetForbidden($host);
+            $this->counter->reset($host);
         }
 
         return match (true) {
@@ -171,7 +170,7 @@ final class Client implements ClientInterface
      */
     private function forbidden(string $host, string $key, array $ctx, Result $result): Result
     {
-        [$count, $escalate] = $this->countForbidden($host);
+        [$count, $escalate] = $this->counter->hit($host);
         $ctx += ['key' => KeyValidator::mask($key), 'consecutive' => $count];
         $message = 'indexnow: {engine} rejected the key for {host} (403). Check that https://{host}/{key}.txt is reachable and contains the key (run the check command of your adapter, e.g. indexnow:check).';
         $level = match (true) {
@@ -181,92 +180,6 @@ final class Client implements ClientInterface
         };
 
         return $this->log($level, $escalate ? $message . ' {consecutive} consecutive failures: submissions for this host are not being indexed.' : $message, $ctx, $result);
-    }
-
-    /**
-     * One more consecutive 403 for $host: the new count, and whether this one crosses the escalation threshold (once
-     * per streak). In the shared cache the crossing is a flag next to the counter, so a fleet of workers escalates
-     * once; without the cache, or when it fails (logged once, the process counts on), the process counts.
-     *
-     * @return array{0: int, 1: bool}
-     */
-    private function countForbidden(string $host): array
-    {
-        $threshold = $this->config->forbiddenEscalation;
-        if ($this->failureCache !== null) {
-            try {
-                $count = $this->incrementForbidden($host);
-                $escalate = $count >= $threshold && !(bool) $this->failureCache->get($this->failureKey($host, true), false);
-                if ($escalate) {
-                    $this->failureCache->set($this->failureKey($host, true), true, $this->failureCacheTtl);
-                }
-
-                return [$count, $escalate];
-            } catch (Throwable $e) {
-                $this->warnFailureCache($e);
-            }
-        }
-        $count = $this->forbidden[$host] = ($this->forbidden[$host] ?? 0) + 1;
-
-        return [$count, $count === $threshold];
-    }
-
-    /**
-     * @throws Throwable from the cache
-     */
-    private function incrementForbidden(string $host): int
-    {
-        $cache = $this->failureCache;
-        \assert($cache !== null);
-        $key = $this->failureKey($host, false);
-        if (method_exists($cache, 'increment')) {
-            /** @var mixed $count */
-            $count = $cache->increment($key);
-            if (\is_int($count) && $count > 0) {
-                if ($count === 1) {
-                    $cache->set($key, 1, $this->failureCacheTtl); // a fresh counter gets the TTL; increment() alone would keep it forever on some stores
-                }
-
-                return $count;
-            }
-        }
-        $stored = $cache->get($key, 0);
-        $count = (is_numeric($stored) ? (int) $stored : 0) + 1;
-        $cache->set($key, $count, $this->failureCacheTtl);
-
-        return $count;
-    }
-
-    /** A non-403 answer ends the streak: the shared counter is deleted only when it is set (no write per success). */
-    private function resetForbidden(string $host): void
-    {
-        unset($this->forbidden[$host]);
-        if ($this->failureCache === null) {
-            return;
-        }
-        try {
-            $stored = $this->failureCache->get($this->failureKey($host, false), 0);
-            if (is_numeric($stored) && (int) $stored > 0) {
-                $this->failureCache->deleteMultiple([$this->failureKey($host, false), $this->failureKey($host, true)]);
-            }
-        } catch (Throwable $e) {
-            $this->warnFailureCache($e);
-        }
-    }
-
-    /** `<debounce.key_prefix>403.<host>` and `…_escalated`: no PSR-6 reserved character (`{}()/\@:`), host names have none. */
-    private function failureKey(string $host, bool $escalated): string
-    {
-        return $this->config->debounceKeyPrefix . '403.' . $host . ($escalated ? '_escalated' : '');
-    }
-
-    private function warnFailureCache(Throwable $e): void
-    {
-        if ($this->failureCacheWarned) {
-            return;
-        }
-        $this->failureCacheWarned = true;
-        $this->logger->warning('indexnow: failure cache unavailable, counting 403s per process: {error}', ['error' => $e->getMessage(), 'exception' => $e]);
     }
 
     /**

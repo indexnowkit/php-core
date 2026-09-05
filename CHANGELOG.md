@@ -3,6 +3,23 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.9.0] — Unreleased
+
+The additive minor of spec 17 §7: nothing changed, nothing removed, no `@deprecated` added — the interfaces of 0.8.0
+(`Submission\SubmissionStoreInterface`, `Attribute\Param\Condition`, `Http\Response::headers()`, `Check\CheckItem::code`, the
+failure cache of `Client`) live one minor unchanged. `indexnowkit/verify` and `indexnowkit/history` are built on it.
+
+### Added
+
+- **`Retry\ForbiddenCounter`** — the consecutive-403 counter of `Client` as a class of its own (tier Call):
+  `hit(host): array{int, bool}` (the new count and whether this hit crosses `logging.forbidden_escalation` once per
+  streak), `reset(host)`, `count(host)`, `isEscalated(host)`, `threshold()`, `key(host, escalated)`. Over a PSR-16
+  cache the counter and the flag live under `<debounce.key_prefix>403.<host>` / `…_escalated` with a TTL (`increment()`
+  used when the store has it, a failing store is logged once and the process counts on), without one in the process.
+  `Client` builds it from its unchanged constructor arguments (`$failureCache`, `$failureCacheTtl`); its behaviour and
+  tests did not change. `Adapter\Services::forbiddenCounter()` returns a reader over the same cache, prefix and
+  threshold — what `indexnow:status` of `indexnowkit/history` prints per host.
+
 ## [0.8.0] — 2026-09-06
 
 ### Added

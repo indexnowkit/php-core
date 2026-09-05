@@ -19,6 +19,7 @@ use IndexNowKit\Dispatch\DispatcherFactory;
 use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Retry\ForbiddenCounter;
 use IndexNowKit\Submitter;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Testing\FakeTransport;
@@ -119,6 +120,7 @@ final class ServicesParityTest extends TestCase
             'keyFileResponder' => KeyFileResponder::fromConfig($config, $keys),
             'checker' => new Checker($config, $keys, $transport, []),
             'submitterFactory' => new SubmitterFactory($transport, $keys, $config, $debounce, $throttle, $normalizer, $logger),
+            'forbiddenCounter' => new ForbiddenCounter(null, $config->debounceKeyPrefix, $config->forbiddenEscalation, Client::FAILURE_CACHE_TTL, $logger),
         ];
     }
 

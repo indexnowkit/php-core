@@ -26,6 +26,7 @@ use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Retry\ForbiddenCounter;
 use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Submitter;
 use IndexNowKit\SubmitterInterface;
@@ -81,6 +82,7 @@ final class Services
     private ?KeyFileResponder $keyFileResponder = null;
     private ?CheckerInterface $checker = null;
     private ?SubmitterFactoryInterface $submitterFactory = null;
+    private ?ForbiddenCounter $forbiddenCounter = null;
 
     /**
      * @internal built by {@see ServicesBuilder::build()}
@@ -134,6 +136,16 @@ final class Services
     public function failureCache(): ?CacheInterface
     {
         return $this->optional(self::FAILURE_CACHE, CacheInterface::class);
+    }
+
+    /**
+     * A reader of the 403 counters the clients keep in {@see failureCache()} (`Retry\ForbiddenCounter` over the same
+     * cache, prefix and threshold): what `indexnow:status` shows per host. Without a failure cache it is a counter of
+     * its own that never saw a 403 — the clients count in their own process.
+     */
+    public function forbiddenCounter(): ForbiddenCounter
+    {
+        return $this->forbiddenCounter ??= new ForbiddenCounter($this->failureCache(), $this->config->debounceKeyPrefix, $this->config->forbiddenEscalation, Client::FAILURE_CACHE_TTL, $this->logger);
     }
 
     public function submitter(): SubmitterInterface
