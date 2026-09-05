@@ -3,6 +3,52 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.6.0] — 2026-09-05
+
+Wave 0a of docs/spec/17: the one finding of the audits with irreversible consequences (a staging copy with the
+production key submits real URLs while `check` says nothing), plus what `bc.md` allows in a minor. Additive; the
+only behaviour change is a red `check` in the case described first. Adapters of this wave: symfony-bundle 0.7.0,
+laravel 0.8.0, yii2 0.6.0, doctrine 0.4.0, sitemap 0.2.0.
+
+### Added
+
+- **`check` fails outside production when a key is configured and `dry_run` was left unset**: `environment "staging"
+  is not in production_environments but dry_run is off: changes WILL be sent to search engines under key ab12****.
+  Set INDEXNOW_DRY_RUN=1 or INDEXNOW_ENABLED=0 outside production, or set dry_run: false explicitly if this
+  environment submits on purpose.` A preview environment that submits on purpose says so with an explicit
+  `dry_run: false` (the line becomes a warning); without an environment name (plain PHP without `APP_ENV` /
+  `INDEXNOW_ENV`) nothing is judged. An `environment: …` line is printed whenever the name is known. **If a
+  pipeline runs `check` on a staging copy that submits on purpose, it turns red after this upgrade**: add
+  `dry_run: false` to that environment's configuration (Laravel: `INDEXNOW_DRY_RUN=0`).
+- `Config::$dryRunExplicit`: whether `dry_run` came from the configuration (`fromArray()` saw the key with a non-null
+  value; the constructor defaults to true; `with(dryRun:)` / `withDryRun()` set it, other `with()` changes keep it).
+- `Engine::InternetArchive` (`internetarchive`) and `Engine::Amazon` (`amazon`), from the IndexNow registry
+  (`searchengines.json`, snapshot 2026-09-05; the direct Internet Archive host had no DNS record that day — it is
+  reached through `api`). [docs/spec/01-protocol.md](https://github.com/indexnowkit/spec) lists the registry.
+- `Config::fromEnv()` reads `INDEXNOW_PREVIOUS_KEY`.
+- `check` ends with `Next: annotate a class with #[IndexNow(...)], or send one URL now: <cli> <submit> https://…`.
+- `Check\Checker`: a mismatching key file body is printed (its first 60 bytes) with the usual cause, a catch-all
+  route answering 200 with HTML.
+
+### Fixed
+
+- **Debounce with several engines**: a URL accepted by one engine and answered 429/5xx (or a transport failure) by
+  another was marked as submitted, so the retry of the failed engine hit the window and never left. The marked set
+  is now the successful URLs minus `Result::retryableUrls()`; a permanent refusal (403, 422) at one engine still
+  marks. `engines: ['api']`, dry_run and invalid URLs are unchanged.
+- Error texts say the fact, what is allowed and how to fix it: the `resolver.*` and `retry.*` bounds (one message per
+  option, with the value), `debounce.key_prefix` (which characters PSR-6 reserves), the unknown-engine message
+  (mentions `engine_aliases`), `Console\ClassNameResolver` (the namespaces searched; what the command needs the
+  class for), `ParamExtractor` (the accepted param kinds; the method and property names tried and the registered
+  readers). `Retry\RetryingSubmitter`'s docblock states the sync/CLI path and points queue workers to
+  `WorkerOutcome`.
+
+### Documentation
+
+- README: "Why this over X", "Notification, not indexing" (where to see the result, 410/404/301 for deleted and moved
+  pages, Bing URL Submission API and Google Indexing API are other protocols), Internet Archive and Amazon among the
+  notified engines, the issues link to the monorepo, `key_file.enabled` instead of `serve_key_file` in the table.
+
 ## [0.5.1] — 2026-09-05
 
 Wave C of docs/spec/16: `indexnowkit/sitemap` goes back to `suggest` in the adapters (symfony-bundle 0.6.0, laravel
