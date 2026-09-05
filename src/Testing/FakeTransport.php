@@ -39,7 +39,8 @@ final class FakeTransport implements StreamingTransportInterface
     }
 
     /**
-     * Responses for GET $url, consumed in order; the last one is repeated (so a single one is permanent).
+     * Responses for GET $url, consumed in order; the last one is repeated (so a single one is permanent). Headers the
+     * check reads go on the response: `new Response(200, $key, headers: ['Content-Type' => 'text/plain'])`.
      */
     public function onGet(string $url, Response|Throwable ...$responses): self
     {
@@ -86,7 +87,7 @@ final class FakeTransport implements StreamingTransportInterface
         $this->downloads[] = $url;
         fwrite($sink, $response->body);
 
-        return new Response($response->status, '', $response->retryAfter);
+        return new Response($response->status, '', $response->retryAfter, $response->headers);
     }
 
     public static function failing(string $message = 'connection refused'): TransportException

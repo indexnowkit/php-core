@@ -22,7 +22,7 @@ use Throwable;
 
 /**
  * PSR-18 transport. POST responses are read up to 2 KiB (diagnostics only); GET responses up to 50 MiB (a generous
- * cap for the largest documents consumers of this transport read). {@see download()} streams a GET body into a sink so large documents never
+ * cap for the largest documents consumers of this transport read). Response headers are exposed on {@see Response}. {@see download()} streams a GET body into a sink so large documents never
  * live in memory.
  */
 final class Psr18Transport implements StreamingTransportInterface
@@ -105,7 +105,7 @@ final class Psr18Transport implements StreamingTransportInterface
             self::assertComplete($response, $read, $request);
         }
 
-        return new Response($response->getStatusCode(), '', $this->retryAfter($response));
+        return new Response($response->getStatusCode(), '', $this->retryAfter($response), self::headers($response));
     }
 
     private function getRequest(string $url): RequestInterface
@@ -172,7 +172,23 @@ final class Psr18Transport implements StreamingTransportInterface
             self::assertComplete($response, \strlen($content), $request);
         }
 
-        return new Response($response->getStatusCode(), $content, $this->retryAfter($response));
+        return new Response($response->getStatusCode(), $content, $this->retryAfter($response), self::headers($response));
+    }
+
+    /**
+     * Every response header, lower-cased names, several values joined with ", " (`check` reads Content-Type,
+     * Cache-Control and Age off the key file response).
+     *
+     * @return array<string, string>
+     */
+    private static function headers(ResponseInterface $response): array
+    {
+        $headers = [];
+        foreach (array_keys($response->getHeaders()) as $name) {
+            $headers[strtolower((string) $name)] = $response->getHeaderLine((string) $name);
+        }
+
+        return $headers;
     }
 
     private function sendRequest(RequestInterface $request): ResponseInterface

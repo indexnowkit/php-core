@@ -288,9 +288,13 @@ file they cannot verify.
 2. Keep `Cache-Control` short. `KeyFileResponder::DEFAULT_MAX_AGE` is 300 seconds for exactly this reason: a CDN
    holding the old file for a day means a day of 403s.
 3. Switch the configured key.
-4. Run the check command. `Checker` fetches every key file over HTTP and compares the body; `liveProbe: true` sends
-   a real probe to every endpoint even when `dry_run` is on.
+4. Run the check command. `Checker` fetches every key file over HTTP and compares the body, its `Content-Type`
+   and its `Cache-Control`/`Age` against `key_file.cache_max_age`, and `robots.txt`; `--live` sends a real probe to
+   every endpoint even when `dry_run` is on. With `previous_key` set, the old key file is fetched too: `previous key
+   file OK … rotation window open` (`key_file.previous`) means both keys are served; a warning means the old file is
+   already gone while engines may still verify against it.
 5. Watch for the 403 escalation. Five consecutive failures for a host means nothing is being indexed.
+6. Remove `previous_key` once `check --live` is green for every host: the line goes away with it.
 
 If the key file cannot live at `/{key}.txt`, set `key_location` to its absolute URL on the same host. A
 `key_location` on a different host is rejected at configuration time, because engines answer 422 for it.

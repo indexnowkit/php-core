@@ -10,6 +10,7 @@ use IndexNowKit\Engine;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Http\Exception\TransportException;
+use IndexNowKit\Http\Response;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\KeyValidator;
@@ -71,6 +72,9 @@ final class Checker implements CheckerInterface
         }
         $report->ok(\sprintf('engines: %s', implode(', ', array_map(Engine::labelFor(...), $config->endpoints))), 'config.engines');
         $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d, throttle: %d/min, timeout: %ss', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls, $config->throttleMaxRequestsPerMinute, $config->httpTimeout), 'config.delivery');
+        if ($config->httpClient !== null) {
+            $report->warning(\sprintf('http.client: the key files below are fetched through your client "%s"; if it follows redirects, a 30x to a catch-all page looks like a 200 here. Verify with curl -I as well.', $config->httpClient), 'http.client');
+        }
 
         $hosts = $this->hostsToCheck();
         if ($onlyHost !== null) {
@@ -160,7 +164,10 @@ final class Checker implements CheckerInterface
                 $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), self::maskUrl(self::excerpt($response->body), $key)), 'key_file.body', $host);
             } else {
                 $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)), 'key_file.status', $host);
+                $this->checkKeyFileHeaders($host, $key, $response, $report);
             }
+            $this->checkRobots($host, $keyUrl, $key, $report);
+            $this->checkPreviousKey($host, $keyUrl, $report);
         } catch (TransportException $e) {
             $report->error(\sprintf('%s: cannot fetch key file: %s', $host, self::maskUrl($e->getMessage(), $key)), 'key_file.fetch', $host);
         } catch (ConfigurationException $e) {
@@ -172,6 +179,140 @@ final class Checker implements CheckerInterface
         if ($liveProbe && $this->config->enabled) {
             $this->probe($host, $key, $report, $probeUrl);
         }
+    }
+
+    /**
+     * Content-Type and caching of a key file that answered 200 with the right body. A transport that exposes no headers
+     * (`Response::$headers` empty) gets one neutral line instead of a verdict.
+     */
+    private function checkKeyFileHeaders(string $host, string $key, Response $response, CheckReport $report): void
+    {
+        if ($response->headers === []) {
+            $report->ok(\sprintf('%s: Content-Type unknown (this transport does not expose headers)', $host), 'key_file.content_type', $host);
+
+            return;
+        }
+        $type = $response->contentType();
+        if ($type === null) {
+            $report->warning(\sprintf('%s: key file is served without a Content-Type header; serve it as text/plain, which every engine accepts.', $host), 'key_file.content_type', $host);
+        } elseif ($type !== 'text/plain') {
+            $report->error(\sprintf('%s: key file is served as %s, not text/plain; engines may refuse to verify the key. Fix the Content-Type of the key file response.', $host, $type), 'key_file.content_type', $host);
+        } else {
+            $report->ok(\sprintf('%s: Content-Type text/plain', $host), 'key_file.content_type', $host);
+        }
+
+        $limit = $this->config->keyFileMaxAge;
+        $maxAge = $response->cacheMaxAge();
+        $age = $response->age();
+        if ($age !== null && $age > $limit) {
+            $report->warning(\sprintf('%s: the key file came from a cache %ds old (Age), longer than key_file.cache_max_age (%ds): the CDN in front ignores the max-age, a key rotation would serve the old key for as long. Purge the key file on rotation or shorten the CDN rule.', $host, $age, $limit), 'key_file.cache_control', $host);
+        } elseif ($maxAge !== null && $maxAge > $limit) {
+            $report->warning(\sprintf('%s: key file Cache-Control allows caching for %ds, longer than key_file.cache_max_age (%ds): after a key rotation a CDN may serve the old key for up to %ds and every submission gets 403 meanwhile. Keep it at or below %ds.', $host, $maxAge, $limit, $maxAge, $limit), 'key_file.cache_control', $host);
+        } elseif ($maxAge !== null) {
+            $report->ok(\sprintf('%s: key file cached for at most %ds (Cache-Control)', $host, $maxAge), 'key_file.cache_control', $host);
+        }
+    }
+
+    /**
+     * robots.txt of the host: a `Disallow` that covers the key file path (for every bot or for the IndexNow engines'
+     * bots) keeps the engines from verifying the key. Nothing is printed when robots.txt is absent or unreachable.
+     */
+    private function checkRobots(string $host, string $keyUrl, string $key, CheckReport $report): void
+    {
+        $path = parse_url($keyUrl, PHP_URL_PATH);
+        $path = \is_string($path) && $path !== '' ? $path : '/' . $key . '.txt';
+        try {
+            $robots = $this->transport->get(\sprintf('%s://%s/robots.txt', parse_url($keyUrl, PHP_URL_SCHEME) === 'http' ? 'http' : 'https', $host));
+        } catch (TransportException) {
+            return;
+        }
+        if ($robots->status !== 200) {
+            return;
+        }
+        $rule = self::robotsDisallows($robots->body, $path);
+        if ($rule !== null) {
+            $report->warning(\sprintf('%s: robots.txt disallows the key file (%s): engines cannot fetch %s to verify the key. Allow it (Allow: %s) or move the rule.', $host, self::maskUrl($rule, $key), self::maskUrl($path, $key), self::maskUrl($path, $key)), 'key_file.robots', $host);
+        } else {
+            $report->ok(\sprintf('%s: robots.txt does not block the key file', $host), 'key_file.robots', $host);
+        }
+    }
+
+    /**
+     * `previous_key` (per host, else global): the old key file must still be served while engines that cached the old
+     * key catch up; once `check --live` is green the option goes away.
+     */
+    private function checkPreviousKey(string $host, string $keyUrl, CheckReport $report): void
+    {
+        $previous = $this->config->previousKeys[$host] ?? $this->config->previousKey;
+        if ($previous === null) {
+            return;
+        }
+        $url = \sprintf('%s://%s/%s.txt', parse_url($keyUrl, PHP_URL_SCHEME) === 'http' ? 'http' : 'https', $host, $previous);
+        try {
+            $response = $this->transport->get($url);
+        } catch (TransportException $e) {
+            $report->warning(\sprintf('%s: previous_key is set but its key file cannot be fetched (%s): engines that still verify against the old key answer 403 until they pick up the new one.', $host, self::maskUrl($e->getMessage(), $previous)), 'key_file.previous', $host);
+
+            return;
+        }
+        if ($response->status === 200 && trim($response->body) === $previous) {
+            $report->ok(\sprintf('%s: previous key file OK (%s): rotation window open; remove previous_key once check --live is green', $host, self::maskUrl($url, $previous)), 'key_file.previous', $host);
+        } else {
+            $report->warning(\sprintf('%s: previous_key is set but %s answers HTTP %d%s: engines that still verify against the old key answer 403 until they pick up the new one. Serve the old key file during the rotation, or remove previous_key when it is over.', $host, self::maskUrl($url, $previous), $response->status, $response->status === 200 ? ' with another body' : ''), 'key_file.previous', $host);
+        }
+    }
+
+    /**
+     * The `Disallow` rule of $robots that covers $path for every bot or for an IndexNow engine's bot, null when the
+     * path is allowed. Groups by `User-agent`; `*` and `$` in rules as in the robots.txt convention; the longest
+     * matching rule wins, `Allow` on a tie.
+     */
+    public static function robotsDisallows(string $robots, string $path): ?string
+    {
+        $relevant = false;
+        $sawRule = false;
+        $disallow = null;
+        $disallowLength = -1;
+        $allowLength = -1;
+        foreach (explode("\n", str_replace(["\r\n", "\r"], "\n", $robots)) as $line) {
+            $line = trim((string) preg_replace('/#.*$/', '', $line));
+            if ($line === '' || !str_contains($line, ':')) {
+                continue;
+            }
+            [$field, $value] = array_map('trim', explode(':', $line, 2));
+            $field = strtolower($field);
+            if ($field === 'user-agent') {
+                if ($sawRule) {
+                    $relevant = false;
+                    $sawRule = false;
+                }
+                $relevant = $relevant || $value === '*' || preg_match('/bing|msnbot|yandex|seznam|naver|yeti|amazon|ia_archiver|archive/i', $value) === 1;
+
+                continue;
+            }
+            if ($field !== 'disallow' && $field !== 'allow') {
+                continue;
+            }
+            $sawRule = true;
+            if (!$relevant || $value === '' || !self::robotsRuleMatches($value, $path)) {
+                continue;
+            }
+            if ($field === 'disallow' && \strlen($value) > $disallowLength) {
+                $disallow = $value;
+                $disallowLength = \strlen($value);
+            } elseif ($field === 'allow' && \strlen($value) > $allowLength) {
+                $allowLength = \strlen($value);
+            }
+        }
+
+        return $disallow !== null && $disallowLength > $allowLength ? 'Disallow: ' . $disallow : null;
+    }
+
+    private static function robotsRuleMatches(string $rule, string $path): bool
+    {
+        $pattern = '#^' . str_replace('\*', '.*', preg_quote(rtrim($rule, '$'), '#')) . (str_ends_with($rule, '$') ? '$' : '') . '#';
+
+        return preg_match($pattern, $path) === 1;
     }
 
     /**

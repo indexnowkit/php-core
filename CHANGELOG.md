@@ -14,6 +14,17 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   `<feature>.installed`) names its check; `Check\StaticCheck` takes the code as an appended constructor argument. The
   codes are API and listed in [docs/check-codes.md](docs/check-codes.md); the texts are not. Lines about one host
   carry it in `$host`.
+- **`Http\Response` exposes the response headers**: `array<string, string> $headers = []` as the appended fourth
+  constructor argument (names lower-cased; several values joined with `, `), `header()`, `contentType()`,
+  `cacheMaxAge()` (`s-maxage`, else `max-age`; `no-store`/`no-cache` are 0) and `age()`. `Http\Psr18Transport::get()`,
+  `post()` and `download()` fill them; `Testing\FakeTransport::download()` passes them through. A custom transport
+  that leaves them empty keeps working: `check` prints one neutral line instead of a verdict.
+- **New `check` lines** (spec 17 §5.1): `key_file.content_type` (error when the key file is served as something other
+  than `text/plain`), `key_file.cache_control` (warning when `Cache-Control`/`Age` exceed `key_file.cache_max_age`),
+  `key_file.robots` (warning when `robots.txt` disallows the key file path for every bot or an engine's bot;
+  `Checker::robotsDisallows()` is public), `key_file.previous` (with `previous_key`: the old key file still served is
+  the open rotation window, otherwise a warning) and the global `http.client` warning about redirects through a
+  custom client. `check` now fetches `/robots.txt` (and the previous key file) of every host after its key file.
 
 ## [0.7.0] — 2026-09-06
 

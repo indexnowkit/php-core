@@ -24,6 +24,7 @@ global lines have `null` there.
 | `config.engines` | ok | the resolved engine list |
 | `config.delivery` | ok | dispatch, debounce window, batch size, throttle, timeout |
 | `config.hosts` | error | no host to check at all (no `base_url`, no `hosts`) |
+| `http.client` | warning | a custom `http.client` fetches the key files: if it follows redirects, a 30x to a catch-all page looks like a 200 |
 | `key.missing` (host) | error | no key for the host |
 | `key.invalid` (host) | error | the key fails `KeyValidator` |
 | `key_file.location` (host) | error | `key_location` points to another host (engines answer 422) |
@@ -31,6 +32,10 @@ global lines have `null` there.
 | `key_file.status` (host) | ok, error | `GET /<key>.txt`: ok on 200 with the key as body; error on any other status |
 | `key_file.body` (host) | error | 200 with a body that is not the key (a catch-all route) |
 | `key_file.fetch` (host) | error | the key file could not be fetched (network error, no HTTP client) |
+| `key_file.content_type` (host) | ok, warning, error | after a matching key file: `text/plain` ok; no `Content-Type` header warning; another type error; one neutral ok line when the transport exposes no headers |
+| `key_file.cache_control` (host) | ok, warning | after a matching key file: `Cache-Control` lifetime (`s-maxage`, else `max-age`) or `Age` above `key_file.cache_max_age` is a warning (a rotation would serve the old key for that long); absent header: no line |
+| `key_file.robots` (host) | ok, warning | `robots.txt` (when it answers 200): a `Disallow` covering the key file path for every bot or an engine's bot is a warning |
+| `key_file.previous` (host) | ok, warning | `previous_key` set: the old key file still answers 200 with the old key (ok: rotation window open), or not (warning) |
 | `probe.config` (host) | error | `--live`: the live configuration cannot be built |
 | `probe.response` (host) | ok, warning, error | `--live`: one line per engine: 200 ok, 202 warning (verification pending), anything else error |
 | `check.failed` | error | a registered `CheckInterface` threw; the line names the class |

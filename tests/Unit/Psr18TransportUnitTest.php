@@ -99,6 +99,23 @@ final class Psr18TransportUnitTest extends TestCase
         self::assertSame(5000, \strlen($response->body));
     }
 
+    public function testResponseHeadersAreExposedLowerCasedOnGetPostAndDownload(): void
+    {
+        $f = $this->factory();
+        $client = new StubPsr18Client(new Psr7Response(200, ['Content-Type' => 'text/plain; charset=utf-8', 'Cache-Control' => ['public', 'max-age=300'], 'Age' => '12'], 'k'));
+        $transport = new Psr18Transport($client, $f, $f);
+
+        $get = $transport->get('https://h.example.com/k.txt');
+        self::assertSame(['content-type' => 'text/plain; charset=utf-8', 'cache-control' => 'public, max-age=300', 'age' => '12'], $get->headers, 'several values are joined as one header line');
+        self::assertSame('text/plain', $get->contentType());
+        self::assertSame(300, $get->cacheMaxAge());
+        self::assertSame(12, $get->age());
+        self::assertSame($get->headers, $transport->post('https://h.example.com/indexnow', '{}')->headers);
+        $sink = fopen('php://temp', 'w+');
+        self::assertNotFalse($sink);
+        self::assertSame($get->headers, $transport->download('https://h.example.com/k.txt', $sink)->headers);
+    }
+
     public function testDownloadStreamsTheBodyIntoTheSinkWithoutBufferingIt(): void
     {
         $f = $this->factory();

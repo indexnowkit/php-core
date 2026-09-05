@@ -264,6 +264,135 @@ final class CheckerTest extends TestCase
         self::assertSame('h', $ok->items()[1]->host);
     }
 
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('keyFileHeaderProvider')]
+    #[TestDox('key file headers: $_dataName')]
+    public function testKeyFileHeaders(array $headers, string $code, string $level, string $fragment): void
+    {
+        $config = Factory::config();
+        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY, headers: $headers));
+        $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+
+        $matching = array_values(array_filter($report->items(), static fn(CheckItem $i): bool => $i->code === $code));
+        self::assertCount(1, $matching, $code);
+        self::assertSame($level, $matching[0]->level->value, $matching[0]->message);
+        self::assertStringContainsString($fragment, $matching[0]->message);
+        self::assertSame('www.example.com', $matching[0]->host);
+    }
+
+    /**
+     * @return iterable<string, array{0: array<string, string>, 1: string, 2: string, 3: string}>
+     */
+    public static function keyFileHeaderProvider(): iterable
+    {
+        yield 'no headers at all (a transport that exposes none) is one neutral line' => [[], 'key_file.content_type', 'ok', 'Content-Type unknown (this transport does not expose headers)'];
+        yield 'text/plain with a charset is ok' => [['Content-Type' => 'text/plain; charset=UTF-8'], 'key_file.content_type', 'ok', 'Content-Type text/plain'];
+        yield 'another type is an error' => [['content-type' => 'text/html'], 'key_file.content_type', 'error', 'served as text/html, not text/plain'];
+        yield 'headers exposed but no Content-Type is a warning' => [['Cache-Control' => 'max-age=60'], 'key_file.content_type', 'warning', 'without a Content-Type header'];
+        yield 'max-age at the limit is ok' => [['Content-Type' => 'text/plain', 'Cache-Control' => 'public, max-age=300'], 'key_file.cache_control', 'ok', 'cached for at most 300s'];
+        yield 'max-age over key_file.cache_max_age is a warning' => [['Content-Type' => 'text/plain', 'Cache-Control' => 'max-age=86400'], 'key_file.cache_control', 'warning', 'caching for 86400s, longer than key_file.cache_max_age (300s)'];
+        yield 's-maxage wins over max-age' => [['Content-Type' => 'text/plain', 'Cache-Control' => 'max-age=60, s-maxage=3600'], 'key_file.cache_control', 'warning', 'caching for 3600s'];
+        yield 'an Age over the limit is a warning about the CDN' => [['Content-Type' => 'text/plain', 'Cache-Control' => 'max-age=300', 'Age' => '7200'], 'key_file.cache_control', 'warning', 'came from a cache 7200s old'];
+    }
+
+    #[TestDox('key file headers: the cache line is absent without a Cache-Control header, and the header checks run only for a matching key file')]
+    public function testKeyFileHeadersOnlyWhenTheKeyFileMatches(): void
+    {
+        $config = Factory::config();
+        $codes = static fn(\IndexNowKit\Check\CheckReport $r): array => array_values(array_filter(array_map(static fn(CheckItem $i): ?string => $i->code, $r->items()), static fn(?string $c): bool => $c !== null && str_starts_with($c, 'key_file.')));
+
+        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY, headers: ['Content-Type' => 'text/plain']));
+        self::assertSame(['key_file.status', 'key_file.content_type'], $codes((new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run()));
+
+        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, '<html>', headers: ['Content-Type' => 'text/html']));
+        self::assertSame(['key_file.body'], $codes((new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run()), 'a wrong body is the error; its Content-Type is not judged on top');
+    }
+
+    #[TestDox('robots.txt: a Disallow covering the key file path (for every bot or an engine bot) is a warning; Allow wins on the longer match; other bots and 404 print nothing')]
+    public function testRobotsTxt(): void
+    {
+        $config = Factory::config();
+        $keyUrl = 'https://www.example.com/' . Factory::KEY . '.txt';
+        $robots = function (?string $body, ?int $status = 200) use ($config, $keyUrl): array {
+            $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY));
+            if ($body !== null) {
+                $t->onGet('https://www.example.com/robots.txt', new Response($status ?? 200, $body));
+            }
+            $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+            $items = array_values(array_filter($report->items(), static fn(CheckItem $i): bool => $i->code === 'key_file.robots'));
+            self::assertContains('https://www.example.com/robots.txt', $t->gets, 'robots.txt is fetched once the key file is');
+
+            return array_map(static fn(CheckItem $i): string => $i->level->value . ' ' . $i->message, $items);
+        };
+
+        self::assertSame([], $robots(null), 'no robots.txt: nothing to say');
+        self::assertSame([], $robots('User-agent: *' . "\n" . 'Disallow: /', 500));
+        self::assertSame(['ok www.example.com: robots.txt does not block the key file'], $robots("User-agent: *\nDisallow: /admin/\nDisallow: /api\n"));
+        self::assertSame(['warning www.example.com: robots.txt disallows the key file (Disallow: /): engines cannot fetch /' . KeyValidator::mask(Factory::KEY) . '.txt to verify the key. Allow it (Allow: /' . KeyValidator::mask(Factory::KEY) . '.txt) or move the rule.'], $robots("User-agent: *\nDisallow: /\n"));
+        self::assertStringStartsWith('warning', $robots("# comment\nUser-agent: bingbot\nDisallow: /*.txt$\n")[0], 'an engine bot with a wildcard rule');
+        self::assertStringStartsWith('warning', $robots("User-agent: Googlebot\nDisallow: /nothing\n\nUser-agent: YandexBot\nUser-agent: bingbot\nDisallow: /" . substr(Factory::KEY, 0, 4) . "\n")[0], 'a group of several engine bots');
+        self::assertStringStartsWith('ok', $robots("User-agent: Googlebot\nDisallow: /\n")[0], 'Google does not take part in IndexNow');
+        self::assertStringStartsWith('ok', $robots("User-agent: *\nDisallow: /\nAllow: /" . Factory::KEY . ".txt\n")[0], 'the longer Allow wins');
+        self::assertStringStartsWith('ok', $robots("User-agent: *\nDisallow: /\nAllow: /*.txt\n")[0], 'a longer wildcard Allow wins too');
+        self::assertStringStartsWith('warning', $robots("User-agent: *\nAllow: /\nDisallow: /" . Factory::KEY . ".txt\n")[0], 'the longer Disallow wins');
+
+        self::assertNull(Checker::robotsDisallows("User-agent: *\nDisallow:\n", '/k.txt'), 'an empty Disallow allows everything');
+        self::assertSame('Disallow: /k', Checker::robotsDisallows("user-agent: *\ndisallow: /k\n", '/k.txt'), 'field names are case-insensitive');
+    }
+
+    #[TestDox('previous_key: the old key file still served is ok (rotation window open); missing, another body or unreachable is a warning; per-host previous_key wins')]
+    public function testPreviousKey(): void
+    {
+        $old = 'oldkey1234567890';
+        $keyUrl = 'https://www.example.com/' . Factory::KEY . '.txt';
+        $lines = function (array $overrides, FakeTransport $t): array {
+            $config = Factory::config($overrides);
+            $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+
+            return array_map(static fn(CheckItem $i): string => $i->level->value . ' ' . $i->message, array_values(array_filter($report->items(), static fn(CheckItem $i): bool => $i->code === 'key_file.previous')));
+        };
+
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY));
+        self::assertSame([], $lines([], $t), 'no previous_key: no line');
+        self::assertNotContains('https://www.example.com/' . $old . '.txt', $t->gets);
+
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY))->onGet('https://www.example.com/' . $old . '.txt', new Response(200, $old . "\n"));
+        self::assertSame(['ok www.example.com: previous key file OK (https://www.example.com/' . KeyValidator::mask($old) . '.txt): rotation window open; remove previous_key once check --live is green'], $lines(['previous_key' => $old], $t));
+
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY));
+        $warning = $lines(['previous_key' => $old], $t);
+        self::assertCount(1, $warning);
+        self::assertStringStartsWith('warning www.example.com: previous_key is set but https://www.example.com/' . KeyValidator::mask($old) . '.txt answers HTTP 404:', $warning[0]);
+        self::assertStringNotContainsString($old, $warning[0], 'the old key is masked too');
+
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY))->onGet('https://www.example.com/' . $old . '.txt', new Response(200, 'something else'));
+        self::assertStringContainsString('answers HTTP 200 with another body', $lines(['previous_key' => $old], $t)[0]);
+
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY))->onGet('https://www.example.com/' . $old . '.txt', FakeTransport::failing('timeout'));
+        self::assertStringContainsString('cannot be fetched (timeout)', $lines(['previous_key' => $old], $t)[0]);
+
+        $perHost = 'perhostkey123456';
+        $t = (new FakeTransport())->onGet($keyUrl, new Response(200, Factory::KEY))->onGet('https://www.example.com/' . $perHost . '.txt', new Response(200, $perHost));
+        self::assertStringStartsWith('ok', $lines(['previous_key' => $old, 'hosts' => ['www.example.com' => ['key' => Factory::KEY, 'previous_key' => $perHost]]], $t)[0], 'hosts.<host>.previous_key wins over previous_key');
+    }
+
+    public function testCustomHttpClientIsAWarningAboutRedirects(): void
+    {
+        $config = Factory::config(['http' => ['client' => 'my.client']]);
+        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
+
+        $items = array_values(array_filter($report->items(), static fn(CheckItem $i): bool => $i->code === 'http.client'));
+        self::assertCount(1, $items);
+        self::assertSame(CheckLevel::Warning, $items[0]->level);
+        self::assertStringContainsString('"my.client"', $items[0]->message);
+        self::assertStringContainsString('follows redirects', $items[0]->message);
+        self::assertNull($items[0]->host, 'one global line, not one per host');
+        self::assertSame([], array_filter((new Checker(Factory::config(), StaticKeyProvider::fromConfig(Factory::config()), $t))->run()->items(), static fn(CheckItem $i): bool => $i->code === 'http.client'), 'silent with the discovered client (check already uses one without redirects)');
+    }
+
     public function testManagedHostsFromProviderAreAllChecked(): void
     {
         $config = Config::fromArray(['hosts' => ['a.example.com' => Factory::KEY, 'b.example.com' => Factory::KEY]]);
