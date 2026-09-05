@@ -63,6 +63,7 @@ composer require indexnowkit/core symfony/http-client nyholm/psr7   # подой
 | [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: observer Eloquent, очередь, маршрут файла ключа, artisan-команды |
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: события ActiveRecord с проверкой на коммите, yii2-queue, консольный контроллер |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | читает sitemap (индекс, gzip, текст) и отправляет его URL; команда `sitemap` каждого адаптера |
+| [`indexnowkit/console`](https://github.com/indexnowkit/php/tree/main/packages/console) | тела команд `check`, `submit`, `submit-<subject>`, `explain`, `key:generate` и их определения (`symfony/console`); его требует каждый адаптер |
 | [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: киты соответствия (C01–C22, A01–A21), ассерции H01–H05, mock-сервер IndexNow |
 
 ## Быстрый старт
@@ -297,7 +298,7 @@ self::assertSame(['https://www.example.com/posts/hello'], $transport->posts[0]['
 `Adapter\ConfigFactory` превращает сырой массив фреймворка в `Config`, никогда не бросая из хука. Контейнер, который
 собирается в рантайме, описывает весь граф один раз через `Adapter\ServicesBuilder` и лениво получает его из
 `Adapter\Services`; ORM-хуки делят `Hook\ObserverHelper`, задачи очередей — `Retry\WorkerOutcome`, команды —
-`Console\Definitions`. Пишете адаптер? [docs/adapters.md](docs/adapters.md).
+раннеры и `Console\Definitions` из `indexnowkit/console`. Пишете адаптер? [docs/adapters.md](docs/adapters.md).
 
 ## Исключения
 

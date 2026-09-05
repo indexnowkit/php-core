@@ -22,6 +22,13 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   indexnowkit/testing` and change the three `use` lines. The mock server is
   `vendor/indexnowkit/testing/resources/mock-server/router.php`. The four test doubles (`FakeTransport`, `ArrayLogger`,
   `FrozenClock`, `RecordingDispatcher`) stay in the core; `phpunit/phpunit` leaves `suggest`.
+- **`Console\*` is the `indexnowkit/console` package** (spec 17 §4.2: the runners render through `symfony/console`,
+  which the core only suggested; a plain-PHP or Doctrine user never needed them). The 16 classes keep their FQCN
+  (`Console\*Runner`, `ResultRenderer`, `ResultFormatterInterface`, `SubjectLoaderInterface`, `SubmitSubjectsOptions`,
+  `Definitions`, `CommandDefinition`, `ArgumentDefinition`, `OptionDefinition`, `Vocabulary`, `ExitCode`,
+  `ClassNameResolver`): `composer require indexnowkit/console` and nothing else changes — the framework adapters
+  require it for you. `symfony/console` leaves `suggest` and `require-dev` of the core; nothing under `src/` imports
+  `Symfony\Component\Console\` or `PHPUnit\` any more.
 
 ### Added
 

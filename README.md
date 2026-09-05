@@ -64,6 +64,7 @@ changes. The family:
 | [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: Eloquent observer, queue, key file route, artisan commands |
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: ActiveRecord events with verify-on-commit, yii2-queue, console controller |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | reads a sitemap (index, gzip, text) and submits its URLs; the `sitemap` command of every adapter |
+| [`indexnowkit/console`](https://github.com/indexnowkit/php/tree/main/packages/console) | the bodies of the `check`, `submit`, `submit-<subject>`, `explain`, `key:generate` commands and their definitions (`symfony/console`); every adapter requires it |
 | [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: the conformance kits (C01–C22, A01–A21), the H01–H05 assertions, the mock IndexNow server |
 
 ## Quick start
@@ -294,8 +295,8 @@ have factories with one source of error texts — `Http\TransportFactory::lazy()
 (`dispatch`), `fromConfig()` on `Collector`, `TokenBucket`, `AttributeUrlResolver` and `KeyFileResponder` — and
 `Adapter\ConfigFactory` turns a raw framework array into a `Config` without ever throwing from a hook. A container
 that assembles at runtime describes the whole graph once with `Adapter\ServicesBuilder` and gets it lazily from
-`Adapter\Services`; ORM hooks share `Hook\ObserverHelper`, queue jobs `Retry\WorkerOutcome`, commands
-`Console\Definitions`. Writing an adapter? [docs/adapters.md](docs/adapters.md).
+`Adapter\Services`; ORM hooks share `Hook\ObserverHelper`, queue jobs `Retry\WorkerOutcome`, commands the runners and
+`Console\Definitions` of `indexnowkit/console`. Writing an adapter? [docs/adapters.md](docs/adapters.md).
 
 ## Exceptions
 

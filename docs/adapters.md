@@ -442,9 +442,9 @@ the real rate limiting in the queue worker. Both take a `Psr\Clock\ClockInterfac
 
 ## 14. Diagnostics users will ask for
 
-Ship six commands. They are what turns "it does not work" into a self-service answer, and their bodies are in the
-core (`Console\*Runner`, rendering to a `Symfony\Component\Console\Style\SymfonyStyle`; Laravel's `OutputStyle`
-is one). A framework command parses its arguments and calls the runner; every framework prints the same thing.
+Ship six commands. They are what turns "it does not work" into a self-service answer, and their bodies are the
+`indexnowkit/console` package (`Console\*Runner`, rendering to a `Symfony\Component\Console\Style\SymfonyStyle`;
+Laravel's `OutputStyle` is one; require it — the core itself does not depend on `symfony/console`). A framework command parses its arguments and calls the runner; every framework prints the same thing.
 
 | Command | Runner | What the adapter supplies |
 |---|---|---|
@@ -516,8 +516,8 @@ Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowki
 The bundle and the Laravel package sit on layer 1 (the static factories and `Adapter\ConfigFactory`, one service or
 binding per node, because those ids are their public API); the Yii2 component sits on layer 2
 (`Adapter\ServicesBuilder`, the graph described once, the pieces exposed as delegates). All of them share
-`Hook\ObserverHelper` in the observers, `Retry\WorkerOutcome` in the queue jobs and `Console\Definitions` in the
-commands.
+`Hook\ObserverHelper` in the observers, `Retry\WorkerOutcome` in the queue jobs and `Console\Definitions`
+(`indexnowkit/console`) in the commands.
 
 | Section | `doctrine` | `symfony-bundle` | `laravel` | `yii2` |
 |---|---|---|---|---|
@@ -556,7 +556,7 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
       or a runtime-assembled container over `Adapter\ServicesBuilder` with `queueFactory()`.
 - [ ] Flush at the end of every unit of work (request, command, queue message); `Collector::reset()` in long-running runtimes.
 - [ ] `KeyFileResponder::fromConfig()` + `Config::keyFileHeaders()` on a route without session or CSRF; H01–H03 green.
-- [ ] Six commands over the core runners (`sitemap` from `indexnowkit/sitemap`), their inputs from
+- [ ] Six commands over the runners of `indexnowkit/console` (`sitemap` from `indexnowkit/sitemap`), their inputs from
       `Console\Definitions` / `Sitemap\Console\Definitions` (no own option descriptions), `check` with your
       `CheckInterface` lines plus `Check\DebounceStoreCheck` (with a probe) and `Sitemap\Check\SitemapSpoolCheck`.
 - [ ] `indexnowkit/sitemap` in `suggest` and `require-dev`, behind one predicate (§2 "Optional packages"): without it
