@@ -168,6 +168,10 @@ Symfony and Yii2, `queue` in Laravel) and `debounce.store` (`cache.app` / `cache
 
 The `sitemap` block is the same in the three adapters and is owned by the sitemap package: `sitemap.enabled`, `sitemap.url`, `sitemap.max_depth`, `sitemap.max_sitemaps`, `sitemap.max_bytes`, `sitemap.allow_foreign_hosts`, `sitemap.spool`, `sitemap.spool_dir`, `sitemap.fetch_retries`.
 
+### Verify keys (`indexnowkit/verify`)
+
+The `verify` block is the same in the three adapters and is owned by the verify package (its `docs/configuration.md` has the table): `verify.enabled`, `verify.redirect`, `verify.non_canonical`, `verify.origin_error`, `verify.delay`, `verify.timeout`, `verify.max_redirects`, `verify.max_batch`, `verify.robots_cache_ttl`, `verify.user_agent`.
+
 ### One concept, three keys
 
 | Concept | Symfony (`indexnowkit:`) | Laravel (`config/indexnow.php`) | Yii2 (`options`) | Notes |
