@@ -359,7 +359,7 @@ $results = $indexNow->submit(['/posts/hello']);              // list<IndexNowKit
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (в планах) |
 | Python | `indexnowkit`, `indexnowkit-django` (в планах) |
 
-Обоснование архитектуры и межъязыковая модель: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
+Обоснование архитектуры и межъязыковая модель: [docs/spec](https://github.com/indexnowkit/spec).
 Conformance-набор: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
 MIT. IndexNow — товарный знак его владельца; проект независимый и не связан с Microsoft, Яндексом или indexnow.org.

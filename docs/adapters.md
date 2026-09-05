@@ -2,7 +2,7 @@
 
 For someone who has never read this package's source and wants a working framework adapter by the end of the day.
 Every section names the core types involved and the conformance scenarios from
-[docs/spec/03-conformance.md](https://github.com/indexnowkit/php/blob/main/docs/spec/03-conformance.md) it satisfies.
+[docs/spec/03-conformance.md](https://github.com/indexnowkit/spec/blob/main/03-conformance.md) it satisfies.
 
 ## 1. Is an adapter the right thing?
 
@@ -507,7 +507,7 @@ Name it `indexnowkit/<framework>`, require `indexnowkit/core ^0.5`, keep the fra
 optional pieces in `suggest` (`indexnowkit/sitemap ^0.1.1` for the `sitemap` command and its `Definitions`, wired as
 in §2 "Optional packages"; keep it in `require-dev` so the tests cover both states). Run a version matrix in CI over the framework's supported majors and LTS releases,
 static analysis at the maximum level, and publish EN plus RU READMEs following the family table used here. The
-Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowkit/php/blob/main/docs/spec/91-roadmap.md).
+Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowkit/spec/blob/main/91-roadmap.md).
 
 ## 18. Reference adapters
 

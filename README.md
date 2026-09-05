@@ -356,7 +356,7 @@ $results = $indexNow->submit(['/posts/hello']);              // list<IndexNowKit
 | JS/TS | `@indexnowkit/core`, `next`, `prisma` (planned) |
 | Python | `indexnowkit`, `indexnowkit-django` (planned) |
 
-Design rationale and the cross-language model: [docs/spec](https://github.com/indexnowkit/php/tree/main/docs/spec).
+Design rationale and the cross-language model: [docs/spec](https://github.com/indexnowkit/spec).
 Conformance suite: [indexnowkit/spec](https://github.com/indexnowkit/spec).
 
 MIT. IndexNow is a trademark of its owner; this project is independent and not affiliated with Microsoft, Yandex or indexnow.org.
