@@ -29,6 +29,7 @@ use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\AttributeUrlResolver;
 use IndexNowKit\Url\RuleAwareUrlResolverInterface;
+use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
@@ -67,6 +68,22 @@ final class FactoriesTest extends TestCase
         self::assertSame([], $located, 'nothing is resolved until the first request');
         self::assertInstanceOf(Psr18Transport::class, $lazy->transport());
         self::assertSame(['app.client'], $located);
+
+        $recording = new class implements ClientInterface {
+            /** @var list<RequestInterface> */
+            public array $seen = [];
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->seen[] = $request;
+
+                return (new Psr17Factory())->createResponse(204);
+            }
+        };
+        $withHeaders = TransportFactory::lazy(Factory::config(['http' => ['client' => 'app.client']]), static fn(string $id): object => $recording, ['User-Agent' => 'indexnowkit-verify/0.1']);
+        $withHeaders->get('https://www.example.com/page');
+        self::assertCount(1, $recording->seen);
+        self::assertSame('indexnowkit-verify/0.1', $recording->seen[0]->getHeaderLine('User-Agent'), 'extra headers of the factory go on every request, GETs included');
 
         try {
             TransportFactory::lazy(Factory::config(['http' => ['client' => 'app.client']]));

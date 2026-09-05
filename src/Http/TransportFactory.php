@@ -22,20 +22,22 @@ final class TransportFactory
      * container binding, a service id, a class name) and the result must be a PSR-18 client.
      *
      * @param (Closure(string): mixed)|null $clientLocator how the adapter resolves `http.client`; required when it is set
+     * @param array<string, string>         $extraHeaders  sent with every request of this transport (a `User-Agent` for
+     *                                                     GETs, which take no headers; POSTs carry `http.user_agent`)
      */
-    public static function lazy(Config $config, ?Closure $clientLocator = null): LazyTransport
+    public static function lazy(Config $config, ?Closure $clientLocator = null, array $extraHeaders = []): LazyTransport
     {
         $id = $config->httpClient;
         if ($id !== null && $clientLocator === null) {
             throw new ConfigurationException(\sprintf('"http.client" is "%s" but this adapter has no way to resolve it; pass a client locator or unset the option.', $id));
         }
 
-        return new LazyTransport(static function () use ($config, $id, $clientLocator): TransportInterface {
+        return new LazyTransport(static function () use ($config, $id, $clientLocator, $extraHeaders): TransportInterface {
             if ($id === null || $clientLocator === null) {
-                return Psr18Transport::discover(timeout: $config->httpTimeout);
+                return Psr18Transport::discover(timeout: $config->httpTimeout, extraHeaders: $extraHeaders);
             }
 
-            return Psr18Transport::discover(self::psr18($clientLocator($id), $id), $config->httpTimeout);
+            return Psr18Transport::discover(self::psr18($clientLocator($id), $id), $config->httpTimeout, $extraHeaders);
         });
     }
 

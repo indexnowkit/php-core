@@ -19,6 +19,9 @@ failure cache of `Client`) live one minor unchanged. `indexnowkit/verify` and `i
   `Client` builds it from its unchanged constructor arguments (`$failureCache`, `$failureCacheTtl`); its behaviour and
   tests did not change. `Adapter\Services::forbiddenCounter()` returns a reader over the same cache, prefix and
   threshold — what `indexnow:status` of `indexnowkit/history` prints per host.
+- **`Http\TransportFactory::lazy(..., array $extraHeaders = [])`** and **`Http\Psr18Transport::discover(..., array
+  $extraHeaders = [])`** (appended): headers sent with every request of that transport. `TransportInterface::get()`
+  takes no headers, so this is how `indexnowkit/verify` sends its own `User-Agent` on the pre-flight GETs.
 
 ## [0.8.0] — 2026-09-06
 

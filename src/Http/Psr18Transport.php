@@ -57,17 +57,19 @@ final class Psr18Transport implements StreamingTransportInterface
      * Without an explicit client, symfony/http-client or guzzlehttp/guzzle (whichever is installed) is
      * configured with $timeout and without redirects; any other discovered client keeps its own defaults.
      *
-     * @param float|null $timeout seconds, applied only to clients this method creates
+     * @param float|null            $timeout      seconds, applied only to clients this method creates
+     * @param array<string, string> $extraHeaders sent with every request (a `User-Agent` for GETs, which take no headers)
      *
      * @throws ConfigurationException when no PSR-18 client or PSR-17 factories can be found
      */
-    public static function discover(?ClientInterface $client = null, ?float $timeout = null): self
+    public static function discover(?ClientInterface $client = null, ?float $timeout = null, array $extraHeaders = []): self
     {
         try {
             return new self(
                 $client ?? self::createClient($timeout),
                 Psr17FactoryDiscovery::findRequestFactory(),
                 Psr17FactoryDiscovery::findStreamFactory(),
+                $extraHeaders,
             );
         } catch (NotFoundException $e) {
             throw new ConfigurationException('No PSR-18 HTTP client / PSR-17 factories found. Install e.g. "symfony/http-client" and "nyholm/psr7", or pass a client explicitly.', 0, $e);
