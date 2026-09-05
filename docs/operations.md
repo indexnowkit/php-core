@@ -284,10 +284,15 @@ worker. A throttle that throws never blocks delivery: the request goes out unlim
 Rotating a key breaks submissions until the new key file is reachable, because engines answer 403 for a key whose
 file they cannot verify.
 
-1. Serve the **new** key file first, alongside the old one if your setup allows it.
+1. Serve the **new** key file first, alongside the old one if your setup allows it. With the shipped key file
+   route, `previous_key` (`INDEXNOW_PREVIOUS_KEY`) does exactly that: the route answers for both keys, submissions
+   use the new one only.
 2. Keep `Cache-Control` short. `KeyFileResponder::DEFAULT_MAX_AGE` is 300 seconds for exactly this reason: a CDN
    holding the old file for a day means a day of 403s.
-3. Switch the configured key.
+3. Switch the configured key. `key:generate --write-env --force` does the whole step in the env file: the new key
+   goes to `INDEXNOW_KEY`, the old one to `INDEXNOW_PREVIOUS_KEY`. It refuses to rotate while
+   `INDEXNOW_PREVIOUS_KEY` still holds the key of an earlier rotation (engines may still verify against it):
+   remove the variable first, or pass `--no-previous` to drop the old key on purpose, or `--yes` to overwrite it.
 4. Run the check command. `Checker` fetches every key file over HTTP and compares the body, its `Content-Type`
    and its `Cache-Control`/`Age` against `key_file.cache_max_age`, and `robots.txt`; `--live` sends a real probe to
    every endpoint even when `dry_run` is on. With `previous_key` set, the old key file is fetched too: `previous key
