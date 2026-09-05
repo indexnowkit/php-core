@@ -72,7 +72,9 @@ final class Submitter implements SubmitterInterface
         }
 
         if ($ttl > 0) {
-            $sent = Result::urlsWhere($results, static fn(Result $r): bool => $r->isSuccess());
+            // A URL accepted by one engine but retryable (429, 5xx, transport) at another is not marked: the retry of
+            // the failed engine must pass the window. A permanent refusal (403, 422) at one engine does not unmark it.
+            $sent = array_values(array_diff(Result::urlsWhere($results, static fn(Result $r): bool => $r->isSuccess()), Result::retryableUrls($results)));
             if ($sent !== []) {
                 try {
                     $this->debounce->markSubmitted($sent, $ttl);

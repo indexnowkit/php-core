@@ -124,6 +124,54 @@ final class SubmitterTest extends TestCase
         self::assertSame(['https://blocked.example.com/b'], $t->posts[2]['body']['urlList']);
     }
 
+    public function testDebounceDoesNotMarkAUrlThatOneEngineStillHasToRetry(): void
+    {
+        // api accepts, yandex answers 503 (retryable): the URL stays out of the window so the retry reaches yandex.
+        $t = (new FakeTransport())->willRespond(new Response(200), new Response(503), new Response(200), new Response(200));
+        $config = Factory::config(['debounce' => ['per_url' => 600], 'engines' => ['api', 'yandex']]);
+        $store = new MemoryDebounceStore(new FrozenClock());
+        $submitter = Factory::submitter($t, $config, null, $store);
+
+        $results = $submitter->submit(['https://www.example.com/a']);
+        self::assertSame(['https://www.example.com/a'], Result::retryableUrls($results));
+        self::assertSame([], $store->filterRecent(['https://www.example.com/a'], 600), 'not marked');
+
+        $submitter->submit(['https://www.example.com/a']);
+        self::assertCount(4, $t->posts, 'the retry went to both engines');
+        self::assertSame(['https://www.example.com/a'], $store->filterRecent(['https://www.example.com/a'], 600), 'marked once every engine accepted');
+    }
+
+    public function testDebounceMarksAUrlPermanentlyRefusedByOneEngine(): void
+    {
+        // api accepts, yandex answers 403 (not retryable): a retry would not help, the successful engine is not punished.
+        $t = (new FakeTransport())->willRespond(new Response(200), new Response(403));
+        $config = Factory::config(['debounce' => ['per_url' => 600], 'engines' => ['api', 'yandex']]);
+        $store = new MemoryDebounceStore(new FrozenClock());
+        $submitter = Factory::submitter($t, $config, null, $store);
+
+        $results = $submitter->submit(['https://www.example.com/a']);
+        self::assertSame([], Result::retryableUrls($results));
+        self::assertSame(['https://www.example.com/a'], $store->filterRecent(['https://www.example.com/a'], 600), 'marked');
+
+        $submitter->submit(['https://www.example.com/a']);
+        self::assertCount(2, $t->posts, 'debounced');
+    }
+
+    public function testDebounceWithOneEngineDryRunAndInvalidUrlsIsUnchanged(): void
+    {
+        $t = (new FakeTransport())->willRespond(new Response(503), new Response(200));
+        $store = new MemoryDebounceStore(new FrozenClock());
+        $submitter = Factory::submitter($t, Factory::config(['debounce' => ['per_url' => 600]]), null, $store);
+        $submitter->submit(['https://www.example.com/retry', 'not a url']);
+        self::assertSame([], $store->filterRecent(['https://www.example.com/retry'], 600), 'a retryable failure alone is not marked');
+        $submitter->submit(['https://www.example.com/retry']);
+        self::assertSame(['https://www.example.com/retry'], $store->filterRecent(['https://www.example.com/retry'], 600));
+
+        $dry = new MemoryDebounceStore(new FrozenClock());
+        Factory::submitter(new FakeTransport(), Factory::config(['debounce' => ['per_url' => 600], 'dry_run' => true]), null, $dry)->submit(['https://www.example.com/a']);
+        self::assertSame([], $dry->filterRecent(['https://www.example.com/a'], 600), 'dry_run marks nothing');
+    }
+
     public function testDisabledConfigReturnsSkippedResultsAndLogsInfo(): void
     {
         $t = new FakeTransport();
