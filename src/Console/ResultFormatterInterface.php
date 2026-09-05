@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Console;
 
 use IndexNowKit\Result;
+use IndexNowKit\Submission\ResultSummary;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**

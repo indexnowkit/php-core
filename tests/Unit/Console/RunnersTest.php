@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit\Console;
 
+use IndexNowKit\Adapter\SubmitterFactory;
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow;
 use IndexNowKit\Check\Checker;
@@ -15,12 +16,10 @@ use IndexNowKit\Console\ExitCode;
 use IndexNowKit\Console\ExplainRunner;
 use IndexNowKit\Console\KeyGenerateRunner;
 use IndexNowKit\Console\ResultRenderer;
-use IndexNowKit\Console\ResultSummary;
 use IndexNowKit\Console\SubjectLoaderInterface;
 use IndexNowKit\Console\SubmitRunner;
 use IndexNowKit\Console\SubmitSubjectsOptions;
 use IndexNowKit\Console\SubmitSubjectsRunner;
-use IndexNowKit\Console\SubmitterFactory;
 use IndexNowKit\Console\Vocabulary;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Event;
@@ -29,6 +28,7 @@ use IndexNowKit\Exception\InvalidArgumentException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\KeyValidator;
+use IndexNowKit\Submission\ResultSummary;
 use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\NullThrottle;

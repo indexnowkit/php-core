@@ -16,8 +16,6 @@ use IndexNowKit\ClientInterface;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Collector\CollectorInterface;
 use IndexNowKit\Config;
-use IndexNowKit\Console\SubmitterFactory;
-use IndexNowKit\Console\SubmitterFactoryInterface;
 use IndexNowKit\Debounce\DebounceStoreFactory;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Dispatch\DispatcherFactory;
@@ -229,7 +227,7 @@ final class Services
         return $this->checker;
     }
 
-    /** `Console\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
+    /** `Adapter\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
     public function submitterFactory(): SubmitterFactoryInterface
     {
         return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events);

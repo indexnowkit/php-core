@@ -457,9 +457,9 @@ is one). A framework command parses its arguments and calls the runner; every fr
 The sixth command, which submits the site's own URL list, is an add-on package (see the family table in the README):
 its runner, options and check live there, and its `docs/adapters.md` says how to wire the command.
 
-Shared by all of them: `Console\SubmitterFactoryInterface` (`SubmitterFactory`: the separate submitter `--force` and
+Shared by all of them: `Adapter\SubmitterFactoryInterface` (`SubmitterFactory`: the separate submitter `--force` and
 `--dry-run` build, `SubmitterFactory::choose()` picks it or the application's), `Console\ResultFormatterInterface`
-(`ResultRenderer`: table or `--json`; an application replaces it to match its own CLI), `Console\ResultSummary`
+(`ResultRenderer`: table or `--json`; an application replaces it to match its own CLI), `Submission\ResultSummary`
 (a run that submits in many batches folds results into counts) and `Console\Vocabulary` (the words that differ: "entity" /
 "model", `bin/console` / `php artisan`, where the configuration lives). Expose the three interfaces under stable
 service ids so an application can decorate them, and expose the runners too: a tenant loop over

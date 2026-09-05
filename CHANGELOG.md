@@ -5,6 +5,16 @@ contain breaking changes, listed under "Changed". What the compatibility promise
 
 ## [Unreleased]
 
+### Changed
+
+- **`Console\SubmitterFactory` and `Console\SubmitterFactoryInterface` are `Adapter\SubmitterFactory` and
+  `Adapter\SubmitterFactoryInterface`; `Console\ResultSummary` is `Submission\ResultSummary`** (spec 17 §4.2: they are
+  called from `Adapter\Services` and the adapters, not only from the commands, so they stay in the core when the
+  commands move to `indexnowkit/console`). Migration: change the `use` lines —
+  `use IndexNowKit\Adapter\SubmitterFactory;`, `use IndexNowKit\Adapter\SubmitterFactoryInterface;`,
+  `use IndexNowKit\Submission\ResultSummary;`. `Adapter\Services::submitterFactory()` returns
+  `Adapter\SubmitterFactoryInterface`. Nothing else changes: same constructors, same methods.
+
 ### Added
 
 - `Testing\ReadmeAssertions`: what the "Notes for AI assistants" README section must keep (present in EN and RU, a

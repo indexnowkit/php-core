@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace IndexNowKit\Console;
+namespace IndexNowKit\Adapter;
 
 use IndexNowKit\SubmitterInterface;
 

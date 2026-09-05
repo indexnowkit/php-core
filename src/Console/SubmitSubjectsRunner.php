@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Console;
 
+use IndexNowKit\Adapter\SubmitterFactory;
+use IndexNowKit\Adapter\SubmitterFactoryInterface;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\InvalidArgumentException;
 use IndexNowKit\IndexNowKit;
