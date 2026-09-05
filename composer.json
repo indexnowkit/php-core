@@ -12,7 +12,8 @@
         "naver",
         "seznam",
         "psr-18",
-        "indexing"
+        "indexing",
+        "psr-3"
     ],
     "homepage": "https://github.com/indexnowkit/php-core",
     "authors": [
@@ -46,6 +47,7 @@
         "phpstan/phpstan-phpunit": "^2.0.18",
         "phpstan/phpstan-strict-rules": "^2.0.12",
         "phpunit/phpunit": "^11.5",
+        "roave/security-advisories": "dev-latest",
         "symfony/cache": "^6.4 || ^7.0",
         "symfony/console": "^6.4 || ^7.0 || ^8.0",
         "symfony/http-client": "^6.4 || ^7.0"
@@ -83,7 +85,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.5.x-dev"
+            "dev-main": "0.6.x-dev"
         }
     }
 }

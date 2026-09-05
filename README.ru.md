@@ -12,7 +12,10 @@
 [![Downloads](https://img.shields.io/packagist/dt/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
 [![CI](https://github.com/indexnowkit/php/actions/workflows/ci.yml/badge.svg)](https://github.com/indexnowkit/php/actions)
 [![Conformance](https://img.shields.io/badge/conformance-core%2022%2F22-brightgreen)](https://github.com/indexnowkit/spec)
+![Coverage](https://img.shields.io/badge/coverage-%E2%89%A5%2081%25%20enforced-brightgreen)
+![PHPStan](https://img.shields.io/badge/phpstan-level%209-4c1)
 ![PHP](https://img.shields.io/badge/php-%5E8.2-777bb4)
+[![License](https://img.shields.io/packagist/l/indexnowkit/core)](LICENSE)
 
 ## Кто получит уведомление
 
