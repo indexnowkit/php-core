@@ -1,5 +1,7 @@
 # Attribute reference
 
+[Русская версия](attribute-reference.ru.md)
+
 A class declares a **list of rules**, one per family of public URLs it has. PHP writes them as attributes; every
 other language in the family writes decorators or config objects. All of them compile down to the same
 `IndexNowKit\Attribute\UrlRule`, and everything downstream — event classification, guards, locales, `via`

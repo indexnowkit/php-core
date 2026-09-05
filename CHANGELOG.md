@@ -27,6 +27,7 @@ contain breaking changes, listed under "Changed". What the compatibility promise
 - docs/attribute-reference.md "Anti-patterns": five declarations that submit the wrong thing (`url:` with a literal,
   a status string in `when:`, a rule on a `noindex` page, non-canonical URLs, no `when` on a model with drafts).
 - README and configuration.md: `batch.max_urls` is a ceiling, not a target.
+- Russian translations: docs/attribute-reference.ru.md, docs/configuration.ru.md (linked from README.ru.md).
 
 ## [0.6.0] — 2026-09-05
 

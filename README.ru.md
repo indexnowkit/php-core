@@ -204,7 +204,7 @@ class Offer
 рантайме, могут передать замыкание.
 
 Полная модель, таблица семантики и типы для адаптеров (`UrlRule`, `RuleSet`, `RuleRegistry`):
-[docs/attribute-reference.md](docs/attribute-reference.md).
+[docs/attribute-reference.ru.md](docs/attribute-reference.ru.md).
 
 ```php
 $indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), $router, $locator));
@@ -236,7 +236,7 @@ $rows = $indexNow->explain($post, Event::Updated);   // ResolvedUrl: какое 
 
 Есть ещё `key_file.enabled`, `http.user_agent` и `key_location`. Каждое значение проверяется в конструкторе, поэтому
 неверная настройка падает при старте, а не при первой отправке. Полный справочник, переопределения по хостам,
-`Config::with()`, `Config::OPTIONS` и `unknownOptions()`: [docs/configuration.md](docs/configuration.md).
+`Config::with()`, `Config::OPTIONS` и `unknownOptions()`: [docs/configuration.ru.md](docs/configuration.ru.md).
 
 ## Повторы, очереди и массовые отправки
 

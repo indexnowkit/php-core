@@ -1,5 +1,7 @@
 # Configuration
 
+[Русская версия](configuration.ru.md)
+
 `IndexNowKit\Config` is an immutable value object shared by every adapter. It is built in one of three ways and
 validated in the constructor, so a broken setup fails at boot instead of at the first submission.
 
