@@ -108,9 +108,12 @@ is the plain-PHP form of the same graph.
 `indexnowkit/sitemap` is `suggest`ed, not required: an adapter must work without it and say so where the user looks.
 The recipe, the same in the three reference adapters:
 
-- **One predicate per adapter**: `class_exists(\IndexNowKit\Sitemap\SitemapReader::class)`, overridable for
-  tests (a constructor parameter of the bundle's configuration and loader; an `@internal` static field
-  `SitemapSupport::$installed` in Laravel and Yii2).
+- **One predicate per adapter, `Adapter\OptionalPackage`**: `new OptionalPackage('indexnowkit/sitemap',
+  SitemapReader::class, 'sitemap', $installed)` — `installed()` is `class_exists()` of the marker unless the
+  adapter passes an override (`null` = detect; the bundle's `sitemapInstalled` constructor argument, a Laravel
+  container binding under `IndexNowKitServiceProvider::SITEMAP_PACKAGE`, the Yii2 component's `sitemapInstalled`
+  property). No statics: the override travels with the adapter's own configuration. `notInstalledMessage()`,
+  `checkLine()`, `checkLevel()` and `check()` are the three texts below, written once.
 - **Separate classes behind it**: every file with a `use IndexNowKit\Sitemap\*` is instantiated only when the
   predicate holds (`<Adapter>\Sitemap\SitemapServices` that registers the reader, the spool check and the runner;
   `<Adapter>\Console\SitemapCommand`). A `::class` constant on an absent class is safe; `SitemapConfig::OPTIONS`,
@@ -118,10 +121,14 @@ The recipe, the same in the three reference adapters:
 - **A stub command with the same name** (`SitemapNotInstalledCommand`, or the Yii action) that ignores its
   arguments, prints `indexnowkit/sitemap is not installed: composer require indexnowkit/sitemap` and exits
   `ExitCode::FAILURE`: a cron that ran `sitemap` before the package went optional gets a sentence, not "command not found".
-- **`Check\StaticCheck`** in the checker: `sitemap: not installed (composer require indexnowkit/sitemap)` at level
-  ok, or `sitemap: not installed, the sitemap block in the configuration is ignored (composer require
-  indexnowkit/sitemap)` when the configuration still carries a `sitemap` block. That line is the only place the
-  absence is mentioned: no log line at boot or on a request.
+- **`OptionalPackage::check($block, $defaults)`** in the checker (a `Check\StaticCheck`): `sitemap: not installed
+  (composer require indexnowkit/sitemap)` at level ok when the block is absent or equal to the defaults the adapter
+  ships, or `sitemap: not installed, the sitemap block in the configuration is ignored (composer require
+  indexnowkit/sitemap)` at level warning when the application configured a block nothing reads. That line is the
+  only place the absence is mentioned: no log line at boot or on a request.
+- **`SitemapConfig::loadOrDisabled($block, $logger, $checkCommand)`** (from `indexnowkit/sitemap`) builds the
+  sitemap configuration at runtime: an invalid block is one `critical` line naming the error and your check command,
+  and a disabled configuration — nothing throws from the container.
 - **`ConfigFactory(ignoreBlocks: ['sitemap'])`** without the package (and `...SitemapConfig::OPTIONS` in
   `ownedOptions` with it), so a configuration written for the package does not warn as "unknown option" once the
   package is gone. `ownedOptions` stays dotted: a bare `sitemap` in it would hide every typo inside the block.

@@ -32,6 +32,11 @@ contain breaking changes, listed under "Changed". What the compatibility promise
 
 ### Added
 
+- `Adapter\OptionalPackage`: one predicate for an optional package of the family (`installed()` = `class_exists()`
+  of a marker class unless overridden, no statics) with the three texts an adapter printed from its own copy:
+  `notInstalledMessage()`, `checkLine()` / `checkLevel()` / `check()` (ok without a block or with the shipped
+  defaults, warning when a configured block is ignored). Replaces the `SitemapSupport` copies of Laravel and Yii2 and
+  the predicate of the bundle (spec 17 §4.3).
 - `Testing\ReadmeAssertions`: what the "Notes for AI assistants" README section must keep (present in EN and RU, a
   complete snippet, only existing commands and configuration keys), for the `ReadmeAiNotesTest` of every package
   (moved to `indexnowkit/testing` as `Testing\Conformance\ReadmeAssertions` in the same release, see Changed).
