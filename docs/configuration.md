@@ -51,7 +51,7 @@ Config::fromArray([
 | `strict_hosts` | `strictHosts` | `false` | apply the default key **only** to the `base_url` host; every other host needs a `hosts` entry or its URLs are skipped |
 | `key_location` | `keyLocation` | `null` | absolute URL of the key file when it is not `https://{host}/{key}.txt` |
 | `base_url` | `baseUrl` | `null` | absolute site URL; resolves relative URLs and is required outside HTTP requests |
-| `engines` | `engines` | `['api']` | engine names (`api`, `yandex`, `bing`, `naver`, `seznam`, `yep`) or full endpoint URLs |
+| `engines` | `engines` | `['api']` | engine names (`api`, `yandex`, `bing`, `naver`, `seznam`, `yep`, `internetarchive`, `amazon`) or full endpoint URLs |
 | `dispatch` | `dispatch` | `'sync'` | delivery mode defined by the adapter; the core validates the identifier and reports it |
 | `batch.max_urls` | `batchMaxUrls` | `10000` | URLs per request; `Config::MAX_BATCH_URLS` is the protocol maximum |
 | `debounce.per_url` | `debouncePerUrl` | `600` | seconds during which the same URL is not re-sent; `0` disables debouncing |

@@ -22,6 +22,13 @@ final class EngineTest extends TestCase
         yield 'naver' => [Engine::Naver, 'https://searchadvisor.naver.com/indexnow'];
         yield 'seznam' => [Engine::Seznam, 'https://search.seznam.cz/indexnow'];
         yield 'yep' => [Engine::Yep, 'https://indexnow.yep.com/indexnow'];
+        yield 'internetarchive' => [Engine::InternetArchive, 'https://internetarchive.indexnow.org/indexnow'];
+        yield 'amazon' => [Engine::Amazon, 'https://indexnow.amazonbot.amazon/indexnow'];
+    }
+
+    public function testEveryCaseIsInTheProvider(): void
+    {
+        self::assertSame(array_map(static fn(Engine $e): string => $e->value, Engine::cases()), array_keys(iterator_to_array(self::endpointProvider())));
     }
 
     #[DataProvider('endpointProvider')]

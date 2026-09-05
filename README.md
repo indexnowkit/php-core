@@ -17,8 +17,10 @@ plugin or a custom framework.
 
 ## Who gets notified
 
-**Yandex, Bing (and DuckDuckGo via Bing), Naver, Seznam, Yep** — every engine that implements IndexNow. One request
-to the shared endpoint `api.indexnow.org` reaches all of them; name engines explicitly only to reach a single one.
+**Yandex, Bing (and DuckDuckGo via Bing), Naver, Seznam, Yep, Internet Archive, Amazon** — every engine in the
+IndexNow [registry](https://www.indexnow.org/searchengines.json). One request to the shared endpoint `api.indexnow.org`
+reaches all of them; name engines explicitly (`engines: [yandex, bing]`) only to reach a single one. Internet Archive
+has no working direct endpoint at the time of writing — it is reached through `api`.
 
 **Google: no.** Google does not support IndexNow, its sitemap ping endpoint is gone and the Indexing API is limited to
 `JobPosting` / `BroadcastEvent`. Keep your sitemap for Google; this library will not pretend otherwise.

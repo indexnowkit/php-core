@@ -9,6 +9,10 @@ use IndexNowKit\Exception\ConfigurationException;
 /**
  * Known IndexNow endpoints. "api" is the shared endpoint that fans out to every participating engine,
  * so it is the right default; name engines explicitly only to reach a single one.
+ *
+ * The list follows https://www.indexnow.org/searchengines.json and each engine's `meta.json` (snapshot
+ * 2026-09-05: bing, yandex, seznam, naver, yep, internetarchive, amazonbot). Endpoints are the `api` field of
+ * the meta files; Yandex answers on both `yandex.com` and `www.yandex.com` without a redirect.
  */
 enum Engine: string
 {
@@ -18,6 +22,10 @@ enum Engine: string
     case Naver = 'naver';
     case Seznam = 'seznam';
     case Yep = 'yep';
+    /** Internet Archive (Wayback Machine). Its meta.json declares the endpoint below; the host did not resolve on 2026-09-05 — reach it through `api`. */
+    case InternetArchive = 'internetarchive';
+    /** Amazonbot (registry id `amazonbot`). */
+    case Amazon = 'amazon';
 
     public function endpoint(): string
     {
@@ -28,6 +36,8 @@ enum Engine: string
             self::Naver => 'https://searchadvisor.naver.com/indexnow',
             self::Seznam => 'https://search.seznam.cz/indexnow',
             self::Yep => 'https://indexnow.yep.com/indexnow',
+            self::InternetArchive => 'https://internetarchive.indexnow.org/indexnow',
+            self::Amazon => 'https://indexnow.amazonbot.amazon/indexnow',
         };
     }
 

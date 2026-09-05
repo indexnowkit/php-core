@@ -16,8 +16,10 @@
 
 ## Кто получит уведомление
 
-**Яндекс, Bing (и DuckDuckGo через Bing), Naver, Seznam, Yep** — все поисковики, реализующие IndexNow. Один запрос на
-общий endpoint `api.indexnow.org` доходит до всех; перечислять движки явно нужно только чтобы отправить в один.
+**Яндекс, Bing (и DuckDuckGo через Bing), Naver, Seznam, Yep, Internet Archive, Amazon** — все участники
+[реестра](https://www.indexnow.org/searchengines.json) IndexNow. Один запрос на общий endpoint `api.indexnow.org`
+доходит до всех; перечислять движки явно (`engines: [yandex, bing]`) нужно только чтобы отправить в один. У Internet
+Archive на момент написания нет работающего прямого endpoint — до него доходит через `api`.
 
 **Google: нет.** Google не поддерживает IndexNow, ping-endpoint для sitemap закрыт, а Indexing API ограничен
 `JobPosting` / `BroadcastEvent`. Для Google остаётся sitemap; библиотека не будет делать вид, что это не так.
