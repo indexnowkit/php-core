@@ -225,7 +225,7 @@ attribute is logged and yields no URLs, so a typo cannot break a flush.
 | `base_url` | `INDEXNOW_BASE_URL` | `null` | resolves relative URLs; required outside HTTP requests |
 | `engines` | `INDEXNOW_ENGINES` | `['api']` | engine names or custom `https://` endpoints |
 | `dispatch` | `INDEXNOW_DISPATCH` | `sync` | adapter-defined delivery mode; the core only reports it |
-| `batch.max_urls` | `INDEXNOW_BATCH_MAX_URLS` | `10000` | URLs per request (protocol maximum) |
+| `batch.max_urls` | `INDEXNOW_BATCH_MAX_URLS` | `10000` | URLs per request: the protocol's ceiling, not a target |
 | `debounce.per_url` | `INDEXNOW_DEBOUNCE_PER_URL` | `600` | seconds before the same URL is sent again (`0` = off) |
 | `throttle.max_requests_per_minute` | `INDEXNOW_THROTTLE_PER_MINUTE` | `60` | per-process request rate (`0` = unlimited) |
 | `http.timeout` | `INDEXNOW_HTTP_TIMEOUT` | `10.0` | seconds, applied to clients created by discovery |

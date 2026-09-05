@@ -265,3 +265,54 @@ return for that class, and subclasses inherit them.
 `AttributeUrlResolver` resolves every rule of a class through its source; `GuardedUrlResolver` wraps it so nothing
 throws. `ObjectChangeHandler` is the piece ORM hooks build on: it classifies a created, updated or deleted object
 per rule and resolves the URLs, logging every silent outcome. See [adapters.md](adapters.md).
+
+## Anti-patterns
+
+Five declarations that compile, run, and submit the wrong thing.
+
+**1. A literal URL in `url:`.** `url:` names an accessor; `urls:` lists literals.
+
+```php
+#[IndexNow(url: '/')]                     // wrong: reads a property or method called "/"
+#[IndexNow(urls: ['/'])]                  // right
+#[IndexNow(url: 'canonicalUrl')]          // right: $post->canonicalUrl() or ->canonicalUrl
+```
+
+**2. A status string in `when:`.** A string is an accessor read as truthy, so `'published'` means "the attribute
+`published` is truthy" — a `status` column holding `'draft'` is truthy too.
+
+```php
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: 'status')]                              // wrong: 'draft' is truthy
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: new Equals('status', 'published'))]     // right
+```
+
+**3. A rule on a page the engine must not index.** A preview, an admin page, a page with `noindex` or a
+`robots.txt` disallow: the engine fetches it, finds it unindexable, and counts a mistake against the key.
+
+```php
+#[IndexNow(route: 'post_preview', params: ['slug' => 'slug'])]   // wrong: preview pages carry noindex
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: 'isPublished')]   // right: the public page, guarded
+```
+
+**4. Non-canonical URLs.** Filter and sort variants, tracking parameters, the apex next to `www`, `http` next to
+`https`: submit the canonical page once. Generate URLs through the router with `base_url` on the canonical origin;
+do not build them by string concatenation from the request.
+
+```php
+#[IndexNow(urls: ['/products?sort=price&utm_source=indexnow'])]   // wrong: a variant, and a tracking parameter
+#[IndexNow(route: 'products_index')]                               // right: the canonical listing
+```
+
+**5. No `when` on a model that has drafts.** Without a guard every save submits, drafts included, and a page taken
+down is announced as an update, not a deletion.
+
+```php
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'])]                        // wrong when Post has a draft state
+#[IndexNowDefaults(when: 'isPublished')]                                           // right: drafts are skipped,
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug'])]                        // published → draft is a deletion
+```
+
+What the library checks for you: the URL is absolute `http(s)`, has no credentials, fragment or control characters,
+and belongs to a host you hold a key for (`strict_hosts`). What it cannot check: `noindex`, `robots.txt`, a canonical
+pointing elsewhere, the status code the page answers — that is the rule author's job today, and the job of the
+`verify` add-on (`check --sample`) in a later release.

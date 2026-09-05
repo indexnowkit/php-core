@@ -53,7 +53,7 @@ Config::fromArray([
 | `base_url` | `baseUrl` | `null` | absolute site URL; resolves relative URLs and is required outside HTTP requests |
 | `engines` | `engines` | `['api']` | engine names (`api`, `yandex`, `bing`, `naver`, `seznam`, `yep`, `internetarchive`, `amazon`) or full endpoint URLs |
 | `dispatch` | `dispatch` | `'sync'` | delivery mode defined by the adapter; the core validates the identifier and reports it |
-| `batch.max_urls` | `batchMaxUrls` | `10000` | URLs per request; `Config::MAX_BATCH_URLS` is the protocol maximum |
+| `batch.max_urls` | `batchMaxUrls` | `10000` | URLs per request; `Config::MAX_BATCH_URLS` is the protocol maximum — a ceiling, not a target: smaller batches are accepted just as well |
 | `debounce.per_url` | `debouncePerUrl` | `600` | seconds during which the same URL is not re-sent; `0` disables debouncing |
 | `throttle.max_requests_per_minute` | `throttleMaxRequestsPerMinute` | `60` | outgoing requests per minute, per process; `0` = unlimited |
 | `http.timeout` | `httpTimeout` | `10.0` | seconds, applied only to clients the library creates itself |
