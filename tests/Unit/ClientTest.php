@@ -14,9 +14,11 @@ use IndexNowKit\ResultStatus;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Testing\FakeTransport;
 use IndexNowKit\Tests\Support\Factory;
+use IndexNowKit\Tests\Support\GeneratorCache;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -139,6 +141,92 @@ final class ClientTest extends TestCase
         $t->willRespond(new Response(403));
         $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
         self::assertSame(5, $levelCount('error'), 'counter reset after a 200, back to error level');
+    }
+
+    #[TestDox('failure cache: the 403 counter is shared between clients (processes) with a TTL, escalates once per streak for the fleet, and a success deletes it')]
+    public function testForbiddenCounterLivesInTheFailureCache(): void
+    {
+        $cache = new GeneratorCache();
+        $logger = new ArrayLogger();
+        $config = Factory::config(['logging' => ['forbidden_escalation' => 3], 'debounce' => ['key_prefix' => 'app_']]);
+        $keys = StaticKeyProvider::fromConfig($config);
+        $worker = fn(FakeTransport $t): Client => new Client($t, $keys, $config, $logger, new NullThrottle(), null, $cache, 120);
+        $levelCount = static fn(string $level): int => \count(array_filter($logger->records, static fn(array $r): bool => $r['level'] === $level));
+
+        $a = $worker((new FakeTransport())->willRespond(new Response(403), new Response(403), new Response(200), new Response(403)));
+        $b = $worker((new FakeTransport())->willRespond(new Response(403), new Response(403), new Response(403)));
+
+        $a->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        $b->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(2, $cache->get('app_403.www.example.com'), 'the counter is keyed by debounce.key_prefix and host, without PSR-6 reserved characters');
+        self::assertSame(2, $levelCount('error'));
+        self::assertSame(0, $levelCount('critical'));
+
+        $a->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(1, $levelCount('critical'), 'the third 403 of the fleet escalates, whichever worker sees it');
+        self::assertTrue((bool) $cache->get('app_403.www.example.com_escalated'));
+        self::assertSame('3', (string) $logger->records[2]['context']['consecutive']);
+
+        $b->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(1, $levelCount('critical'), 'no second critical line from the other worker');
+        self::assertSame(1, $levelCount('warning'));
+
+        $a->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertFalse($cache->has('app_403.www.example.com'), 'a success deletes the counter');
+        self::assertFalse($cache->has('app_403.www.example.com_escalated'));
+
+        $b->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(1, $cache->get('app_403.www.example.com'), 'a new streak starts at one');
+        self::assertSame(3, $levelCount('error'));
+        $a->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(2, $cache->get('app_403.www.example.com'), 'a 403 after the reset counts from the shared value');
+    }
+
+    #[TestDox('failure cache: a store with increment() counts atomically and a fresh counter gets the TTL; a throwing store falls back to the process with one warning')]
+    public function testFailureCacheIncrementAndFallback(): void
+    {
+        $atomic = new class extends GeneratorCache {
+            /** @var list<array{0: string, 1: mixed, 2: mixed}> */
+            public array $sets = [];
+            /** @var array<string, int> */
+            public array $counters = [];
+
+            public function increment(string $key, int $by = 1): int
+            {
+                return $this->counters[$key] = ($this->counters[$key] ?? 0) + $by;
+            }
+
+            public function set($key, $value, $ttl = null): bool
+            {
+                $this->sets[] = [$key, $value, $ttl];
+
+                return parent::set($key, $value, $ttl);
+            }
+        };
+        $logger = new ArrayLogger();
+        $config = Factory::config(['logging' => ['forbidden_escalation' => 2]]);
+        $t = (new FakeTransport())->willRespond(new Response(403), new Response(403));
+        $client = new Client($t, StaticKeyProvider::fromConfig($config), $config, $logger, new NullThrottle(), null, $atomic, 45);
+        $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(2, $atomic->counters['indexnowkit_403.www.example.com'], 'counted through increment()');
+        self::assertSame([['indexnowkit_403.www.example.com', 1, 45], ['indexnowkit_403.www.example.com_escalated', true, 45]], $atomic->sets, 'the TTL is set on the fresh counter and on the escalation flag');
+        self::assertSame(['error', 'critical'], array_map(static fn(array $r): string => $r['level'], $logger->records));
+
+        $broken = new class extends GeneratorCache {
+            public function get($key, $default = null): mixed
+            {
+                throw new RuntimeException('redis down');
+            }
+        };
+        $logger = new ArrayLogger();
+        $t = (new FakeTransport())->willRespond(new Response(403), new Response(403), new Response(200));
+        $client = new Client($t, StaticKeyProvider::fromConfig($config), $config, $logger, new NullThrottle(), null, $broken);
+        $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        $client->submitBatch(self::ENDPOINT, self::HOST, Factory::KEY, [self::URL]);
+        self::assertSame(['warning', 'error', 'critical', 'debug'], array_map(static fn(array $r): string => $r['level'], $logger->records), 'one warning about the cache, then the per-process escalation');
+        self::assertStringContainsString('failure cache unavailable', $logger->records[0]['message']);
     }
 
     public function testNonTransportExceptionFromTheHttpClientBecomesAMaskedResult(): void

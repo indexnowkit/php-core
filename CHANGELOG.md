@@ -25,6 +25,14 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   `Checker::robotsDisallows()` is public), `key_file.previous` (with `previous_key`: the old key file still served is
   the open rotation window, otherwise a warning) and the global `http.client` warning about redirects through a
   custom client. `check` now fetches `/robots.txt` (and the previous key file) of every host after its key file.
+- **The 403 escalation counts across processes** (spec 17 §5.3). `Client::__construct(..., ?CacheInterface
+  $failureCache = null, int $failureCacheTtl = Client::FAILURE_CACHE_TTL)` (appended): with a PSR-16 cache the
+  consecutive-403 counter and the "escalated" flag of each host live under `<debounce.key_prefix>403.<host>` (and
+  `…_escalated`) with the TTL, so a fleet of PHP-FPM and queue workers writes the `critical` line once per streak; a
+  cache with `increment()` counts atomically, any other approximately; a cache that throws is logged once and the
+  process counts on. A non-403 answer deletes the counter only when it is set. `Adapter\SubmitterFactory` takes the
+  cache as an appended argument, `Adapter\ServicesBuilder::failureCache()` / `Services::failureCache()` carry it,
+  `IndexNowKit::create(..., failureCache:)` passes it. `Check\Checker` probes without it.
 
 ## [0.7.0] — 2026-09-06
 

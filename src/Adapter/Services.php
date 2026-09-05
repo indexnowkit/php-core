@@ -41,6 +41,7 @@ use IndexNowKit\Url\UrlResolverInterface;
 use LogicException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Psr\SimpleCache\CacheInterface;
 use Throwable;
 
 /**
@@ -68,6 +69,7 @@ final class Services
     public const ROUTER = 'router';
     public const RESOLVER_LOCATOR = 'resolverLocator';
     public const URL_RESOLVER = 'urlResolver';
+    public const FAILURE_CACHE = 'failureCache';
 
     /** @var array<string, object|null> */
     private array $built = [];
@@ -123,7 +125,13 @@ final class Services
 
     public function client(): ClientInterface
     {
-        return $this->memo(self::CLIENT, ClientInterface::class, fn(): ClientInterface => new Client($this->transport(), $this->keys(), $this->config, $this->logger, $this->throttle(), $this->normalizer()));
+        return $this->memo(self::CLIENT, ClientInterface::class, fn(): ClientInterface => new Client($this->transport(), $this->keys(), $this->config, $this->logger, $this->throttle(), $this->normalizer(), $this->failureCache()));
+    }
+
+    /** The PSR-16 cache the 403 counter of the client lives in, as given; none by default (the counter stays in the process). */
+    public function failureCache(): ?CacheInterface
+    {
+        return $this->optional(self::FAILURE_CACHE, CacheInterface::class);
     }
 
     public function submitter(): SubmitterInterface
@@ -230,7 +238,7 @@ final class Services
     /** `Adapter\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
     public function submitterFactory(): SubmitterFactoryInterface
     {
-        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events);
+        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events, $this->failureCache());
     }
 
     /** False when the collector was never built (nothing was collected) or is empty; builds nothing. */

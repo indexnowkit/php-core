@@ -11,7 +11,7 @@ use Psr\SimpleCache\CacheInterface;
  * Minimal PSR-16 cache whose getMultiple() yields a Traversable instead of an array, to exercise
  * the iterator_to_array() fallback in Psr16DebounceStore.
  */
-final class GeneratorCache implements CacheInterface
+class GeneratorCache implements CacheInterface
 {
     /** @var array<string, mixed> */
     private array $values = [];

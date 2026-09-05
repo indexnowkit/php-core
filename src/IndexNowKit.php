@@ -28,6 +28,7 @@ use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Facade (entry point) wiring the default component graph for framework-less usage. Adapters build the same graph
@@ -66,6 +67,9 @@ final class IndexNowKit
      * brings its own pipeline, so combining it with $transport/$debounce/$throttle/$normalizer is rejected instead
      * of ignored. Parameter NAMES are part of the BC promise (new ones are only appended): always use named arguments.
      *
+     * @param CacheInterface|null $failureCache PSR-16 cache the 403 counter of the client lives in, shared by every process
+     *                                          of the application (the cache behind the debounce store); null = per process
+     *
      * @throws ConfigurationException when no HTTP client can be discovered, on an incompatible combination, or on a
      *                                `dispatch`/`debounce.store`/`http.client` value that needs a framework to resolve it
      */
@@ -82,11 +86,12 @@ final class IndexNowKit
         ?AttributeReaderInterface $attributes = null,
         ?SubmitterInterface $submitter = null,
         ?CollectorInterface $collector = null,
+        ?CacheInterface $failureCache = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
         if ($submitter !== null) {
-            $ignored = array_keys(array_filter(['transport' => $transport, 'debounce' => $debounce, 'throttle' => $throttle, 'normalizer' => $normalizer], static fn($v): bool => $v !== null));
+            $ignored = array_keys(array_filter(['transport' => $transport, 'debounce' => $debounce, 'throttle' => $throttle, 'normalizer' => $normalizer, 'failureCache' => $failureCache], static fn($v): bool => $v !== null));
             if ($ignored !== []) {
                 throw new ConfigurationException(\sprintf('IndexNowKit::create(): $%s cannot be combined with a custom $submitter, which builds its own pipeline. Pass them to your submitter instead.', implode(', $', $ignored)));
             }
@@ -94,7 +99,7 @@ final class IndexNowKit
             $normalizer ??= new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
             $throttle ??= TokenBucket::fromConfig($config, $logger);
             $transport ??= TransportFactory::lazy($config);
-            $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);
+            $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer, $failureCache);
             $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config), $logger, $normalizer);
         }
         $dispatcher ??= DispatcherFactory::fromConfig($config, $submitter, $logger);

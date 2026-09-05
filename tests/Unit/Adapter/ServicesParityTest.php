@@ -110,6 +110,7 @@ final class ServicesParityTest extends TestCase
             'rules' => $rules,
             'router' => null,
             'resolverLocator' => null,
+            'failureCache' => null,
             'urlResolver' => $urlResolver,
             'guardedResolver' => $guarded,
             'changes' => $kit->changes(),

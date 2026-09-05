@@ -27,6 +27,7 @@ use IndexNowKit\Url\UrlResolverInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Describes the graph of an adapter that assembles at runtime (Yii, plain PHP, a CMS without a service container):
@@ -105,7 +106,17 @@ final class ServicesBuilder
         return $this->node(Services::DEBOUNCE_STORE, $store);
     }
 
-    /** Default `Client` over the transport, keys, throttle and normalizer. */
+    /**
+     * The PSR-16 cache the client counts consecutive 403s in, shared by web and queue workers so the one `critical`
+     * line is written once per fleet; give the cache behind `debounce.store`. None by default: the counter then lives
+     * in the process.
+     */
+    public function failureCache(CacheInterface|Closure $cache): self
+    {
+        return $this->node(Services::FAILURE_CACHE, $cache);
+    }
+
+    /** Default `Client` over the transport, keys, throttle, normalizer and failure cache. */
     public function client(ClientInterface|Closure $client): self
     {
         return $this->node(Services::CLIENT, $client);

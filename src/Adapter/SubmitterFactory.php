@@ -18,10 +18,12 @@ use IndexNowKit\Url\UrlNormalizerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Submitters for console commands: `--force` bypasses the debounce store, `--dry-run` logs instead of sending.
- * Neither touches the application's own Submitter.
+ * Neither touches the application's own Submitter; the 403 counter (`$failureCache`) is the application's, so a
+ * command's rejections count towards the same escalation.
  */
 final class SubmitterFactory implements SubmitterFactoryInterface
 {
@@ -34,12 +36,13 @@ final class SubmitterFactory implements SubmitterFactoryInterface
         private readonly UrlNormalizerInterface $normalizer,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?EventDispatcherInterface $events = null,
+        private readonly ?CacheInterface $failureCache = null,
     ) {}
 
     public function create(bool $force, bool $dryRun): SubmitterInterface
     {
         $config = $dryRun ? $this->config->with(dryRun: true) : $this->config;
-        $client = new Client($this->transport, $this->keys, $config, $this->logger, $this->throttle, $this->normalizer);
+        $client = new Client($this->transport, $this->keys, $config, $this->logger, $this->throttle, $this->normalizer, $this->failureCache);
 
         return new Submitter($client, $config, $force ? new NullDebounceStore() : $this->debounce, $this->logger, $this->normalizer, $this->events);
     }

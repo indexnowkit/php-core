@@ -99,10 +99,13 @@ dedicated channel — `indexnow` in the Symfony bundle — so `tail -f var/log/p
 
 The 403 escalation is the one line to page on. `logging.forbidden_escalation` is 5 by default: the fifth consecutive 403
 for a host is logged once at `critical`, further ones drop back to `warning` so they do not spam, and any non-403
-response resets the counter. The counter lives in the process (`Client`), not in a shared store: with several web
-workers or queue workers each one counts its own 403s and emits its own `critical` line after its fifth failure, so a
-fleet of workers can be silent longer than five requests, or page five times. A counter shared through PSR-16 is on
-the roadmap (core 0.8); until then alert on the `warning` rate of `reason=invalid_key` as well. Every other level in these tables is the default of `logging.levels` (`Config::LOG_EVENTS`)
+response resets the counter. Since core 0.8 the counter lives in the cache behind `debounce.store` (the adapters pass
+it to `Client` as the PSR-16 "failure cache"; plain PHP: `IndexNowKit::create(..., failureCache: $cache)`), so PHP-FPM
+workers and queue workers count together and the fleet writes the `critical` line once per streak: the keys are
+`<debounce.key_prefix>403.<host>` and `…_escalated`, kept for an hour after the last 403. With `debounce.store:
+memory` or `none` the counter stays in the process, where every worker counts its own 403s and pages on its own
+fifth failure — alert on the `warning` rate of `reason=invalid_key` as well there. A cache that throws is logged
+once (`failure cache unavailable, counting 403s per process`) and the process counts on. Every other level in these tables is the default of `logging.levels` (`Config::LOG_EVENTS`)
 and can be raised or lowered per outcome; `logging.max_urls` decides how many URLs a line lists (0 for PII-sensitive
 logs). Keys are masked everywhere, including inside response bodies and exception messages.
 

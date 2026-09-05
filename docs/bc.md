@@ -21,7 +21,7 @@ decorate (one per framework adapter): pin `^0.7.0` and read the changelog.
 
 ## Named arguments
 
-`IndexNowKit::create()` takes twelve optional arguments after `$config` and will take more. **Parameter names are part of the
+`IndexNowKit::create()` takes thirteen optional arguments after `$config` and will take more. **Parameter names are part of the
 promise; the order is not.** New parameters are appended, never inserted, and every call should use named
 arguments:
 
