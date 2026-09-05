@@ -83,7 +83,7 @@ class Post {}
 
 | Опция | Тип | Дефолт | Смысл |
 |---|---|---|---|
-| `when` | имя аксессора, `new Equals(path, value)` или замыкание `fn(object): bool` (только правила времени выполнения) | наследуется | страница существует, пока условие истинно |
+| `when` | имя аксессора, `Condition` (`new Equals(path, value)` или свой класс) или замыкание `fn(object): bool` (только правила времени выполнения) | наследуется | страница существует, пока условие истинно |
 | `whenFields` | список имён полей | `[]` | поля, стоящие за `when` этого правила, когда имя не совпадает с полем (у `when` уровня класса свои `whenFields` в `#[IndexNowDefaults]`) |
 | `fields` | список имён полей или `null` | наследуется, затем `[]` | только для обновлений: отправлять, когда изменилось одно из них; `[]` = любое поле |
 | `events` | подмножество `created`, `updated`, `deleted` (строки или case'ы `Event`) или `null` | наследуется, затем все три | какие события жизненного цикла слушает правило |
@@ -103,6 +103,14 @@ use IndexNowKit\Attribute\Param\Equals;
 #[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: new Equals('status', 'published'))]
 #[IndexNow(route: 'job_show', params: ['id' => 'id'], when: new Equals('state', JobState::Open))]   // BackedEnum или его value
 ```
+
+`Equals` — это `Attribute\Param\Condition` (`evaluate(object $subject): bool`); любой класс с этим интерфейсом годится в
+`when`. Обычный `Condition` не знает старого значения: `ChangeClassifier` вычисляет его на текущем объекте, и переход
+`open → closed` считается обновлением, а не удалением — если только `whenFields` не называет поле. Реализуйте
+`FieldCondition` (`field()`, `heldFor($oldValue)`), когда условие читает одно поле: тогда change set даёт точное старое
+состояние, как у `Equals`. `Equals` в `params` — ошибка типов (условие — не источник значения). `explain` печатает
+каждое условие со считанным значением (`when: status ("draft") -> true — a non-empty string is truthy; use new
+Equals('status', "draft")`), `explain --json` — то же одним документом. Подробнее — в английской версии.
 
 Правила, зарегистрированные во время выполнения (`RuleRegistry`), могут передать замыкание:
 `when: fn (WP_Post $p): bool => $p->post_status === 'publish'`. Старое значение замыкания восстановить нельзя, поэтому

@@ -84,7 +84,7 @@ formatting a date implicitly is how a URL silently changes shape. Anything else 
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `when` | accessor name, `new Equals(path, value)`, or a closure `fn(object): bool` (runtime rules only) | inherit | the page exists only while the condition holds |
+| `when` | accessor name, a `Condition` (`new Equals(path, value)` or your own), or a closure `fn(object): bool` (runtime rules only) | inherit | the page exists only while the condition holds |
 | `whenFields` | list of field names | `[]` | fields backing this rule's own `when` when its name does not match the field (a class-level `when` has its own `whenFields` in `#[IndexNowDefaults]`) |
 | `fields` | list of field names, or `null` | inherit, then `[]` | for updates only: submit when one of these changed; `[]` = any field |
 | `events` | subset of `created`, `updated`, `deleted` (strings or `Event` cases), or `null` | inherit, then all three | which lifecycle events the rule listens to |
@@ -108,6 +108,52 @@ use IndexNowKit\Attribute\Param\Equals;
 Rules registered at runtime (`RuleRegistry`) may pass a closure: `when: fn (WP_Post $p): bool => $p->post_status === 'publish'`.
 A closure's old value cannot be reconstructed, so list the fields it reads in `whenFields`; a change of one of them is
 treated as a visibility flip (see the semantics table).
+
+### Your own conditions
+
+`Equals` is an `Attribute\Param\Condition` — `evaluate(object $subject): bool` — and any class implementing it goes
+in `when` the same way (an attribute argument must be a constant expression, so a condition class with a constructor
+of scalars, not a closure):
+
+```php
+use IndexNowKit\Attribute\Param\Condition;
+use IndexNowKit\Attribute\Param\FieldCondition;
+
+final readonly class Between implements Condition
+{
+    public function __construct(private string $path, private int $min, private int $max) {}
+
+    public function evaluate(object $subject): bool
+    {
+        $value = ParamExtractor::read($subject, $this->path);
+
+        return is_int($value) && $value >= $this->min && $value <= $this->max;
+    }
+}
+
+final readonly class OneOf implements FieldCondition        // reads one field: the classifier sees the old state
+{
+    /** @param list<string> $values */
+    public function __construct(private string $path, private array $values) {}
+
+    public function evaluate(object $subject): bool { return $this->heldFor(ParamExtractor::read($subject, $this->path)); }
+    public function field(): string { return $this->path; }
+    public function heldFor(mixed $oldValue): bool { return in_array($oldValue, $this->values, true); }
+}
+
+#[IndexNow(route: 'offer_show', params: ['id' => 'id'], when: new OneOf('state', ['open', 'reserved']))]
+```
+
+A plain `Condition` has no old value: `ChangeClassifier` evaluates it on the current object, so `open → closed` is
+classified as a plain update, not as the deletion it is — unless `whenFields` names the field the condition reads
+(then a change of that field counts as a flip). Implement `FieldCondition` (`field()`, `heldFor($oldValue)`) when
+the condition reads one field, and the change set gives the exact old state, as it does for `Equals`. `Condition` and
+`FieldCondition` are in the Implement tier of [bc.md](bc.md), with the pre-1.0 caveat that they are new in 0.8.
+
+`Equals` is a condition, not a value source: `params: ['status' => new Equals(...)]` is a type error, and
+`ParamExtractor` names the fix. `explain` prints every condition with the value it read (`when: status ("draft") ->
+true — a non-empty string is truthy; use new Equals('status', "draft")`), and `explain --json` gives the same walk
+as a document.
 
 An unknown event name throws `ConfigurationException` naming the attribute and the value.
 
@@ -281,12 +327,18 @@ Five declarations that compile, run, and submit the wrong thing.
 ```
 
 **2. A status string in `when:`.** A string is an accessor read as truthy, so `'published'` means "the attribute
-`published` is truthy" — a `status` column holding `'draft'` is truthy too.
+`published` is truthy" — a `status` column holding `'draft'` is truthy too. `explain` shows the value it read and
+says so.
 
 ```php
 #[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: 'status')]                              // wrong: 'draft' is truthy
 #[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: new Equals('status', 'published'))]     // right
+#[IndexNow(route: 'post_show', params: ['slug' => 'slug', 'v' => new Equals('status', 'published')])]   // wrong: a condition is not a param value (type error)
 ```
+
+**2b. A custom `Condition` on a field that flips.** `when: new Published()` that reads `status` internally cannot
+tell the classifier what the old state was: `published → draft` is an update, the dead page stays indexed.
+Implement `FieldCondition`, or name the field in `whenFields`.
 
 **3. A rule on a page the engine must not index.** A preview, an admin page, a page with `noindex` or a
 `robots.txt` disallow: the engine fetches it, finds it unindexable, and counts a mistake against the key.

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use Closure;
-use IndexNowKit\Attribute\Param\ParamValue;
+use IndexNowKit\Attribute\Param\Condition;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 use ReflectionClass;
@@ -150,9 +150,9 @@ final class RuleCompiler
     }
 
     /**
-     * @return list<string|ParamValue|Closure>
+     * @return list<string|Condition|Closure>
      */
-    private static function when(IndexNowDefaults $defaults, string|ParamValue|Closure|null $own): array
+    private static function when(IndexNowDefaults $defaults, string|Condition|Closure|null $own): array
     {
         $when = $defaults->when !== null ? [$defaults->when] : [];
         if ($own !== null && !\in_array($own, $when, true)) {
@@ -169,7 +169,7 @@ final class RuleCompiler
      *
      * @return array<int, list<string>>
      */
-    private static function whenFields(IndexNowDefaults $defaults, string|ParamValue|Closure|null $own, array $ownFields): array
+    private static function whenFields(IndexNowDefaults $defaults, string|Condition|Closure|null $own, array $ownFields): array
     {
         $fields = [];
         $index = 0;

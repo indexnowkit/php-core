@@ -6,7 +6,7 @@ namespace IndexNowKit\Attribute;
 
 use Attribute;
 use Closure;
-use IndexNowKit\Attribute\Param\ParamValue;
+use IndexNowKit\Attribute\Param\Condition;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
@@ -31,7 +31,7 @@ final readonly class IndexNowUrl
      * @throws ConfigurationException on an unknown event name
      */
     public function __construct(
-        public string|ParamValue|Closure|null $when = null,
+        public string|Condition|Closure|null $when = null,
         public array $whenFields = [],
         public ?array $fields = null,
         ?array $events = null,

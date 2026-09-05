@@ -7,5 +7,6 @@ namespace IndexNowKit\Attribute\Param;
 /**
  * Typed value source usable in #[IndexNow(params: [...])] and #[IndexNow(host: ...)] next to plain accessor
  * strings. Closed set: {@see Accessor}, {@see Value}, {@see Formatted}, {@see Call}. Anything else is a resolver.
+ * Guards for `when` are a {@see Condition} (`Equals`), not a value source.
  */
 interface ParamValue {}

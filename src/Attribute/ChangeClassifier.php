@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Attribute;
 
-use BackedEnum;
 use Closure;
-use IndexNowKit\Attribute\Param\Equals;
-use IndexNowKit\Attribute\Param\ParamValue;
+use IndexNowKit\Attribute\Param\Condition;
+use IndexNowKit\Attribute\Param\FieldCondition;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 
@@ -61,15 +60,13 @@ final class ChangeClassifier
     }
 
     /**
-     * Whether a condition held for the old value of its field: truthiness for accessors, comparison for Equals.
+     * Whether a condition held for the old value of its field: truthiness for accessors, {@see FieldCondition::heldFor()}
+     * for conditions (only those reach here: a plain Condition has no field in the change set).
      */
-    private static function heldBefore(string|ParamValue|Closure $condition, mixed $oldValue): bool
+    private static function heldBefore(string|Condition|Closure $condition, mixed $oldValue): bool
     {
-        if ($condition instanceof Equals) {
-            $expected = $condition->value instanceof BackedEnum ? $condition->value->value : $condition->value;
-            $actual = $oldValue instanceof BackedEnum ? $oldValue->value : $oldValue;
-
-            return $actual === $expected;
+        if ($condition instanceof FieldCondition) {
+            return $condition->heldFor($oldValue);
         }
 
         return (bool) $oldValue;
@@ -81,7 +78,9 @@ final class ChangeClassifier
      *    `published`) is evaluated exactly from the old value;
      *  - an accessor with no change-set entry keeps its current value unless a field it depends on changed,
      *    in which case the outcome is assumed to have flipped: a false positive costs one request, a false
-     *    negative leaves a dead page indexed.
+     *    negative leaves a dead page indexed;
+     *  - a Condition that is not a FieldCondition has no old value: it is evaluated on the current object, so a
+     *    `true → false` flip is not seen as a deletion unless `whenFields` names the field.
      *
      * @param list<string>                             $changedFields
      * @param array<string, array{0: mixed, 1: mixed}> $changeSet

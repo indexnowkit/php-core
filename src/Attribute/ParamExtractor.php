@@ -9,7 +9,7 @@ use Closure;
 use DateTimeInterface;
 use IndexNowKit\Attribute\Param\Accessor;
 use IndexNowKit\Attribute\Param\Call;
-use IndexNowKit\Attribute\Param\Equals;
+use IndexNowKit\Attribute\Param\Condition;
 use IndexNowKit\Attribute\Param\Formatted;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Attribute\Param\Placeholder;
@@ -61,6 +61,9 @@ final class ParamExtractor
     {
         $out = [];
         foreach ($params as $name => $param) {
+            if (!\is_string($param) && !$param instanceof ParamValue) { // the docblock promises one of the two; an attribute written by hand can still pass a Condition
+                throw new ConfigurationException(\sprintf('Param "%s" of %s is a %s, which is not a value source: a param is an accessor string ("slug", "author.slug") or one of Accessor, Value, Formatted, Call from IndexNowKit\\Attribute\\Param. A condition such as Equals belongs to `when`, not `params`.', $name, $subject::class, get_debug_type($param)));
+            }
             // `self` is route model binding by definition: the object goes to the router bridge as it is.
             $out[$name] = self::isSelf($param) ? $subject : self::coerce($name, self::resolve($subject, $param, $locale, $host), $subject);
         }
@@ -84,8 +87,7 @@ final class ParamExtractor
             $param instanceof Value => $param->value,
             $param instanceof Formatted => self::format($subject, $param),
             $param instanceof Call => self::call($subject, $param, $locale, $host),
-            $param instanceof Equals => self::equals(self::read($subject, $param->path), $param->value),
-            default => throw new ConfigurationException(\sprintf('Unsupported param source %s on %s: a param is an accessor string ("slug", "author.slug") or one of Accessor, Value, Formatted, Call, Equals from IndexNowKit\\Attribute\\Param.', get_debug_type($param), $subject::class)),
+            default => throw new ConfigurationException(\sprintf('Unsupported param source %s on %s: a param is an accessor string ("slug", "author.slug") or one of Accessor, Value, Formatted, Call from IndexNowKit\\Attribute\\Param (a condition such as Equals belongs to `when`).', get_debug_type($param), $subject::class)),
         };
     }
 
@@ -130,30 +132,21 @@ final class ParamExtractor
     }
 
     /**
-     * Evaluate a `when` condition: accessor string (truthy), ParamValue (truthy, {@see Equals} for comparisons)
-     * or a closure `fn(object): bool` (runtime-registered rules only).
+     * Evaluate a `when` condition: accessor string (truthy), a {@see Condition} (`Equals` and your own) or a closure
+     * `fn(object): bool` (runtime-registered rules only).
      *
-     * @throws ConfigurationException
+     * @throws ConfigurationException when an accessor cannot be read
      */
-    public static function condition(object $subject, string|ParamValue|Closure $when): bool
+    public static function condition(object $subject, string|Condition|Closure $when): bool
     {
         if ($when instanceof Closure) {
             return (bool) $when($subject);
         }
-
-        return (bool) self::resolve($subject, $when);
-    }
-
-    private static function equals(mixed $actual, mixed $expected): bool
-    {
-        if ($actual instanceof BackedEnum) {
-            $actual = $expected instanceof BackedEnum ? $actual : $actual->value;
-        }
-        if ($expected instanceof BackedEnum && !$actual instanceof BackedEnum) {
-            $expected = $expected->value;
+        if ($when instanceof Condition) {
+            return $when->evaluate($subject);
         }
 
-        return $actual === $expected;
+        return (bool) self::read($subject, $when);
     }
 
     /**

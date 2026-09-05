@@ -50,6 +50,12 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   (`Config::OPTIONS`, `Config::TRAILING_SLASH_MODES`). `Url\UrlNormalizerFactory::fromConfig(Config)` builds the
   normalizer everywhere the core used `new UrlNormalizer(...)` (`Submitter`, `Client`, `IndexNowKit::create()`,
   `Adapter\Services`, `Check\Checker`), so the options work in plain PHP too.
+- **`Attribute\Param\Condition` and `FieldCondition`** (spec 17 §5.6): `when` takes a string accessor, a `Condition`
+  (`evaluate(object): bool` — `Equals`, or your own class) or a closure. A `FieldCondition` (`field()`,
+  `heldFor($oldValue)`) lets `ChangeClassifier` read the old state from the ORM change set; a plain `Condition` is
+  evaluated on the current object and cannot see an unpublish unless `whenFields` names the field (documented in
+  attribute-reference.md). `ParamExtractor::condition()` takes `string|Condition|Closure`; `UrlRule::accessorOf()`
+  reads a `FieldCondition`'s field.
 
 ### Changed
 
@@ -57,6 +63,12 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   `gclid`, `fbclid`, … is submitted and debounced as its clean form. The debounce keys of such URLs change once;
   URLs without those parameters are unaffected. Set `normalizer.strip_tracking_params: false` to keep the old
   behaviour.
+- **`Attribute\Param\Equals` is a `FieldCondition`, not a `ParamValue`.** `params: ['x' => new Equals(...)]` — which
+  never produced a meaningful value — is now a `ConfigurationException` from `ParamExtractor` naming the fix (`Equals`
+  belongs to `when`). `when` is typed `string|Condition|Closure|null` in `IndexNow`, `IndexNowDefaults`,
+  `IndexNowUrl`, `UrlRule`, `RuleCompiler`, `ParamExtractor::condition()` and `ChangeClassifier`: a `ParamValue`
+  (`Accessor`, `Value`, `Formatted`, `Call`) in `when` is a `TypeError`. Migration: `when: new Accessor('x')` →
+  `when: 'x'`; anything else in `when` becomes a `Condition`.
 
 ## [0.7.0] — 2026-09-06
 

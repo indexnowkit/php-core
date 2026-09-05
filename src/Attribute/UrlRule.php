@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace IndexNowKit\Attribute;
 
 use Closure;
-use IndexNowKit\Attribute\Param\Accessor;
-use IndexNowKit\Attribute\Param\Equals;
+use IndexNowKit\Attribute\Param\Condition;
+use IndexNowKit\Attribute\Param\FieldCondition;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
@@ -24,7 +24,7 @@ final readonly class UrlRule
     /**
      * @param array<string, string|ParamValue> $params
      * @param list<string>                     $urls
-     * @param list<string|ParamValue|Closure>  $when       conjunction: every condition must hold (accessor truthy, Equals, closure)
+     * @param list<string|Condition|Closure>   $when       conjunction: every condition must hold (accessor truthy, a Condition such as Equals, closure)
      * @param array<int, list<string>>|list<string> $whenFields fields backing each $when condition, keyed by its index; a flat list applies to every condition
      * @param list<string>                     $fields     changed-field filter for updates; [] = any
      * @param list<Event>                      $events
@@ -112,7 +112,8 @@ final readonly class UrlRule
 
     /**
      * Whether a change of this field may change the outcome of one `when` condition: a declared whenField, or the
-     * field the condition's accessor conventionally reads. Closures depend on whenFields only.
+     * field the condition's accessor conventionally reads. Closures and conditions that are not a FieldCondition depend
+     * on whenFields only.
      */
     public function conditionDependsOn(int $index, string $field): bool
     {
@@ -125,14 +126,14 @@ final readonly class UrlRule
     }
 
     /**
-     * The accessor a condition reads, when it is statically known (string or Equals); null for closures/other sources.
+     * The accessor a condition reads, when it is statically known (a string, a FieldCondition); null for closures and
+     * plain conditions.
      */
-    public static function accessorOf(string|ParamValue|Closure $condition): ?string
+    public static function accessorOf(string|Condition|Closure $condition): ?string
     {
         return match (true) {
             \is_string($condition) => $condition,
-            $condition instanceof Equals => $condition->path,
-            $condition instanceof Accessor => $condition->path,
+            $condition instanceof FieldCondition => $condition->field(),
             default => null,
         };
     }

@@ -9,7 +9,6 @@ use IndexNowKit\Attribute\AttributeReaderInterface;
 use IndexNowKit\Attribute\ChangeClassifier;
 use IndexNowKit\Attribute\Param\Accessor;
 use IndexNowKit\Attribute\Param\Call;
-use IndexNowKit\Attribute\Param\Equals;
 use IndexNowKit\Attribute\Param\Formatted;
 use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Attribute\ParamExtractor;
@@ -201,7 +200,7 @@ final class ObjectChangeHandler
         foreach ($sources as $source) {
             $path = match (true) {
                 \is_string($source) => $source,
-                $source instanceof Accessor, $source instanceof Formatted, $source instanceof Equals => $source->path,
+                $source instanceof Accessor, $source instanceof Formatted => $source->path,
                 $source instanceof Call => $source->method,
                 $source instanceof ParamValue => null,
             };
