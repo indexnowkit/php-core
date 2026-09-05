@@ -3,9 +3,12 @@
 `Submission\SubmissionStoreInterface` is where the `Submitter` remembers what it did: one record per `Result` after
 every `submit()`, written after the listeners and the PSR-14 event. The core ships the interface, the value object
 `Submission\SubmissionRecord` (`urls`, `result`, `at`) and `Submission\NullSubmissionStore`, which keeps nothing and
-is what every adapter wires by default. The `indexnowkit/history` package (after core 0.8) brings a PSR-16 ring
-buffer, a PDO table, the `history` command and the `status` line; until then, implement the interface yourself or
-wait.
+is what every adapter wires by default. [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history)
+brings the two stores every adapter can wire with one option (`history.store: psr16` — a ring buffer in the
+debounce cache, `history.store: pdo` — a table, migration in the package's `docs/migrations.md`), the `history` and
+`status` commands (`--json`), the `history.store` / `history.records` lines of `check` and, in Symfony, a "Recent
+submissions" table in the profiler; its `HistoryStoreInterface` extends this one with `count()`, `last()` and
+`purge()`. A store of your own still plugs into the same point and the commands work with it (`recent()` only).
 
 ## Wiring
 

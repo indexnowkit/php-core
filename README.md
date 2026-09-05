@@ -64,6 +64,8 @@ changes. The family:
 | [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: Eloquent observer, queue, key file route, artisan commands |
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: ActiveRecord events with verify-on-commit, yii2-queue, console controller |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | reads a sitemap (index, gzip, text) and submits its URLs; the `sitemap` command of every adapter |
+| [`indexnowkit/verify`](https://github.com/indexnowkit/php/tree/main/packages/verify) | one GET before every submission: noindex, robots.txt, canonical, redirects, origin errors; `check --sample` |
+| [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history) | what was submitted, when, with what answer: PSR-16 and PDO stores, the `history` and `status` commands |
 | [`indexnowkit/console`](https://github.com/indexnowkit/php/tree/main/packages/console) | the bodies of the `check`, `submit`, `submit-<subject>`, `explain`, `key:generate` commands and their definitions (`symfony/console`); every adapter requires it |
 | [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: the conformance kits (C01–C22, A01–A21), the H01–H05 assertions, the mock IndexNow server |
 

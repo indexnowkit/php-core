@@ -40,7 +40,7 @@ global lines have `null` there.
 | `probe.response` (host) | ok, warning, error | `--live`: one line per engine: 200 ok, 202 warning (verification pending), anything else error |
 | `check.failed` | error | a registered `CheckInterface` threw; the line names the class |
 | `debounce.store` | ok, warning, error | `Check\DebounceStoreCheck`: off, `none`, `memory` (warning), a shared store probed ok, or unusable (error) |
-| `<feature>.installed` | ok, warning | `Adapter\OptionalPackage`: an optional package of the family is not installed (`sitemap.installed`); warning when its block is configured and ignored |
+| `<feature>.installed` | ok, warning | `Adapter\OptionalPackage`: an optional package of the family is not installed (`sitemap.installed`, `verify.installed`, `history.installed`); warning when its block is configured and ignored |
 
 ## Adapters
 
@@ -57,7 +57,19 @@ global lines have `null` there.
 | `url_manager.key_file` | yii2 | ok, error | the key file is not served by the application, or `key_file` is misconfigured |
 | `url_manager.pretty_url` | yii2 | error | `enablePrettyUrl` is off, `/<key>.txt` cannot be routed |
 | `url_manager.rule` | yii2 | ok, error | the key file URL rule is registered, or missing (component not in `bootstrap`) |
+
+## Optional packages
+
+The line of an optional package that is not installed is `<feature>.installed` (above). With the package installed:
+
+| Code | Package | Levels | Line |
+|---|---|---|---|
 | `sitemap.spool` | sitemap | ok, warning, error | where sitemap documents are spooled; error when `spool: disk` has no writable directory |
+| `verify.installed` | verify | ok | `verify: installed, disabled (verify.enabled: false)` or `verify: enabled (redirect: …, non_canonical: …, origin_error: …)` |
+| `verify.dispatch` | verify | warning | `verify.enabled` with `dispatch: sync`: the pre-flight GETs run inside the web request; use a queue |
+| `verify.sample` (host) | verify | ok, warning, error | one line per `--sample` / `--sample-class` URL: `verify sample {url}: HTTP 200, index, canonical: self, robots: allowed`; noindex, disallow, a foreign canonical, a redirect, a 4xx/5xx or a transport failure are **warnings**, never errors; without the package and with a sample given: error `check --sample needs indexnowkit/verify`; with the package and no sample: ok `no sample given` |
+| `history.store` | history | ok, error | the configured store (`history: pdo store (indexnow_submissions)`, `history: psr16 store (500 records kept)`, `history: custom store (<class>)`, `history: installed, no store configured (history.store)`); error with the exception and the migration hint when the store fails (a missing table) |
+| `history.records` | history | ok | `history: 1 240 records, last 3 min ago`, or `history: no records yet` |
 
 Application checks (`CheckInterface` implementations you register) choose their own codes; leave the core areas
 (`config`, `environment`, `key`, `key_file`, `probe`, `debounce`) to the core. A line without a code is allowed but

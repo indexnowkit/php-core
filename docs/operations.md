@@ -13,7 +13,10 @@ Before the first real submission, and again after every deployment that touches 
    indexnow:check --strict`, `php yii indexnow/check --strict`): exit code 0. Put it in the deploy pipeline; it exits 1
    on any error and, with `--strict`, on any warning. `check --json` (schema `docs/check.schema.json` of
    `indexnowkit/console`, codes in [check-codes.md](check-codes.md)) is the form for monitoring: alert on `status`
-   and on the codes, never on the texts. `config --json` is what to paste into a bug report.
+   and on the codes, never on the texts. `config --json` is what to paste into a bug report. With
+   `indexnowkit/verify`, `check --sample=<url>` (or `--sample-class=<class>`) fetches a few of your own pages and
+   reports noindex, robots.txt, canonical and redirects as warnings; with `indexnowkit/history`, `status` prints the
+   switches, the 403 counters and the last successful submission ([Status and history](#status-and-history)).
 3. **`strict_hosts: true`** whenever a `hosts` map exists or the application answers under more than one hostname
    (a staging copy, an internal name, the apex next to `www`).
 4. **A shared debounce store.** `debounce.store` is a cache that web requests and workers share, not `memory`.
@@ -55,7 +58,10 @@ An engine that receives a URL fetches it. The response decides what happens to t
 | A "not found" page that answers `200` (soft 404) | do not: fix it to `404`/`410` | the engine keeps a useless page and trusts the site less |
 | Redirect to the home page | do not: `410` or `301` to the closest equivalent | same as a soft 404 |
 
-The library sends the URL of a deleted object exactly once; the site's answer does the rest.
+The library sends the URL of a deleted object exactly once; the site's answer does the rest. The pre-flight of
+`indexnowkit/verify` never blocks a deletion: a URL that answers `404` or `410` is submitted as is (log line
+`indexnow verify: {url} gone (HTTP 410), submitted as a deletion`); with `verify.redirect: follow` a `301`/`308`
+submits both the old and the new URL, a `302`/`303`/`307` only the original.
 
 ## What not to submit
 
@@ -72,8 +78,14 @@ What protects you today: the URL normalizer accepts only absolute `http(s)` URLs
 ports, and rejects URLs with credentials or control characters; `strict_hosts` keeps foreign hosts out; the `when`
 guard of a rule keeps drafts out (`when: 'isPublished'`), and a `published → draft` change is submitted as a
 deletion. What it cannot see: a `noindex` tag, a `robots.txt` rule, a canonical pointing elsewhere. Those are the
-job of the rule (do not declare a rule on such a model, or guard it with `when`) — and of the `verify` add-on that
-a later release adds (a pre-flight fetch of a sample of URLs by `check --sample`).
+job of the rule (do not declare a rule on such a model, or guard it with `when`) — and of
+[`indexnowkit/verify`](https://github.com/indexnowkit/php/tree/main/packages/verify): with `verify.enabled: true`
+every URL gets one GET before submission and a page with `noindex` (meta or `X-Robots-Tag`), a path `robots.txt`
+disallows, a page whose canonical is another URL (`non_canonical: skip|replace`), a redirect (`redirect:
+skip|follow`) or an origin error (`401`/`403`/`5xx`, `origin_error: skip|send`) is skipped with a `Result` of the
+matching `Reason`; `404`/`410` pass as deletions. Off by default; with `dispatch: sync` the GETs run inside the web
+request, so use a queue. `check --sample=<url>` / `--sample-class=<class>` reports the same signals for a few pages
+without submitting anything (warnings at most, so a CI run against an unreachable production stays green).
 
 ## Log channel and levels
 
@@ -193,6 +205,31 @@ must forward `addListener()`, or listeners registered on the outer object never 
 
 Alert on: `reason=invalid_key` (the key file broke), a sustained `reason=rate_limited`, `status=failed` with
 `retryable=false`, and the collector-discard warning above.
+
+## Status and history
+
+Two read-only commands come with [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history)
+(`composer require indexnowkit/history`; `indexnow:history` / `indexnow:status` in Symfony and Laravel,
+`indexnow/history` / `indexnow/status` in Yii2):
+
+- **`status`** prints the switches (`enabled`, `dry_run`, environment), the dispatch mode with what the adapter
+  knows about its queue (Messenger transport and bus, Laravel connection and queue, the Yii2 queue component), the
+  debounce window and store, the engines, the **403 counter of every configured host with its escalation flag**
+  (`Retry\ForbiddenCounter`, the same cache the client counts in), the last successful submission ("3 min ago, 2
+  URLs, api"), the history size and the core version. `--json` follows `status.schema.json` of the package: alert on
+  `hosts[].escalated` and on `history.error`. Nothing is fetched.
+- **`history`** lists what the submitter recorded, newest first: `at`, status, reason, engine, HTTP code, URLs
+  (`--host`, `--status=ok|failed|skipped|pending`, `--url` exact after normalization, `--since=2h|3d|2026-09-01`,
+  `--limit`, `--json`). `history --purge` removes what is older than `history.retention_days` (`--purge=30` for 30
+  days) and prints one line — a cron entry.
+
+Both read the `Submission\SubmissionStoreInterface` of the adapter (see [submission-store.md](submission-store.md)):
+the package's `psr16` ring buffer (one process, development, small sites) or `pdo` table (production; the migration
+is in the package's `docs/migrations.md`), set by `history.store`, or a store of your own. What is recorded: the
+normalized URLs (tracking parameters already stripped), host, engine, status, reason, HTTP code, `retryable`,
+endpoint and the error sentence of the `Result` — never a response body, a header or the key. `check` adds
+`history.store` (the configured store, or an error with the migration hint when the table is missing) and
+`history.records` (`history: 1 240 records, last 3 min ago`).
 
 ## Monitoring rules
 

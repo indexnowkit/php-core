@@ -341,7 +341,9 @@ tell the classifier what the old state was: `published → draft` is an update, 
 Implement `FieldCondition`, or name the field in `whenFields`.
 
 **3. A rule on a page the engine must not index.** A preview, an admin page, a page with `noindex` or a
-`robots.txt` disallow: the engine fetches it, finds it unindexable, and counts a mistake against the key.
+`robots.txt` disallow: the engine fetches it, finds it unindexable, and counts a mistake against the key. The
+[`indexnowkit/verify`](https://github.com/indexnowkit/php/tree/main/packages/verify) add-on catches what the rule
+lets through (one GET before submission; `check --sample` for a dry report) — the rule is still the right place.
 
 ```php
 #[IndexNow(route: 'post_preview', params: ['slug' => 'slug'])]   // wrong: preview pages carry noindex

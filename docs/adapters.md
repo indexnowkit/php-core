@@ -105,8 +105,11 @@ is the plain-PHP form of the same graph.
 
 ### Optional packages
 
-`indexnowkit/sitemap` is `suggest`ed, not required: an adapter must work without it and say so where the user looks.
-The recipe, the same in the three reference adapters:
+`indexnowkit/sitemap`, `indexnowkit/verify` and `indexnowkit/history` are `suggest`ed, not required: an adapter must
+work without them and say so where the user looks. The recipe, the same in the three reference adapters (shown for
+sitemap; verify uses `PageSignals::class` as the marker and decorates the submitter and the command factory when
+`verify.enabled`, history uses `HistoryConfig::class` and puts its store into the submission-store slot when
+`history.store` is set — an interface cannot be a marker, `class_exists()` is false for it):
 
 - **One predicate per adapter, `Adapter\OptionalPackage`**: `new OptionalPackage('indexnowkit/sitemap',
   SitemapReader::class, 'sitemap', $installed)` — `installed()` is `class_exists()` of the marker unless the
