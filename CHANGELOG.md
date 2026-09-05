@@ -33,6 +33,14 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   process counts on. A non-403 answer deletes the counter only when it is set. `Adapter\SubmitterFactory` takes the
   cache as an appended argument, `Adapter\ServicesBuilder::failureCache()` / `Services::failureCache()` carry it,
   `IndexNowKit::create(..., failureCache:)` passes it. `Check\Checker` probes without it.
+- **`Submission\SubmissionStoreInterface`** (spec 17 §5.4): `record(Result, DateTimeImmutable)`, `recent(limit, host,
+  status)`, `lastFor(url)`; `Submission\SubmissionRecord` (`urls`, `result`, `at`) and `Submission\NullSubmissionStore`.
+  `Submitter::__construct(..., ?SubmissionStoreInterface $store = null, ?ClockInterface $clock = null)` (appended)
+  records one entry per Result after the listeners, skipped results included; a throwing store is one error log line
+  and never affects delivery. Wired through `Adapter\SubmitterFactory` (appended `$store`),
+  `Adapter\ServicesBuilder::submissionStore()` / `Services::submissionStore()` and `IndexNowKit::create(...,
+  submissionStore:)`. Implement tier; the "state → records" table is [docs/submission-store.md](docs/submission-store.md).
+  The `indexnowkit/history` package will ship the stores.
 
 ## [0.7.0] — 2026-09-06
 

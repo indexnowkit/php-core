@@ -11,6 +11,7 @@ use IndexNowKit\Debounce\NullDebounceStore;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\KeyProviderInterface;
+use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Submitter;
 use IndexNowKit\SubmitterInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
@@ -37,6 +38,7 @@ final class SubmitterFactory implements SubmitterFactoryInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?EventDispatcherInterface $events = null,
         private readonly ?CacheInterface $failureCache = null,
+        private readonly ?SubmissionStoreInterface $store = null,
     ) {}
 
     public function create(bool $force, bool $dryRun): SubmitterInterface
@@ -44,7 +46,7 @@ final class SubmitterFactory implements SubmitterFactoryInterface
         $config = $dryRun ? $this->config->with(dryRun: true) : $this->config;
         $client = new Client($this->transport, $this->keys, $config, $this->logger, $this->throttle, $this->normalizer, $this->failureCache);
 
-        return new Submitter($client, $config, $force ? new NullDebounceStore() : $this->debounce, $this->logger, $this->normalizer, $this->events);
+        return new Submitter($client, $config, $force ? new NullDebounceStore() : $this->debounce, $this->logger, $this->normalizer, $this->events, $this->store);
     }
 
     /**

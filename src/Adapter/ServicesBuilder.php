@@ -18,6 +18,7 @@ use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Http\TransportFactory;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
+use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\SubmitterInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Url\ResolverLocatorInterface;
@@ -114,6 +115,12 @@ final class ServicesBuilder
     public function failureCache(CacheInterface|Closure $cache): self
     {
         return $this->node(Services::FAILURE_CACHE, $cache);
+    }
+
+    /** Where the submitter records every Result (`Submission\SubmissionStoreInterface`); none by default. */
+    public function submissionStore(SubmissionStoreInterface|Closure $store): self
+    {
+        return $this->node(Services::SUBMISSION_STORE, $store);
     }
 
     /** Default `Client` over the transport, keys, throttle, normalizer and failure cache. */

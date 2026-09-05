@@ -26,6 +26,7 @@ use IndexNowKit\IndexNowKit;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Submitter;
 use IndexNowKit\SubmitterInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
@@ -70,6 +71,7 @@ final class Services
     public const RESOLVER_LOCATOR = 'resolverLocator';
     public const URL_RESOLVER = 'urlResolver';
     public const FAILURE_CACHE = 'failureCache';
+    public const SUBMISSION_STORE = 'submissionStore';
 
     /** @var array<string, object|null> */
     private array $built = [];
@@ -136,7 +138,13 @@ final class Services
 
     public function submitter(): SubmitterInterface
     {
-        return $this->memo(self::SUBMITTER, SubmitterInterface::class, fn(): SubmitterInterface => new Submitter($this->client(), $this->config, $this->debounceStore(), $this->logger, $this->normalizer(), $this->events));
+        return $this->memo(self::SUBMITTER, SubmitterInterface::class, fn(): SubmitterInterface => new Submitter($this->client(), $this->config, $this->debounceStore(), $this->logger, $this->normalizer(), $this->events, $this->submissionStore()));
+    }
+
+    /** The store the submitter records every Result in, as given; none by default (`Submission\NullSubmissionStore` is the adapters' placeholder). */
+    public function submissionStore(): ?SubmissionStoreInterface
+    {
+        return $this->optional(self::SUBMISSION_STORE, SubmissionStoreInterface::class);
     }
 
     public function collector(): CollectorInterface
@@ -238,7 +246,7 @@ final class Services
     /** `Adapter\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
     public function submitterFactory(): SubmitterFactoryInterface
     {
-        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events, $this->failureCache());
+        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events, $this->failureCache(), $this->submissionStore());
     }
 
     /** False when the collector was never built (nothing was collected) or is empty; builds nothing. */

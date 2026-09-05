@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace IndexNowKit;
 
 use Closure;
+use IndexNowKit\Clock\SystemClock;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\InvalidUrlException;
+use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Url\UrlNormalizer;
 use IndexNowKit\Url\UrlNormalizerInterface;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -18,8 +21,9 @@ use Throwable;
 /**
  * One submission: normalize -> dedupe -> debounce -> Client (group, chunk, throttle, POST) -> mark submitted.
  *
- * Ancillary failures (debounce store down, a listener throwing) are logged and never abort delivery.
- * Every outcome, including skipped URLs, is a Result handed to listeners and to the optional PSR-14 dispatcher.
+ * Ancillary failures (debounce store down, a listener throwing, a submission store throwing) are logged and never
+ * abort delivery. Every outcome, including skipped URLs, is a Result handed to listeners, to the optional PSR-14
+ * dispatcher and to the submission store.
  */
 final class Submitter implements SubmitterInterface
 {
@@ -27,9 +31,12 @@ final class Submitter implements SubmitterInterface
     private array $listeners = [];
 
     private readonly UrlNormalizerInterface $normalizer;
+    private readonly ClockInterface $clock;
 
     /**
-     * @param EventDispatcherInterface|null $events receives every Result as an event (PSR-14), in addition to listeners
+     * @param EventDispatcherInterface|null  $events receives every Result as an event (PSR-14), in addition to listeners
+     * @param SubmissionStoreInterface|null  $store  remembers every Result ({@see SubmissionStoreInterface}); null = nothing is kept
+     * @param ClockInterface|null            $clock  the time a record gets; default the system clock
      */
     public function __construct(
         private readonly ClientInterface $client,
@@ -38,8 +45,11 @@ final class Submitter implements SubmitterInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         ?UrlNormalizerInterface $normalizer = null,
         private readonly ?EventDispatcherInterface $events = null,
+        private readonly ?SubmissionStoreInterface $store = null,
+        ?ClockInterface $clock = null,
     ) {
         $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
+        $this->clock = $clock ?? new SystemClock();
     }
 
     public function addListener(callable $listener): void
@@ -70,6 +80,7 @@ final class Submitter implements SubmitterInterface
         foreach ($results as $result) {
             $this->notify($result);
         }
+        $this->remember($results);
 
         if ($ttl > 0) {
             // A URL accepted by one engine but retryable (429, 5xx, transport) at another is not marked: the retry of
@@ -169,6 +180,26 @@ final class Submitter implements SubmitterInterface
         }
 
         return $listener instanceof Closure ? 'closure' : get_debug_type($listener);
+    }
+
+    /**
+     * One record per Result in the submission store, at the clock's time; a throwing store is one log line per call.
+     *
+     * @param list<Result> $results
+     */
+    private function remember(array $results): void
+    {
+        if ($this->store === null || $results === []) {
+            return;
+        }
+        try {
+            $at = $this->clock->now();
+            foreach ($results as $result) {
+                $this->store->record($result, $at);
+            }
+        } catch (Throwable $e) {
+            $this->logger->error('indexnow: submission store failed, {count} result(s) not recorded: {error}', ['count' => \count($results), 'error' => $e->getMessage(), 'exception' => $e]);
+        }
     }
 
     private function notify(Result $result): void

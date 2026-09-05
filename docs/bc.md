@@ -9,8 +9,8 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Adapter\SubmitterFactory`, `Submission\ResultSummary`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, the four test doubles of `Testing\` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Adapter\SubmitterFactory`, `Submission\ResultSummary`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Submission\NullSubmissionStore`, the four test doubles of `Testing\` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface`, `Submission\SubmissionStoreInterface` (new in 0.8, see [submission-store.md](submission-store.md); it lives through one minor unchanged before 1.0) |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
@@ -47,8 +47,8 @@ accepts. Renaming a `Config` property is therefore a breaking change and appears
 
 ## Value objects and enums
 
-`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `Http\Response`, `Check\CheckItem`, `Retry\WorkerOutcome`
-and the attribute classes are
+`Result`, `ResolvedUrl`, `UrlRule`, `RuleSet`, `RuleEvent`, `Http\Response`, `Check\CheckItem`, `Retry\WorkerOutcome`,
+`Submission\SubmissionRecord` and the attribute classes are
 `final readonly`. Their properties are read-only public API: reading them is safe,
 constructing them is safe, and new properties are only appended with defaults. Prefer the named constructors
 (`Result::ok()`, `Result::skipped()`, `Result::failed()`) over the constructor, so an appended parameter never

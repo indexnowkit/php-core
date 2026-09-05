@@ -17,6 +17,7 @@ use IndexNowKit\Http\TransportFactory;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\StaticKeyProvider;
+use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\GuardedUrlResolver;
@@ -67,8 +68,9 @@ final class IndexNowKit
      * brings its own pipeline, so combining it with $transport/$debounce/$throttle/$normalizer is rejected instead
      * of ignored. Parameter NAMES are part of the BC promise (new ones are only appended): always use named arguments.
      *
-     * @param CacheInterface|null $failureCache PSR-16 cache the 403 counter of the client lives in, shared by every process
-     *                                          of the application (the cache behind the debounce store); null = per process
+     * @param CacheInterface|null           $failureCache    PSR-16 cache the 403 counter of the client lives in, shared by every
+     *                                                        process of the application (the cache behind the debounce store); null = per process
+     * @param SubmissionStoreInterface|null $submissionStore where the submitter records every Result; null = nowhere
      *
      * @throws ConfigurationException when no HTTP client can be discovered, on an incompatible combination, or on a
      *                                `dispatch`/`debounce.store`/`http.client` value that needs a framework to resolve it
@@ -87,11 +89,12 @@ final class IndexNowKit
         ?SubmitterInterface $submitter = null,
         ?CollectorInterface $collector = null,
         ?CacheInterface $failureCache = null,
+        ?SubmissionStoreInterface $submissionStore = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
         if ($submitter !== null) {
-            $ignored = array_keys(array_filter(['transport' => $transport, 'debounce' => $debounce, 'throttle' => $throttle, 'normalizer' => $normalizer, 'failureCache' => $failureCache], static fn($v): bool => $v !== null));
+            $ignored = array_keys(array_filter(['transport' => $transport, 'debounce' => $debounce, 'throttle' => $throttle, 'normalizer' => $normalizer, 'failureCache' => $failureCache, 'submissionStore' => $submissionStore], static fn($v): bool => $v !== null));
             if ($ignored !== []) {
                 throw new ConfigurationException(\sprintf('IndexNowKit::create(): $%s cannot be combined with a custom $submitter, which builds its own pipeline. Pass them to your submitter instead.', implode(', $', $ignored)));
             }
@@ -100,7 +103,7 @@ final class IndexNowKit
             $throttle ??= TokenBucket::fromConfig($config, $logger);
             $transport ??= TransportFactory::lazy($config);
             $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer, $failureCache);
-            $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config), $logger, $normalizer);
+            $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config), $logger, $normalizer, null, $submissionStore);
         }
         $dispatcher ??= DispatcherFactory::fromConfig($config, $submitter, $logger);
 
