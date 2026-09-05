@@ -155,7 +155,7 @@ final class Checker implements CheckerInterface
             if ($response->status !== 200) {
                 $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served with 200 (no redirects).', $host, self::maskUrl($keyUrl, $key), $response->status));
             } elseif (trim($response->body) !== $key) {
-                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes).', $host, \strlen($response->body)));
+                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), self::maskUrl(self::excerpt($response->body), $key)));
             } else {
                 $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)));
             }
@@ -211,6 +211,14 @@ final class Checker implements CheckerInterface
         }
 
         return array_values(array_unique(array_map('strtolower', array_filter($hosts, static fn(string $h): bool => $h !== ''))));
+    }
+
+    /** The printable start of a response body, for the mismatch line. */
+    private static function excerpt(string $body): string
+    {
+        $head = (string) preg_replace('/[^\\x20-\\x7e]+/', ' ', substr(ltrim($body), 0, 60));
+
+        return trim($head) . (\strlen($body) > 60 ? '…' : '');
     }
 
     private static function maskUrl(string $text, string $key): string

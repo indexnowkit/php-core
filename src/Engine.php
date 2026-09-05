@@ -67,7 +67,7 @@ enum Engine: string
             throw new ConfigurationException(\sprintf('Custom IndexNow endpoint "%s" must use https (the key travels in the request body).', $value));
         }
 
-        throw new ConfigurationException(\sprintf('Unknown IndexNow engine "%s". Use one of: %s, or a full https endpoint URL.', $value, implode(', ', array_map(static fn(self $e) => $e->value, self::cases()))));
+        throw new ConfigurationException(\sprintf('Unknown IndexNow engine "%s". Use one of: %s, an alias from engine_aliases, or a full https endpoint URL.', $value, implode(', ', array_map(static fn(self $e) => $e->value, self::cases()))));
     }
 
     /**

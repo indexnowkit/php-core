@@ -32,10 +32,11 @@ final class ClassNameResolverTest extends TestCase
             self::resolver()->resolve('Nope');
             self::fail('expected an exception');
         } catch (InvalidArgumentException $e) {
-            self::assertSame('Class "Nope" not found.', $e->getMessage());
+            self::assertStringStartsWith('Class "Nope" not found (looked as given and under ', $e->getMessage());
+            self::assertStringContainsString('Give the fully qualified name of a test case', $e->getMessage());
         }
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('"stdClass" is not a test case.');
+        $this->expectExceptionMessage('"stdClass" is not a test case: the command loads objects by id through the ORM');
         self::resolver()->resolve(stdClass::class);
     }
 }

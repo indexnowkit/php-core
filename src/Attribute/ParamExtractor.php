@@ -85,7 +85,7 @@ final class ParamExtractor
             $param instanceof Formatted => self::format($subject, $param),
             $param instanceof Call => self::call($subject, $param, $locale, $host),
             $param instanceof Equals => self::equals(self::read($subject, $param->path), $param->value),
-            default => throw new ConfigurationException(\sprintf('Unsupported param source %s on %s.', get_debug_type($param), $subject::class)),
+            default => throw new ConfigurationException(\sprintf('Unsupported param source %s on %s: a param is an accessor string ("slug", "author.slug") or one of Accessor, Value, Formatted, Call, Equals from IndexNowKit\\Attribute\\Param.', get_debug_type($param), $subject::class)),
         };
     }
 
@@ -126,7 +126,7 @@ final class ParamExtractor
             return (fn() => $this->$accessor)->call($subject); // @phpstan-ignore property.dynamicName
         }
 
-        throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no property, getter or method found.', $accessor, $subject::class));
+        throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no method %s(), %s(), %s() or %s(), no property "%s"%s. Fix the accessor, or register a SubjectReaderInterface for this kind of object.', $accessor, $subject::class, $accessor, 'get' . $ucfirst, 'is' . $ucfirst, 'has' . $ucfirst, $accessor, self::$readers === [] ? '' : \sprintf(', and none of the registered readers (%s) claims it', implode(', ', array_keys(self::$readers)))));
     }
 
     /**

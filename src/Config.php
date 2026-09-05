@@ -198,14 +198,17 @@ final readonly class Config
             KeyValidator::assertValid($previousKey);
         }
         $this->logLevels = self::normalizeLogLevels($logLevels);
-        if ($resolverMaxViaDepth < 0 || $resolverMaxViaFanout < 1) {
-            throw new ConfigurationException('"resolver": max_via_depth >= 0, max_via_fanout >= 1.');
+        if ($resolverMaxViaDepth < 0) {
+            throw new ConfigurationException(\sprintf('"resolver.max_via_depth" must be >= 0 (0 = rules may not follow `via:` at all), got %d.', $resolverMaxViaDepth));
+        }
+        if ($resolverMaxViaFanout < 1) {
+            throw new ConfigurationException(\sprintf('"resolver.max_via_fanout" must be >= 1 (related objects one `via:` hop may yield), got %d.', $resolverMaxViaFanout));
         }
         if ($collectorMaxUrls < 0) {
             throw new ConfigurationException(\sprintf('"collector.max_urls" must be >= 0 (0 = no early flush), got %d.', $collectorMaxUrls));
         }
         if ($debounceKeyPrefix === '' || preg_match('/[{}()\/\\@:\s]/', $debounceKeyPrefix) === 1) {
-            throw new ConfigurationException(\sprintf('"debounce.key_prefix" must be a non-empty PSR-6 safe string, got "%s".', $debounceKeyPrefix));
+            throw new ConfigurationException(\sprintf('"debounce.key_prefix" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got "%s". Letters, digits, "_", "-" and "." are safe.', $debounceKeyPrefix));
         }
         $this->productionEnvironments = array_values(array_unique(array_map(static fn(string $e): string => strtolower(trim($e)), array_filter($productionEnvironments, static fn(mixed $e): bool => \is_string($e) && trim($e) !== ''))));
         if ($this->productionEnvironments === []) {
@@ -220,8 +223,20 @@ final readonly class Config
         if ($forbiddenEscalation < 1) {
             throw new ConfigurationException(\sprintf('"logging.forbidden_escalation" must be >= 1, got %d.', $forbiddenEscalation));
         }
-        if ($retryMaxAttempts < 1 || $retryBaseDelay < 0 || $retryMultiplier < 1.0 || $retryMaxDelay < 0 || $retryServerErrorDelay < 0) {
-            throw new ConfigurationException('"retry": max_attempts >= 1, multiplier >= 1.0, delays >= 0 seconds.');
+        if ($retryMaxAttempts < 1) {
+            throw new ConfigurationException(\sprintf('"retry.max_attempts" must be >= 1 (the first attempt counts; 1 = never retry), got %d.', $retryMaxAttempts));
+        }
+        if ($retryBaseDelay < 0) {
+            throw new ConfigurationException(\sprintf('"retry.base_delay" must be >= 0 seconds (the wait before the second attempt after a 429), got %d.', $retryBaseDelay));
+        }
+        if ($retryMultiplier < 1.0) {
+            throw new ConfigurationException(\sprintf('"retry.multiplier" must be >= 1.0 (each further wait is the previous one times this), got %s.', $retryMultiplier));
+        }
+        if ($retryMaxDelay < 0) {
+            throw new ConfigurationException(\sprintf('"retry.max_delay" must be >= 0 seconds (the ceiling of the growing wait), got %d.', $retryMaxDelay));
+        }
+        if ($retryServerErrorDelay < 0) {
+            throw new ConfigurationException(\sprintf('"retry.server_error_delay" must be >= 0 seconds (the wait after a 5xx or a network failure), got %d.', $retryServerErrorDelay));
         }
         if ($enabled && !$dryRun && $key === null && $hosts === []) {
             throw new ConfigurationException('IndexNow is enabled but no "key" (or "hosts" map) is configured. Set INDEXNOW_KEY, or enable dry_run.');

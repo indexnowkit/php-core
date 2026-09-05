@@ -100,10 +100,13 @@ final class CheckerTest extends TestCase
     public function testKeyMismatchIsError(): void
     {
         $config = Factory::config();
-        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, 'other'));
+        $t = (new FakeTransport())->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, "<!DOCTYPE html>\n<html><head><title>Home</title></head><body>" . str_repeat('x', 100)));
         $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t))->run();
 
         self::assertTrue($report->hasErrors());
+        $errors = implode("\n", array_column(array_filter($report->items(), static fn(CheckItem $i): bool => $i->level === CheckLevel::Error), 'message'));
+        self::assertStringContainsString('starting with "<!DOCTYPE html> <html><head><title>Home</title></head><body>…"', $errors, 'the body excerpt is printed, control characters collapsed');
+        self::assertStringContainsString('a 200 answer with HTML usually means a catch-all route matched before the key file route', $errors);
     }
 
     #[TestDox('environment: unset says nothing; staging with a key and dry_run unset is an error; explicit dry_run: false a warning; production an ok line')]

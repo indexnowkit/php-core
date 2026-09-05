@@ -51,6 +51,7 @@ final class CheckRunner
             return ExitCode::FAILURE;
         }
         $io->success('IndexNow is ready.');
+        $io->text(\sprintf('Next: annotate a class with #[IndexNow(...)], or send one URL now: %s %s https://…', $this->words->cli, $this->words->submit));
 
         return ExitCode::SUCCESS;
     }

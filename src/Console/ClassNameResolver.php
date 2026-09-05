@@ -28,7 +28,8 @@ final class ClassNameResolver
     /**
      * @return class-string
      *
-     * @throws InvalidArgumentException `Class "%s" not found.` or `"%s" is not %s.`
+     * @throws InvalidArgumentException when no class of that name is autoloadable (the namespaces that were tried are
+     *                                  named) or the class is not one the ORM manages
      */
     public function resolve(string $class): string
     {
@@ -43,10 +44,11 @@ final class ClassNameResolver
             }
         }
         if (!class_exists($candidate)) {
-            throw new InvalidArgumentException(\sprintf('Class "%s" not found.', $class));
+            $where = $this->namespaces === [] ? 'as given' : \sprintf('as given and under %s', implode(', ', array_map(static fn(string $ns): string => rtrim($ns, '\\') . '\\', $this->namespaces)));
+            throw new InvalidArgumentException(\sprintf('Class "%s" not found (looked %s). Give the fully qualified name of %s, e.g. App\\Entity\\Post.', $class, $where, $this->expected));
         }
         if (!($this->accepts)($candidate)) {
-            throw new InvalidArgumentException(\sprintf('"%s" is not %s.', $candidate, $this->expected));
+            throw new InvalidArgumentException(\sprintf('"%s" is not %s: the command loads objects by id through the ORM and resolves their URLs from #[IndexNow] rules, so it needs a class the ORM manages.', $candidate, $this->expected));
         }
 
         return $candidate;

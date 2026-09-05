@@ -8,6 +8,7 @@ use IndexNowKit\Config;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Tests\Support\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -176,9 +177,32 @@ final class ConfigKnobsTest extends TestCase
             Factory::config(['debounce' => ['per_url' => 0, 'key_prefix' => 'bad prefix']]);
             self::fail('prefix');
         } catch (ConfigurationException $e) {
-            self::assertStringContainsString('key_prefix', $e->getMessage());
+            self::assertSame('"debounce.key_prefix" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got "bad prefix". Letters, digits, "_", "-" and "." are safe.', $e->getMessage());
         }
         $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage('"resolver.max_via_fanout" must be >= 1 (related objects one `via:` hop may yield), got 0.');
         Factory::config(['resolver' => ['max_via_fanout' => 0]]);
+    }
+
+    /**
+     * @return iterable<string, array{0: array<string, mixed>, 1: string}>
+     */
+    public static function boundsProvider(): iterable
+    {
+        yield 'via depth' => [['resolver' => ['max_via_depth' => -1]], '"resolver.max_via_depth" must be >= 0 (0 = rules may not follow `via:` at all), got -1.'];
+        yield 'retry attempts' => [['retry' => ['max_attempts' => 0]], '"retry.max_attempts" must be >= 1 (the first attempt counts; 1 = never retry), got 0.'];
+        yield 'retry base delay' => [['retry' => ['base_delay' => -5]], '"retry.base_delay" must be >= 0 seconds (the wait before the second attempt after a 429), got -5.'];
+        yield 'retry multiplier' => [['retry' => ['multiplier' => 0.5]], '"retry.multiplier" must be >= 1.0 (each further wait is the previous one times this), got 0.5.'];
+        yield 'retry max delay' => [['retry' => ['max_delay' => -1]], '"retry.max_delay" must be >= 0 seconds (the ceiling of the growing wait), got -1.'];
+        yield 'retry server error delay' => [['retry' => ['server_error_delay' => -1]], '"retry.server_error_delay" must be >= 0 seconds (the wait after a 5xx or a network failure), got -1.'];
+        yield 'engine' => [['engines' => ['gogle']], 'Unknown IndexNow engine "gogle". Use one of: api, yandex, bing, naver, seznam, yep, internetarchive, amazon, an alias from engine_aliases, or a full https endpoint URL.'];
+    }
+
+    #[DataProvider('boundsProvider')]
+    public function testEachBoundHasItsOwnMessage(array $overrides, string $message): void
+    {
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage($message);
+        Factory::config($overrides);
     }
 }

@@ -10,8 +10,10 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Decorator that re-submits retryable URLs in-process (CLI, workers, cron). In web requests prefer a
- * queue: the delay blocks.
+ * Decorator that re-submits retryable URLs in-process, sleeping between attempts: the path for synchronous
+ * delivery and CLI runs (`indexnow:submit`, cron). Not for web requests (the delay blocks the response) and not
+ * for queue workers: a queued job hands the retryable URLs back to its queue with a delay through
+ * {@see WorkerOutcome}, so the worker never sleeps.
  */
 final class RetryingSubmitter implements SubmitterInterface
 {
