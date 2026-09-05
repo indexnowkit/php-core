@@ -59,6 +59,10 @@ contain breaking changes, listed under "Changed". What the compatibility promise
 - `Config::toArray()`: the effective configuration in the nested shape `fromArray()` takes, every option present with
   its resolved value (`Config::fromArray($config->toArray())` is an equal configuration); keys are not masked, the
   `config` command does that.
+- **`Reason` cases for the `verify` package** (spec 17 §5.7; the enum is closed, so the core reserves them): `Noindex`,
+  `RobotsDisallowed`, `NonCanonical`, `Redirected` (skips, not retryable) and `OriginError` (skip, retryable), with
+  messages and translation keys; `Reason::isRetryable()` is new. The table of every case is in docs/bc.md. A `match`
+  over `Reason` without a `default` arm fatals on them, as documented.
 
 ### Changed
 

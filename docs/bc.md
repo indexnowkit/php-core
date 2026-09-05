@@ -66,6 +66,17 @@ the failure taxonomy grow.
 
 A `match` over `Reason` or `Engine` without a `default` will fatal on a new case. Write the default arm.
 
+The `Reason` cases and what they mean for a `Result` (`isSkip()`: nothing was sent; `isRetryable()`: a later attempt
+may succeed by itself):
+
+| Case | `isSkip()` | `isRetryable()` | Produced by |
+|---|---|---|---|
+| `disabled`, `dry_run`, `debounced`, `no_key`, `invalid_url` | yes | no | the core pipeline |
+| `noindex`, `robots_disallowed`, `non_canonical`, `redirected` | yes | no | the `verify` package's pre-flight (cases reserved in core 0.8) |
+| `origin_error` | yes | yes | `verify`: the page could not be fetched |
+| `invalid_request` (400), `invalid_key` (403), `unprocessable` (422), `unexpected` | no | no | the engine's answer |
+| `rate_limited` (429), `server_error` (5xx), `transport` | no | yes | the engine's answer or the network |
+
 ## Constants
 
 These are the values to reference instead of hard-coding, and they are covered by the promise:
