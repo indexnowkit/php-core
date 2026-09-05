@@ -176,12 +176,13 @@ where you care about the exact payload.
 ## Assertions for an adapter's HTTP and command tests
 
 The conformance scenarios H01–H05 are the same in every framework, only the way a response or a command output is
-captured differs. Two static helpers hold the assertions, so an adapter test parses its framework's objects and
+captured differs. Two static helpers of [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing)
+(`composer require --dev indexnowkit/testing`) hold the assertions, so an adapter test parses its framework's objects and
 asserts once:
 
 ```php
-use IndexNowKit\Testing\CheckOutputAssertions;
-use IndexNowKit\Testing\KeyFileAssertions;
+use IndexNowKit\Testing\Conformance\CheckOutputAssertions;
+use IndexNowKit\Testing\Conformance\KeyFileAssertions;
 
 // H01: 200, text/plain, the key as the body, Cache-Control with public and max-age, Vary: Host only with a hosts map
 KeyFileAssertions::assertKeyFileResponse($response->getStatusCode(), $response->headers->all(), $response->getContent(), $key, maxAge: 300, expectVaryHost: true);
@@ -199,7 +200,8 @@ string or a list.
 
 ## Conformance kits for adapters
 
-Two abstract PHPUnit cases turn docs/spec/03 into runnable scenarios against *your* wiring:
+Two abstract PHPUnit cases of `indexnowkit/testing` turn docs/spec/03 into runnable scenarios against *your* wiring
+(the package is `require-dev`; the core itself ships no PHPUnit code):
 
 - `Testing\Conformance\CoreConformanceTestCase` (C01, C03, C04, C06, C09–C12, C14, C19, C20): return the facade your
   container built and the `FakeTransport` it is wired to; optionally a second configured host for C04.
@@ -219,6 +221,8 @@ silently.
   `deletedEvents()` before resolving, so an ORM test does not need URLs to verify classification.
 - `IndexNowKit::create()` rejects combining a custom `submitter:` with `transport:`, `debounce:`, `throttle:` or
   `normalizer:`, because a custom submitter builds its own pipeline. Pass those to your submitter instead.
-- The repository ships a mock IndexNow server for end-to-end runs:
-  `php -S 127.0.0.1:8089 tests/Support/mock-server/router.php`, with scenarios selected by an
-  `X-Mock-Scenario` header.
+- `indexnowkit/testing` ships a mock IndexNow server for end-to-end runs through a real PSR-18 client:
+  `php -S 127.0.0.1:8089 vendor/indexnowkit/testing/resources/mock-server/router.php`, with scenarios selected by an
+  `X-Mock-Scenario` header (`ok200`, `pending202`, `forbidden403`, `ratelimit429`, …), `MOCK_KEYS` for the key files
+  it serves and a request log at `GET /_mock/requests`. The core's own `Psr18TransportTest` runs against a private
+  copy of the same router (`tests/Support/mock-server/`), because the core cannot depend on `testing`.

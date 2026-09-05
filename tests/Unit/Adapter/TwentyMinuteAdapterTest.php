@@ -13,7 +13,6 @@ use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Hook\ObserverHelper;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Testing\FakeTransport;
-use IndexNowKit\Testing\KeyFileAssertions;
 use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Url\ArrayResolverLocator;
 use IndexNowKit\Url\ObjectChangeHandler;
@@ -139,7 +138,10 @@ final class TwentyMinuteAdapterTest extends TestCase
 
         $response = $adapter->keyFileResponse('/' . Factory::KEY . '.txt', 'www.example.com');
         self::assertNotNull($response);
-        KeyFileAssertions::assertKeyFileResponse(200, $response[1], $response[0], Factory::KEY, 60);
+        [$body, $headers] = $response;
+        self::assertSame(Factory::KEY, $body, 'the body is the key and nothing else');
+        self::assertSame('text/plain; charset=utf-8', $headers['Content-Type'] ?? null);
+        self::assertSame('public, max-age=60', $headers['Cache-Control'] ?? null, 'key_file.cache_max_age'); // the full H01 assertion is KeyFileAssertions of indexnowkit/testing
         self::assertNull($adapter->keyFileResponse('/nope.txt', 'www.example.com'));
 
         $disabled = new IndexNowIntegration(['key' => 'short'], 'prod', $logger, transport: $transport);

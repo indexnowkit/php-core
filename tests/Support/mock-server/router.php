@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 /**
- * IndexNow mock server (PHP built-in server edition). Run: php -S 127.0.0.1:8089 packages/core/tests/Support/mock-server/router.php
+ * IndexNow mock server (PHP built-in server edition), shipped by indexnowkit/testing:
+ *   php -S 127.0.0.1:8089 vendor/indexnowkit/testing/resources/mock-server/router.php
  * Scenario via header X-Mock-Scenario or ?scenario=. Request log at GET /_mock/requests, DELETE clears.
  * MOCK_KEYS env (comma separated) makes GET /{key}.txt answer 200.
+ * The core's own tests keep a byte-identical copy (packages/core/tests/Support/mock-server/router.php in the
+ * monorepo) because the core cannot depend on this package; MockServerRouterTest keeps the two in sync.
  */
 $logFile = sys_get_temp_dir() . '/indexnow-mock-requests.json';
 $method = $_SERVER['REQUEST_METHOD'];

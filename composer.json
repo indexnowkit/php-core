@@ -57,7 +57,6 @@
         "guzzlehttp/guzzle": "Alternative PSR-18 client, also configured automatically",
         "nyholm/psr7": "PSR-17 factories",
         "ext-intl": "UTS #46 IDN handling (a pure-PHP punycode encoder is used otherwise)",
-        "phpunit/phpunit": "To extend Testing\\Conformance\\CoreConformanceTestCase in an adapter's test suite",
         "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl",
         "symfony/console": "Console\\*Runner: the shared bodies of the check/submit/explain/key commands used by the framework adapters"
     },
@@ -85,7 +84,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.6.x-dev"
+            "dev-main": "0.7.x-dev"
         }
     }
 }

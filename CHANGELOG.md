@@ -14,11 +14,20 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   `use IndexNowKit\Adapter\SubmitterFactory;`, `use IndexNowKit\Adapter\SubmitterFactoryInterface;`,
   `use IndexNowKit\Submission\ResultSummary;`. `Adapter\Services::submitterFactory()` returns
   `Adapter\SubmitterFactoryInterface`. Nothing else changes: same constructors, same methods.
+- **`Testing\Conformance\*` and the assertion helpers are the `indexnowkit/testing` package** (spec 17 §4.1: they
+  extend and call PHPUnit, which the core only suggested). `Testing\Conformance\CoreConformanceTestCase` and
+  `OrmConformanceTestCase` keep their FQCN; `Testing\KeyFileAssertions`, `Testing\CheckOutputAssertions` and
+  `Testing\ReadmeAssertions` are now `Testing\Conformance\KeyFileAssertions`, `CheckOutputAssertions`,
+  `ReadmeAssertions` — a withdrawal from the stable API before 1.0. Migration: `composer require --dev
+  indexnowkit/testing` and change the three `use` lines. The mock server is
+  `vendor/indexnowkit/testing/resources/mock-server/router.php`. The four test doubles (`FakeTransport`, `ArrayLogger`,
+  `FrozenClock`, `RecordingDispatcher`) stay in the core; `phpunit/phpunit` leaves `suggest`.
 
 ### Added
 
 - `Testing\ReadmeAssertions`: what the "Notes for AI assistants" README section must keep (present in EN and RU, a
-  complete snippet, only existing commands and configuration keys), for the `ReadmeAiNotesTest` of every package.
+  complete snippet, only existing commands and configuration keys), for the `ReadmeAiNotesTest` of every package
+  (moved to `indexnowkit/testing` as `Testing\Conformance\ReadmeAssertions` in the same release, see Changed).
 - `.phpstorm.meta.php`: completion of `locales` (`current`, `all`) and `events` on `#[IndexNow]` / `#[IndexNowDefaults]`.
 
 ### Documentation

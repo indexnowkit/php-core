@@ -492,11 +492,13 @@ The golden rule: **nothing reaching a lifecycle hook may throw into the host app
 Use `IndexNowKit\Testing` (`FakeTransport`, `ArrayLogger`, `FrozenClock`, `RecordingDispatcher`) — see
 [testing.md](testing.md). Assert classification through `ObjectChangeHandler::*Events()` before any URL exists, and
 delivery through `RecordingDispatcher`. For the HTTP and command scenarios, parse your framework's response or
-output and hand it to `Testing\KeyFileAssertions` (H01–H03: status, content type, `Cache-Control` by directive,
-`Vary: Host` only with a hosts map) and `Testing\CheckOutputAssertions` (H04–H05: exit code with the output as the
-failure message, the ready line, the key file hint), so your tests do not carry a copy of the core's phrases.
+output and hand it to `Testing\Conformance\KeyFileAssertions` (H01–H03: status, content type, `Cache-Control` by
+directive, `Vary: Host` only with a hosts map) and `Testing\Conformance\CheckOutputAssertions` (H04–H05: exit code
+with the output as the failure message, the ready line, the key file hint), so your tests do not carry a copy of the
+core's phrases. Both, the conformance kits and the mock server are the `indexnowkit/testing` package
+(`require-dev`); the core ships only the four PHPUnit-free doubles.
 
-Then work through the conformance scenarios with the shipped kits (`Testing\Conformance\CoreConformanceTestCase`,
+Then work through the conformance scenarios with the kits of `indexnowkit/testing` (`Testing\Conformance\CoreConformanceTestCase`,
 `OrmConformanceTestCase`, see [testing.md](testing.md)): C01–C22 for anything that talks to the protocol, A01–A21 for
 an ORM adapter, H01–H06 for a framework adapter. Declare in your README which scenarios do not apply to your framework and
 why — A13 (bulk operations bypass hooks) is a documented limitation everywhere, not a failure.
@@ -561,7 +563,7 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
       the `sitemap` command is a stub that explains what to install and exits 1, `check` prints the `StaticCheck`
       line, a `sitemap` block in the configuration warns about nothing, every other command works, and nothing is
       logged at boot; a test set with the predicate forced to false.
-- [ ] Conformance kits green (C01–C22, A01–A21 for an ORM, H01–H06 through `Testing\KeyFileAssertions` and
-      `Testing\CheckOutputAssertions`); undocumented scenarios named in the README.
+- [ ] `indexnowkit/testing` in `require-dev`; conformance kits green (C01–C22, A01–A21 for an ORM, H01–H06 through
+      `Testing\Conformance\KeyFileAssertions` and `CheckOutputAssertions`); undocumented scenarios named in the README.
 - [ ] CI matrix over the framework's supported majors, phpstan level 9 on every flavour, EN + RU README with the family
       table, `docs/troubleshooting.md`, a changelog with migration notes.

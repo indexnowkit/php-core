@@ -63,6 +63,7 @@ composer require indexnowkit/core symfony/http-client nyholm/psr7   # подой
 | [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: observer Eloquent, очередь, маршрут файла ключа, artisan-команды |
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: события ActiveRecord с проверкой на коммите, yii2-queue, консольный контроллер |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | читает sitemap (индекс, gzip, текст) и отправляет его URL; команда `sitemap` каждого адаптера |
+| [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: киты соответствия (C01–C22, A01–A21), ассерции H01–H05, mock-сервер IndexNow |
 
 ## Быстрый старт
 

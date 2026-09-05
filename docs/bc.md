@@ -9,7 +9,7 @@ This page exists because "public API" is ambiguous for a library whose main audi
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Adapter\SubmitterFactory`, `Console\Vocabulary`, `Console\ClassNameResolver`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Console\Definitions`, `Testing\KeyFileAssertions`, `Testing\CheckOutputAssertions`, `Testing\ReadmeAssertions` |
+| **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Console\*Runner`, `Console\ResultRenderer`, `Adapter\SubmitterFactory`, `Console\Vocabulary`, `Console\ClassNameResolver`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Console\Definitions`, the four test doubles of `Testing\` |
 | **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Console\SubjectLoaderInterface`, `Console\ResultFormatterInterface`, `Adapter\SubmitterFactoryInterface` |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
@@ -103,10 +103,11 @@ class, or on `Result::$reason`, never on message text.
   design, only interfaces.
 - Log message texts. They are documented in [operations.md](operations.md) so you can grep them, and they are
   improved between versions. Alert on `Reason` values and log **levels**, not on wording.
-- Anything under `tests/`, including fixtures and the mock server. The published test doubles live in
-  `IndexNowKit\Testing` and **are** covered, including the conformance kits `Testing\Conformance\CoreConformanceTestCase`
-  and `OrmConformanceTestCase`: their abstract driver methods only grow by appended methods with a default
-  implementation, and a scenario is only added, never removed, in a minor.
+- Anything under `tests/`, including fixtures and the mock server copy. The published test doubles live in
+  `IndexNowKit\Testing` and **are** covered. The conformance kits (`Testing\Conformance\CoreConformanceTestCase`,
+  `OrmConformanceTestCase`) and the assertion helpers are the `indexnowkit/testing` package since 0.7.0, with their own
+  [bc.md](https://github.com/indexnowkit/php/blob/main/packages/testing/docs/bc.md): driver methods only grow by
+  appended methods with a default implementation, a scenario is only added, never removed, in a minor.
 - The exact set of `Result` objects a single `submit()` call returns. Grouping by host and batching are
   implementation details of throughput; use `Result::allUrls()`, `Result::retryableUrls()` and
   `Result::urlsWhere()` instead of indexing into the list.
@@ -121,8 +122,10 @@ replacement, and is listed in the changelog. Currently deprecated:
 | 0.4.0 | `serve_key_file` (`Config::fromArray()`, `fromEnv()`: `INDEXNOW_SERVE_KEY_FILE`) | `key_file.enabled` / `INDEXNOW_KEY_FILE_ENABLED`; the explicit `serve_key_file` still wins while both exist |
 
 Removed after their deprecation window: `Result::urlsOf()` (deprecated 0.2.0, removed 0.4.0). Moved out of the core
-in 0.4.0 without a deprecation window (the pre-1.0 rule): `IndexNowKit::sitemap()` and everything under `Sitemap\`,
-now the `indexnowkit/sitemap` package.
+without a deprecation window (the pre-1.0 rule): in 0.4.0 `IndexNowKit::sitemap()` and everything under `Sitemap\`,
+now the `indexnowkit/sitemap` package; in 0.7.0 `Testing\Conformance\*` and the assertion helpers
+(`Testing\KeyFileAssertions`, `CheckOutputAssertions`, `ReadmeAssertions`, now `Testing\Conformance\*` in
+`indexnowkit/testing`).
 
 ## Before 1.0
 
