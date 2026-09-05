@@ -172,6 +172,10 @@ The `sitemap` block is the same in the three adapters and is owned by the sitema
 
 The `verify` block is the same in the three adapters and is owned by the verify package (its `docs/configuration.md` has the table): `verify.enabled`, `verify.redirect`, `verify.non_canonical`, `verify.origin_error`, `verify.delay`, `verify.timeout`, `verify.max_redirects`, `verify.max_batch`, `verify.robots_cache_ttl`, `verify.user_agent`.
 
+### History keys (`indexnowkit/history`)
+
+The `history` block is the same in the three adapters and is owned by the history package (its `docs/configuration.md` has the table): `history.store`, `history.limit`, `history.key_prefix`, `history.pdo.dsn`, `history.pdo.service`, `history.pdo.table`, `history.retention_days`.
+
 ### One concept, three keys
 
 | Concept | Symfony (`indexnowkit:`) | Laravel (`config/indexnow.php`) | Yii2 (`options`) | Notes |
