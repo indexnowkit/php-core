@@ -9,8 +9,11 @@ Before the first real submission, and again after every deployment that touches 
 
 1. **Key and base URL.** `INDEXNOW_KEY` (8–128 characters of `[A-Za-z0-9-]`) and `base_url` are set; every host you
    submit serves `https://<host>/<key>.txt` with `200`, `text/plain`, the key as the body and no redirect.
-2. **`check` is green** in the environment that submits (`bin/console indexnow:check`, `php artisan indexnow:check`,
-   `php yii indexnow/check`): exit code 0. Put it in the deploy pipeline; it exits 1 on any error.
+2. **`check --strict` is green** in the environment that submits (`bin/console indexnow:check --strict`, `php artisan
+   indexnow:check --strict`, `php yii indexnow/check --strict`): exit code 0. Put it in the deploy pipeline; it exits 1
+   on any error and, with `--strict`, on any warning. `check --json` (schema `docs/check.schema.json` of
+   `indexnowkit/console`, codes in [check-codes.md](check-codes.md)) is the form for monitoring: alert on `status`
+   and on the codes, never on the texts. `config --json` is what to paste into a bug report.
 3. **`strict_hosts: true`** whenever a `hosts` map exists or the application answers under more than one hostname
    (a staging copy, an internal name, the apex next to `www`).
 4. **A shared debounce store.** `debounce.store` is a cache that web requests and workers share, not `memory`.
