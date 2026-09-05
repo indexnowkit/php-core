@@ -13,7 +13,7 @@ plugin or a custom framework.
 ![PHP](https://img.shields.io/badge/php-%5E8.2-777bb4)
 [![License](https://img.shields.io/packagist/l/indexnowkit/core)](LICENSE)
 
-[Русская версия](README.ru.md)
+[Русская версия](README.ru.md) · Issues and pull requests: [github.com/indexnowkit/php](https://github.com/indexnowkit/php/issues) (the `php-*` repositories are read-only splits)
 
 ## Who gets notified
 
@@ -24,6 +24,26 @@ has no working direct endpoint at the time of writing — it is reached through 
 
 **Google: no.** Google does not support IndexNow, its sitemap ping endpoint is gone and the Indexing API is limited to
 `JobPosting` / `BroadcastEvent`. Keep your sitemap for Google; this library will not pretend otherwise.
+
+**Notification, not indexing.** IndexNow tells an engine that a URL changed; whether and when the page is crawled and
+indexed is the engine's decision. See the result in Bing Webmaster Tools (IndexNow Insights) and Yandex.Webmaster
+(Indexing → Reindex pages); a useful metric is the share of submitted URLs in the index after a few days. Deleted
+pages: answer 410 (gone for good) or 404 (temporarily); for a move answer 301 and submit both URLs; a soft-404 or a
+redirect to the home page does harm. Bing's URL Submission API and Google's Indexing API are different protocols and
+not covered here.
+
+## Why this over X
+
+Most IndexNow packages are a thin HTTP client: you collect the URLs, you call it, you read the answer. This family
+does the part that goes wrong in practice:
+
+- **Declared on the model** (`#[IndexNow]`) and submitted from the ORM hooks — no controller code to forget.
+- **After the commit**, not on flush: a rolled-back transaction announces nothing.
+- **Debounce** (10 minutes per URL, shared through your cache), **batches** of up to 10 000 URLs, one key per host from env.
+- **Answers handled**: 202 (key pending), 422, 429 with `Retry-After` back-off and a retry through your queue, 403 escalation.
+- **`check` before the first submission** says what is wrong (key file, engines, queue, cache, environment); `explain` says why a URL was or was not sent.
+- **One core** under the Symfony, Laravel, Yii2 and Doctrine adapters with a shared conformance suite: the same behaviour everywhere, documented once.
+
 
 ## Install
 
@@ -210,7 +230,7 @@ attribute is logged and yields no URLs, so a typo cannot break a flush.
 | `dry_run` | `INDEXNOW_DRY_RUN` | `false` | log the request instead of sending it |
 | `environment` | `INDEXNOW_ENV` / `APP_ENV` | — | anything but `prod`/`production` without a key turns `dry_run` on |
 
-Also `serve_key_file`, `http.user_agent` and `key_location`. Every value is validated at construction, so a bad
+Also `key_file.enabled`, `http.user_agent` and `key_location`. Every value is validated at construction, so a bad
 setup fails at boot, not at the first submission. Full reference, per-host overrides, `Config::with()`,
 `Config::OPTIONS` and `unknownOptions()`: [docs/configuration.md](docs/configuration.md).
 

@@ -6,7 +6,7 @@
 [Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine), [Laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [Yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2)) и пакеты-дополнения построены на этом пакете;
 напрямую он нужен для чистого PHP, плагинов CMS и своих фреймворков.
 
-[English version](README.md)
+[English version](README.md) · Issues и pull requests: [github.com/indexnowkit/php](https://github.com/indexnowkit/php/issues) (репозитории `php-*` — read-only сплиты)
 
 [![Packagist](https://img.shields.io/packagist/v/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
 [![Downloads](https://img.shields.io/packagist/dt/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
@@ -23,6 +23,25 @@ Archive на момент написания нет работающего пр�
 
 **Google: нет.** Google не поддерживает IndexNow, ping-endpoint для sitemap закрыт, а Indexing API ограничен
 `JobPosting` / `BroadcastEvent`. Для Google остаётся sitemap; библиотека не будет делать вид, что это не так.
+
+**Уведомление, не индексация.** IndexNow сообщает поисковику, что URL изменился; обойти и проиндексировать страницу — его
+решение и его сроки. Результат виден в Bing Webmaster Tools (IndexNow Insights) и в Яндекс.Вебмастере (Индексирование →
+Переобход страниц); полезная метрика — доля отправленных URL в индексе через несколько дней. Удалённые страницы: отдавайте
+410 (навсегда) или 404 (временно); при переезде — 301 и отправка обоих URL; soft-404 и редирект на главную вредят.
+Bing URL Submission API и Google Indexing API — другие протоколы, здесь не покрываются.
+
+## Почему это, а не X
+
+Большинство пакетов IndexNow — тонкий HTTP-клиент: URL собираете вы, вызываете вы, ответ читаете вы. Это семейство делает
+то, что на практике ломается:
+
+- **Объявлено на модели** (`#[IndexNow]`) и отправляется из хуков ORM — нет кода в контроллере, который можно забыть.
+- **После commit**, не на flush: откатившаяся транзакция ничего не объявляет.
+- **Дебаунс** (10 минут на URL, через ваш кэш), **батчи** до 10 000 URL, ключ на host из env.
+- **Ответы обработаны**: 202 (ключ проверяется), 422, 429 с `Retry-After` и повтором через вашу очередь, эскалация 403.
+- **`check` до первой отправки** говорит, что не так (файл ключа, движки, очередь, кэш, окружение); `explain` — почему URL ушёл или не ушёл.
+- **Одно ядро** под адаптерами Symfony, Laravel, Yii2 и Doctrine с общим conformance-набором: поведение одинаковое везде и описано один раз.
+
 
 ## Установка
 
@@ -212,7 +231,7 @@ $rows = $indexNow->explain($post, Event::Updated);   // ResolvedUrl: какое 
 | `dry_run` | `INDEXNOW_DRY_RUN` | `false` | писать запрос в лог вместо отправки |
 | `environment` | `INDEXNOW_ENV` / `APP_ENV` | — | всё, кроме `prod`/`production`, без ключа включает `dry_run` |
 
-Есть ещё `serve_key_file`, `http.user_agent` и `key_location`. Каждое значение проверяется в конструкторе, поэтому
+Есть ещё `key_file.enabled`, `http.user_agent` и `key_location`. Каждое значение проверяется в конструкторе, поэтому
 неверная настройка падает при старте, а не при первой отправке. Полный справочник, переопределения по хостам,
 `Config::with()`, `Config::OPTIONS` и `unknownOptions()`: [docs/configuration.md](docs/configuration.md).
 
