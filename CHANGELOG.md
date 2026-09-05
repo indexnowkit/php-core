@@ -56,6 +56,9 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   evaluated on the current object and cannot see an unpublish unless `whenFields` names the field (documented in
   attribute-reference.md). `ParamExtractor::condition()` takes `string|Condition|Closure`; `UrlRule::accessorOf()`
   reads a `FieldCondition`'s field.
+- `Config::toArray()`: the effective configuration in the nested shape `fromArray()` takes, every option present with
+  its resolved value (`Config::fromArray($config->toArray())` is an equal configuration); keys are not masked, the
+  `config` command does that.
 
 ### Changed
 

@@ -661,6 +661,45 @@ final readonly class Config
         return $this->with(dryRun: $dryRun);
     }
 
+    /**
+     * The effective configuration in the nested shape {@see fromArray()} takes, every option of {@see OPTIONS} present
+     * with its resolved value (`key_file.enabled` carries `serve_key_file`; `hosts` entries are `key` strings or
+     * `{key, key_location, base_url, engines, previous_key}`). Keys are **not** masked: the `config` command does that.
+     * `Config::fromArray($config->toArray())` is an equal configuration.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'enabled' => $this->enabled,
+            'key' => $this->key,
+            'previous_key' => $this->previousKey,
+            'hosts' => $this->hostsForConstructor(),
+            'key_location' => $this->keyLocation,
+            'base_url' => $this->baseUrl,
+            'strict_hosts' => $this->strictHosts,
+            'engines' => $this->engines,
+            'engine_aliases' => $this->engineAliases,
+            'locale_hosts' => $this->localeHosts,
+            'dispatch' => $this->dispatch,
+            'dry_run' => $this->dryRun,
+            'environment' => $this->environment,
+            'production_environments' => $this->productionEnvironments,
+            'max_url_length' => $this->maxUrlLength,
+            'key_file' => ['enabled' => $this->serveKeyFile, 'cache_max_age' => $this->keyFileMaxAge],
+            'batch' => ['max_urls' => $this->batchMaxUrls],
+            'debounce' => ['per_url' => $this->debouncePerUrl, 'key_prefix' => $this->debounceKeyPrefix, 'store' => $this->debounceStore],
+            'throttle' => ['max_requests_per_minute' => $this->throttleMaxRequestsPerMinute],
+            'http' => ['timeout' => $this->httpTimeout, 'user_agent' => $this->userAgent, 'client' => $this->httpClient],
+            'logging' => ['max_urls' => $this->logUrls, 'forbidden_escalation' => $this->forbiddenEscalation, 'levels' => $this->logLevels, 'max_body' => $this->logBody],
+            'retry' => ['max_attempts' => $this->retryMaxAttempts, 'base_delay' => $this->retryBaseDelay, 'multiplier' => $this->retryMultiplier, 'max_delay' => $this->retryMaxDelay, 'server_error_delay' => $this->retryServerErrorDelay],
+            'resolver' => ['max_via_depth' => $this->resolverMaxViaDepth, 'max_via_fanout' => $this->resolverMaxViaFanout],
+            'collector' => ['max_urls' => $this->collectorMaxUrls, 'detect_leaks' => $this->collectorDetectLeaks],
+            'normalizer' => ['strip_tracking_params' => $this->normalizerStripTrackingParams, 'tracking_params' => $this->normalizerTrackingParams, 'trailing_slash' => $this->normalizerTrailingSlash, 'sort_query' => $this->normalizerSortQuery],
+        ];
+    }
+
     public function userAgent(): string
     {
         return $this->userAgent ?? 'indexnowkit-php/' . Version::get() . ' (+https://github.com/indexnowkit/php)';

@@ -6,10 +6,42 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Config;
 use IndexNowKit\Exception\ConfigurationException;
+use IndexNowKit\Tests\Support\Factory;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigTest extends TestCase
 {
+    public function testToArrayCoversEveryOptionAndRoundTrips(): void
+    {
+        $config = Config::fromArray([
+            'key' => Factory::KEY, 'previous_key' => 'oldkey1234567890', 'base_url' => 'https://www.example.com', 'environment' => 'prod',
+            'hosts' => ['shop.example.com' => ['key' => 'fedcba0987654321fedcba0987654321', 'key_location' => 'https://shop.example.com/k.txt', 'engines' => ['yandex']], 'b.example.com' => Factory::KEY],
+            'engines' => ['api', 'corp'], 'engine_aliases' => ['corp' => 'https://index.corp.example/indexnow'], 'locale_hosts' => ['de' => 'example.de'],
+            'debounce' => ['per_url' => 30, 'store' => 'redis', 'key_prefix' => 'x_'], 'logging' => ['levels' => ['ok' => 'info']], 'http' => ['client' => 'my.client'],
+            'normalizer' => ['tracking_params' => ['ref'], 'trailing_slash' => 'strip'], 'key_file' => ['enabled' => false, 'cache_max_age' => 60], 'strict_hosts' => true,
+        ]);
+
+        $array = $config->toArray();
+        $flat = [];
+        $walk = static function (array $values, string $prefix) use (&$flat, &$walk): void {
+            foreach ($values as $key => $value) {
+                $flat[] = $prefix . $key;
+                if (\is_array($value) && !array_is_list($value) && !\in_array($prefix . $key, ['hosts', 'engine_aliases', 'locale_hosts', 'logging.levels'], true)) {
+                    $walk($value, $prefix . $key . '.');
+                }
+            }
+        };
+        $walk($array, '');
+        self::assertSame([], array_diff(Config::OPTIONS, $flat, ['serve_key_file']), 'every option (serve_key_file is key_file.enabled) is in toArray()');
+        self::assertSame([], array_diff($flat, Config::OPTIONS, ['hosts', 'key_file', 'batch', 'debounce', 'throttle', 'http', 'logging', 'retry', 'resolver', 'collector', 'normalizer']), 'toArray() invents no key');
+        self::assertSame(Factory::KEY, $array['key'], 'not masked: the config command does that');
+        self::assertFalse($array['key_file']['enabled']);
+        self::assertSame(['key' => 'fedcba0987654321fedcba0987654321', 'key_location' => 'https://shop.example.com/k.txt', 'engines' => ['yandex']], $array['hosts']['shop.example.com']);
+        self::assertSame(Factory::KEY, $array['hosts']['b.example.com']);
+        self::assertSame($array, Config::fromArray($array)->toArray(), 'round trip');
+        self::assertSame($config->endpoints, Config::fromArray($array)->endpoints);
+    }
+
     public function testDefaults(): void
     {
         $c = Config::fromArray(['key' => 'abcdefgh']);
