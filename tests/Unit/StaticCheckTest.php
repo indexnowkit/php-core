@@ -23,6 +23,16 @@ final class StaticCheckTest extends TestCase
             self::assertSame($level, $report->items()[0]->level);
             self::assertSame('sitemap: not installed (composer require indexnowkit/sitemap)', $report->items()[0]->message);
             self::assertSame($level === CheckLevel::Error, $report->hasErrors());
+            self::assertNull($report->items()[0]->code);
         }
+    }
+
+    public function testCodeIsPassedThrough(): void
+    {
+        $report = new CheckReport();
+        (new StaticCheck(CheckLevel::Warning, 'sitemap: not installed, the sitemap block in the configuration is ignored', 'sitemap.installed'))->check($report);
+
+        self::assertSame('sitemap.installed', $report->items()[0]->code);
+        self::assertNull($report->items()[0]->host);
     }
 }

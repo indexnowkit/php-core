@@ -58,6 +58,8 @@ final class OptionalPackageTest extends TestCase
         $package->check([], $defaults)->check($report);
         self::assertSame([$ignored, $plain], array_map(static fn($item): string => $item->message, $report->items()));
         self::assertSame([CheckLevel::Warning, CheckLevel::Ok], array_map(static fn($item): CheckLevel => $item->level, $report->items()));
+        self::assertSame(['sitemap.installed', 'sitemap.installed'], array_map(static fn($item): ?string => $item->code, $report->items()));
+        self::assertSame('sitemap.installed', $package->checkCode());
     }
 
     #[TestDox('nested blocks are compared by content, not by key order')]

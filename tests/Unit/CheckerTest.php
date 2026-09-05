@@ -226,6 +226,44 @@ final class CheckerTest extends TestCase
         self::assertNotEmpty($matching, \sprintf('expected a %s-level item mentioning the engine for status %d', $expectedLevel, $status));
     }
 
+    #[TestDox('every line has a stable code; the lines about one host carry the host; a report knows its worst level')]
+    public function testEveryLineHasACodeAndHostLinesCarryTheHost(): void
+    {
+        $t = new FakeTransport();
+        $t->onGet('https://www.example.com/' . Factory::KEY . '.txt', new Response(200, Factory::KEY));
+        $t->willRespond(new Response(202));
+        $config = Factory::config(['environment' => 'staging', 'hosts' => ['b.example.com' => Factory::KEY]]);
+        $report = (new Checker($config, StaticKeyProvider::fromConfig($config), $t, [new \IndexNowKit\Check\StaticCheck(CheckLevel::Ok, 'sitemap: not installed', 'sitemap.installed')]))->run(liveProbe: true);
+
+        foreach ($report->items() as $item) {
+            self::assertNotNull($item->code, $item->message);
+            self::assertMatchesRegularExpression('/^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$/', $item->code);
+            self::assertSame(str_starts_with($item->message, 'www.example.com:') || str_starts_with($item->message, 'b.example.com:'), $item->host !== null, 'host lines and only host lines carry the host: ' . $item->message);
+        }
+        $byCode = [];
+        foreach ($report->items() as $item) {
+            $byCode[$item->code][] = $item;
+        }
+        self::assertSame(CheckLevel::Error, $byCode['environment.non_production_submits'][0]->level);
+        self::assertSame(CheckLevel::Warning, $byCode['environment.name'][0]->level);
+        self::assertSame(CheckLevel::Warning, $byCode['config.strict_hosts'][0]->level, 'a hosts map without strict_hosts');
+        self::assertSame(['b.example.com', 'www.example.com'], array_map(static fn(CheckItem $i): ?string => $i->host, $byCode['key_file.status']), 'the hosts map first, then the base_url host');
+        self::assertSame([CheckLevel::Error, CheckLevel::Ok], array_map(static fn(CheckItem $i): CheckLevel => $i->level, $byCode['key_file.status']), 'b.example.com has no key file in the fake transport');
+        self::assertSame(['b.example.com', 'www.example.com'], array_map(static fn(CheckItem $i): ?string => $i->host, $byCode['probe.response']), 'every host is probed, key file or not');
+        self::assertSame(CheckLevel::Warning, $byCode['probe.response'][0]->level, 'the first probe answered 202');
+        self::assertSame('sitemap.installed', $byCode['sitemap.installed'][0]->code);
+        self::assertSame(CheckLevel::Error, $report->status());
+        self::assertTrue($report->hasWarnings());
+
+        $ok = new \IndexNowKit\Check\CheckReport();
+        self::assertSame(CheckLevel::Ok, $ok->status());
+        $ok->warning('x', 'a.b');
+        self::assertSame(CheckLevel::Warning, $ok->status());
+        $ok->add(new CheckItem(CheckLevel::Error, 'y', 'c.d', 'h'));
+        self::assertSame(CheckLevel::Error, $ok->status());
+        self::assertSame('h', $ok->items()[1]->host);
+    }
+
     public function testManagedHostsFromProviderAreAllChecked(): void
     {
         $config = Config::fromArray(['hosts' => ['a.example.com' => Factory::KEY, 'b.example.com' => Factory::KEY]]);

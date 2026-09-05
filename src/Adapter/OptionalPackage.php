@@ -68,6 +68,12 @@ final class OptionalPackage
         return $this->blockIsConfigured($block, $defaults) ? CheckLevel::Warning : CheckLevel::Ok;
     }
 
+    /** The code of the `check` line ({@see Check\CheckItem::$code}): `<feature>.installed`. */
+    public function checkCode(): string
+    {
+        return $this->feature . '.installed';
+    }
+
     /**
      * The `check` line as a check to register in the checker's list.
      *
@@ -76,7 +82,7 @@ final class OptionalPackage
      */
     public function check(array $block, array $defaults = []): StaticCheck
     {
-        return new StaticCheck($this->checkLevel($block, $defaults), $this->checkLine($block, $defaults));
+        return new StaticCheck($this->checkLevel($block, $defaults), $this->checkLine($block, $defaults), $this->checkCode());
     }
 
     /**

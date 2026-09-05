@@ -3,6 +3,18 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [Unreleased]
+
+### Added
+
+- **Stable codes on every `check` line** (spec 17 §5.1). `Check\CheckItem` carries `?string $code` and `?string $host`
+  (appended, defaults null); `CheckReport::ok()/warning()/error()` take them as appended optional arguments, and
+  `CheckReport::add()`, `hasWarnings()` and `status()` (the worst level) are new. Every line of `Check\Checker`,
+  `Check\DebounceStoreCheck` (`DebounceStoreCheck::CODE`) and `Adapter\OptionalPackage::check()` (`checkCode()`:
+  `<feature>.installed`) names its check; `Check\StaticCheck` takes the code as an appended constructor argument. The
+  codes are API and listed in [docs/check-codes.md](docs/check-codes.md); the texts are not. Lines about one host
+  carry it in `$host`.
+
 ## [0.7.0] — 2026-09-06
 
 ### Changed

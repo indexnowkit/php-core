@@ -21,6 +21,8 @@ use Throwable;
 /**
  * "indexnow check": validates configuration, fetches every key file over HTTP and optionally sends a live
  * probe. Answers "why does it not work" before the first real submission. Never throws.
+ *
+ * Every line carries a stable code ({@see CheckItem::$code}, listed in docs/check-codes.md); the texts are for humans.
  */
 final class Checker implements CheckerInterface
 {
@@ -45,37 +47,37 @@ final class Checker implements CheckerInterface
         $config = $this->config;
 
         if (!$config->enabled) {
-            $report->warning('IndexNow is disabled (enabled: false). Nothing will be submitted.');
+            $report->warning('IndexNow is disabled (enabled: false). Nothing will be submitted.', 'config.enabled');
         }
         if ($config->dryRun) {
             if ($config->isProduction()) {
-                $report->error(\sprintf('dry_run is on in a production environment (%s): nothing is sent to the engines.', (string) $config->environment));
+                $report->error(\sprintf('dry_run is on in a production environment (%s): nothing is sent to the engines.', (string) $config->environment), 'config.dry_run');
             } else {
-                $report->warning('dry_run is on: requests are logged, not sent.');
+                $report->warning('dry_run is on: requests are logged, not sent.', 'config.dry_run');
             }
         }
         $this->checkEnvironment($report);
         if ($config->strictHosts) {
-            $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped');
+            $report->ok('strict_hosts: URLs of hosts outside base_url/hosts are skipped', 'config.strict_hosts');
         } elseif ($config->hosts !== [] && $config->key !== null) {
-            $report->warning('hosts map without strict_hosts: URLs of hosts not listed are still sent under the default key. Set strict_hosts: true unless that is intended.');
+            $report->warning('hosts map without strict_hosts: URLs of hosts not listed are still sent under the default key. Set strict_hosts: true unless that is intended.', 'config.strict_hosts');
         } elseif ($config->isProduction() && $config->key !== null && $config->baseUrl !== null) {
-            $report->warning(\sprintf('strict_hosts is off: URLs of any host this application is reached under (a staging copy, an internal hostname) are submitted under the %s key. Set strict_hosts: true unless that is intended.', (string) $config->baseHost()));
+            $report->warning(\sprintf('strict_hosts is off: URLs of any host this application is reached under (a staging copy, an internal hostname) are submitted under the %s key. Set strict_hosts: true unless that is intended.', (string) $config->baseHost()), 'config.strict_hosts');
         }
         if ($config->baseUrl === null) {
-            $report->warning('base_url is not set: relative URLs and CLI/worker submissions cannot be resolved. Set INDEXNOW_BASE_URL.');
+            $report->warning('base_url is not set: relative URLs and CLI/worker submissions cannot be resolved. Set INDEXNOW_BASE_URL.', 'config.base_url');
         } else {
-            $report->ok(\sprintf('base_url: %s', $config->baseUrl));
+            $report->ok(\sprintf('base_url: %s', $config->baseUrl), 'config.base_url');
         }
-        $report->ok(\sprintf('engines: %s', implode(', ', array_map(Engine::labelFor(...), $config->endpoints))));
-        $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d, throttle: %d/min, timeout: %ss', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls, $config->throttleMaxRequestsPerMinute, $config->httpTimeout));
+        $report->ok(\sprintf('engines: %s', implode(', ', array_map(Engine::labelFor(...), $config->endpoints))), 'config.engines');
+        $report->ok(\sprintf('dispatch: %s, debounce: %ds, batch: %d, throttle: %d/min, timeout: %ss', $config->dispatch, $config->debouncePerUrl, $config->batchMaxUrls, $config->throttleMaxRequestsPerMinute, $config->httpTimeout), 'config.delivery');
 
         $hosts = $this->hostsToCheck();
         if ($onlyHost !== null) {
             $hosts = [strtolower($onlyHost)];
         }
         if ($hosts === []) {
-            $report->error('No host to check: set base_url or a hosts map.');
+            $report->error('No host to check: set base_url or a hosts map.', 'config.hosts');
 
             return $report;
         }
@@ -99,7 +101,7 @@ final class Checker implements CheckerInterface
             return;
         }
         if ($config->isProduction()) {
-            $report->ok(\sprintf('environment: %s', $config->environment));
+            $report->ok(\sprintf('environment: %s', $config->environment), 'environment.name');
 
             return;
         }
@@ -107,13 +109,13 @@ final class Checker implements CheckerInterface
         if ($submits) {
             $under = $config->key !== null ? 'key ' . KeyValidator::mask($config->key) : \sprintf('the keys of %d host(s)', \count($config->hosts));
             if ($config->dryRunExplicit) {
-                $report->warning(\sprintf('environment "%s" is not in production_environments but dry_run is explicitly false, assuming this environment submits on purpose: changes are sent to search engines under %s.', $config->environment, $under));
+                $report->warning(\sprintf('environment "%s" is not in production_environments but dry_run is explicitly false, assuming this environment submits on purpose: changes are sent to search engines under %s.', $config->environment, $under), 'environment.non_production_submits');
             } else {
-                $report->error(\sprintf('environment "%s" is not in production_environments but dry_run is off: changes WILL be sent to search engines under %s. Set INDEXNOW_DRY_RUN=1 or INDEXNOW_ENABLED=0 outside production, or set dry_run: false explicitly if this environment submits on purpose.', $config->environment, $under));
+                $report->error(\sprintf('environment "%s" is not in production_environments but dry_run is off: changes WILL be sent to search engines under %s. Set INDEXNOW_DRY_RUN=1 or INDEXNOW_ENABLED=0 outside production, or set dry_run: false explicitly if this environment submits on purpose.', $config->environment, $under), 'environment.non_production_submits');
             }
         }
         $line = \sprintf('environment: %s (not in production_environments: %s)', $config->environment, implode(', ', $config->productionEnvironments));
-        $submits ? $report->warning($line) : $report->ok($line);
+        $submits ? $report->warning($line, 'environment.name') : $report->ok($line, 'environment.name');
     }
 
     private function extraChecks(CheckReport $report): void
@@ -122,7 +124,7 @@ final class Checker implements CheckerInterface
             try {
                 $check->check($report);
             } catch (Throwable $e) {
-                $report->error(\sprintf('%s failed: %s', $check::class, $e->getMessage()));
+                $report->error(\sprintf('%s failed: %s', $check::class, $e->getMessage()), 'check.failed');
             }
         }
     }
@@ -131,38 +133,38 @@ final class Checker implements CheckerInterface
     {
         $key = $this->keys->keyFor($host);
         if ($key === null) {
-            $report->error(\sprintf('%s: no key configured.', $host));
+            $report->error(\sprintf('%s: no key configured.', $host), 'key.missing', $host);
 
             return;
         }
         if (!KeyValidator::isValid($key)) {
-            $report->error(\sprintf('%s: key %s is invalid (%d-%d chars, [A-Za-z0-9-]).', $host, KeyValidator::mask($key), KeyValidator::MIN_LENGTH, KeyValidator::MAX_LENGTH));
+            $report->error(\sprintf('%s: key %s is invalid (%d-%d chars, [A-Za-z0-9-]).', $host, KeyValidator::mask($key), KeyValidator::MIN_LENGTH, KeyValidator::MAX_LENGTH), 'key.invalid', $host);
 
             return;
         }
         $keyUrl = $this->keys->keyLocationFor($host) ?? \sprintf('https://%s/%s.txt', $host, $key);
         $keyUrlHost = parse_url($keyUrl, PHP_URL_HOST);
         if (!\is_string($keyUrlHost) || strtolower($keyUrlHost) !== strtolower($host)) {
-            $report->error(\sprintf('%s: key_location %s is on another host; engines answer 422 unless the key file is served from the submitted host.', $host, self::maskUrl($keyUrl, $key)));
+            $report->error(\sprintf('%s: key_location %s is on another host; engines answer 422 unless the key file is served from the submitted host.', $host, self::maskUrl($keyUrl, $key)), 'key_file.location', $host);
 
             return;
         }
         if (!$this->config->serveKeyFile && $this->keys->keyLocationFor($host) === null) {
-            $report->warning(\sprintf('%s: serve_key_file is off and no key_location is set; make sure %s is served by your web server.', $host, self::maskUrl($keyUrl, $key)));
+            $report->warning(\sprintf('%s: serve_key_file is off and no key_location is set; make sure %s is served by your web server.', $host, self::maskUrl($keyUrl, $key)), 'key_file.served_externally', $host);
         }
         try {
             $response = $this->transport->get($keyUrl);
             if ($response->status !== 200) {
-                $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served with 200 (no redirects).', $host, self::maskUrl($keyUrl, $key), $response->status));
+                $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served with 200 (no redirects).', $host, self::maskUrl($keyUrl, $key), $response->status), 'key_file.status', $host);
             } elseif (trim($response->body) !== $key) {
-                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), self::maskUrl(self::excerpt($response->body), $key)));
+                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), self::maskUrl(self::excerpt($response->body), $key)), 'key_file.body', $host);
             } else {
-                $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)));
+                $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)), 'key_file.status', $host);
             }
         } catch (TransportException $e) {
-            $report->error(\sprintf('%s: cannot fetch key file: %s', $host, self::maskUrl($e->getMessage(), $key)));
+            $report->error(\sprintf('%s: cannot fetch key file: %s', $host, self::maskUrl($e->getMessage(), $key)), 'key_file.fetch', $host);
         } catch (ConfigurationException $e) {
-            $report->error(\sprintf('%s: no HTTP client to fetch the key file: %s', $host, $e->getMessage()));
+            $report->error(\sprintf('%s: no HTTP client to fetch the key file: %s', $host, $e->getMessage()), 'key_file.fetch', $host);
 
             return;
         }
@@ -180,7 +182,7 @@ final class Checker implements CheckerInterface
         try {
             $config = $this->config->with(dryRun: false);
         } catch (ConfigurationException $e) {
-            $report->error(\sprintf('%s: cannot build a live configuration: %s', $host, $e->getMessage()));
+            $report->error(\sprintf('%s: cannot build a live configuration: %s', $host, $e->getMessage()), 'probe.config', $host);
 
             return;
         }
@@ -189,9 +191,9 @@ final class Checker implements CheckerInterface
         foreach ($this->config->endpoints as $endpoint) {
             $result = $client->submitBatch($endpoint, $host, $key, [$probeUrl]);
             match ($result->status) {
-                ResultStatus::Ok => $report->ok(\sprintf('%s: %s accepted probe (200)', $host, $result->engine)),
-                ResultStatus::Pending => $report->warning(\sprintf('%s: %s answered 202, key verification pending. Retry check later.', $host, $result->engine)),
-                default => $report->error(\sprintf('%s: %s answered %s: %s', $host, $result->engine, $result->httpCode !== null ? (string) $result->httpCode : 'no response', (string) $result->error)),
+                ResultStatus::Ok => $report->ok(\sprintf('%s: %s accepted probe (200)', $host, $result->engine), 'probe.response', $host),
+                ResultStatus::Pending => $report->warning(\sprintf('%s: %s answered 202, key verification pending. Retry check later.', $host, $result->engine), 'probe.response', $host),
+                default => $report->error(\sprintf('%s: %s answered %s: %s', $host, $result->engine, $result->httpCode !== null ? (string) $result->httpCode : 'no response', (string) $result->error), 'probe.response', $host),
             };
         }
     }

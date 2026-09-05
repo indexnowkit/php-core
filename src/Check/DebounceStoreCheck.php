@@ -16,6 +16,9 @@ use Throwable;
  */
 final class DebounceStoreCheck implements CheckInterface
 {
+    /** The code of every line this check prints ({@see CheckItem::$code}). */
+    public const CODE = 'debounce.store';
+
     /**
      * @param (Closure(string): string)|null $probe   given the store id, uses the store and returns what to print, or throws
      * @param string                         $default the store when `debounce.store` is unset ({@see DebounceStoreFactory::fromConfig()})
@@ -30,30 +33,30 @@ final class DebounceStoreCheck implements CheckInterface
     {
         $window = $this->config->debouncePerUrl;
         if ($window <= 0) {
-            $report->ok('debounce: off (debounce.per_url = 0): every URL is submitted every time');
+            $report->ok('debounce: off (debounce.per_url = 0): every URL is submitted every time', self::CODE);
 
             return;
         }
         $store = $this->config->debounceStore ?? $this->default;
         if ($store === DebounceStoreFactory::NONE) {
-            $report->ok('debounce: no store (debounce.store = none): every URL is submitted every time, the engines de-duplicate');
+            $report->ok('debounce: no store (debounce.store = none): every URL is submitted every time, the engines de-duplicate', self::CODE);
 
             return;
         }
         if ($store === DebounceStoreFactory::MEMORY) {
-            $report->warning(\sprintf('debounce: store "memory" is per-process only; web requests and workers do not share the %ds window. Set debounce.store to a shared cache in production.', $window));
+            $report->warning(\sprintf('debounce: store "memory" is per-process only; web requests and workers do not share the %ds window. Set debounce.store to a shared cache in production.', $window), self::CODE);
 
             return;
         }
         if ($this->probe === null) {
-            $report->ok(\sprintf('debounce: %ds per URL, shared through store "%s"', $window, $store));
+            $report->ok(\sprintf('debounce: %ds per URL, shared through store "%s"', $window, $store), self::CODE);
 
             return;
         }
         try {
-            $report->ok(\sprintf('debounce: %ds per URL, shared through %s', $window, ($this->probe)($store)));
+            $report->ok(\sprintf('debounce: %ds per URL, shared through %s', $window, ($this->probe)($store)), self::CODE);
         } catch (Throwable $e) {
-            $report->error(\sprintf('debounce: store "%s" is not usable (%s); URLs are still sent, the window is not applied.', $store, $e->getMessage()));
+            $report->error(\sprintf('debounce: store "%s" is not usable (%s); URLs are still sent, the window is not applied.', $store, $e->getMessage()), self::CODE);
         }
     }
 }
