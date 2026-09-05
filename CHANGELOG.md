@@ -41,6 +41,22 @@ contain breaking changes, listed under "Changed". What the compatibility promise
   `Adapter\ServicesBuilder::submissionStore()` / `Services::submissionStore()` and `IndexNowKit::create(...,
   submissionStore:)`. Implement tier; the "state → records" table is [docs/submission-store.md](docs/submission-store.md).
   The `indexnowkit/history` package will ship the stores.
+- **Canonical URLs** (spec 17 §5.5): `Url\CanonicalUrlNormalizer` decorates a normalizer and strips tracking
+  parameters (`CanonicalUrlNormalizer::TRACKING_PARAMS`, a growing constant: `utm_*`, `gclid`, `dclid`, `wbraid`,
+  `gbraid`, `fbclid`, `msclkid`, `yclid`, `ysclid`, `_openstat`, `etext`, `ttclid`, `twclid`, `igshid`, `mc_cid`,
+  `mc_eid`, `mkt_tok`, `_hsenc`, `_hsmi`, `_ga`), applies a trailing-slash policy and optionally sorts the query,
+  before de-duplication and debounce. Options `normalizer.strip_tracking_params` (default **true**),
+  `normalizer.tracking_params`, `normalizer.trailing_slash` (`keep` | `add` | `strip`), `normalizer.sort_query`
+  (`Config::OPTIONS`, `Config::TRAILING_SLASH_MODES`). `Url\UrlNormalizerFactory::fromConfig(Config)` builds the
+  normalizer everywhere the core used `new UrlNormalizer(...)` (`Submitter`, `Client`, `IndexNowKit::create()`,
+  `Adapter\Services`, `Check\Checker`), so the options work in plain PHP too.
+
+### Changed
+
+- **Tracking parameters are stripped by default** (`normalizer.strip_tracking_params: true`): a URL with `utm_*`,
+  `gclid`, `fbclid`, … is submitted and debounced as its clean form. The debounce keys of such URLs change once;
+  URLs without those parameters are unaffected. Set `normalizer.strip_tracking_params: false` to keep the old
+  behaviour.
 
 ## [0.7.0] — 2026-09-06
 

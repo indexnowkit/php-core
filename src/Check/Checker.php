@@ -15,7 +15,7 @@ use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\KeyValidator;
 use IndexNowKit\ResultStatus;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use Psr\Log\NullLogger;
 use Throwable;
 
@@ -347,7 +347,8 @@ final class Checker implements CheckerInterface
         $hosts = $this->keys->managedHosts();
         if ($this->config->baseUrl !== null) {
             try {
-                $hosts[] = (new UrlNormalizer())->hostOf((new UrlNormalizer())->normalize($this->config->baseUrl));
+                $normalizer = UrlNormalizerFactory::fromConfig($this->config);
+                $hosts[] = $normalizer->hostOf($normalizer->normalize($this->config->baseUrl));
             } catch (InvalidUrlException) {
                 $hosts[] = (string) $this->config->baseHost();
             }

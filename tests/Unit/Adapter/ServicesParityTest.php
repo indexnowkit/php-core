@@ -26,7 +26,7 @@ use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\AttributeUrlResolver;
 use IndexNowKit\Url\GuardedUrlResolver;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -84,7 +84,7 @@ final class ServicesParityTest extends TestCase
     private static function byHand(Config $config, FakeTransport $transport, ArrayLogger $logger): array
     {
         $keys = StaticKeyProvider::fromConfig($config);
-        $normalizer = new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
+        $normalizer = UrlNormalizerFactory::fromConfig($config);
         $throttle = TokenBucket::fromConfig($config, $logger);
         $debounce = DebounceStoreFactory::fromConfig($config);
         $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);

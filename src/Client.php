@@ -11,7 +11,7 @@ use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\KeyValidator;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use JsonException;
 use Psr\Log\LoggerInterface;
@@ -59,7 +59,7 @@ final class Client implements ClientInterface
         private readonly ?CacheInterface $failureCache = null,
         private readonly int $failureCacheTtl = self::FAILURE_CACHE_TTL,
     ) {
-        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
+        $this->normalizer = $normalizer ?? UrlNormalizerFactory::fromConfig($config);
     }
 
     /**

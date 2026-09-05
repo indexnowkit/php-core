@@ -39,6 +39,9 @@ final readonly class Config
     public const DEFAULT_RESOLVER_MAX_VIA_DEPTH = 3;
     public const DEFAULT_RESOLVER_MAX_VIA_FANOUT = 100;
     public const DEFAULT_DEBOUNCE_KEY_PREFIX = 'indexnowkit_';
+    /** Default of `normalizer.trailing_slash`: the path is submitted as the site generates it. */
+    public const DEFAULT_TRAILING_SLASH = Url\CanonicalUrlNormalizer::TRAILING_SLASH_KEEP;
+    public const TRAILING_SLASH_MODES = [Url\CanonicalUrlNormalizer::TRAILING_SLASH_KEEP, Url\CanonicalUrlNormalizer::TRAILING_SLASH_ADD, Url\CanonicalUrlNormalizer::TRAILING_SLASH_STRIP];
     /** Outcomes whose log level `logging.levels` may override, with the shipped level. */
     public const LOG_EVENTS = [
         'ok' => 'debug', 'pending' => 'info', 'invalid_request' => 'error', 'unprocessable' => 'warning', 'rate_limited' => 'warning',
@@ -85,6 +88,9 @@ final readonly class Config
     /** @var list<string> lower-cased names of environments treated as production */
     public array $productionEnvironments;
 
+    /** @var list<string> `normalizer.tracking_params`: query parameters removed on top of {@see Url\CanonicalUrlNormalizer::TRACKING_PARAMS} (`name` or `prefix*`) */
+    public array $normalizerTrackingParams;
+
     /**
      * Whether `dry_run` was set by the configuration rather than left to its default: false when
      * {@see fromArray()} saw no `dry_run` key (or a null one). `check` tells the two apart outside
@@ -106,6 +112,7 @@ final readonly class Config
         'logging.max_urls', 'logging.forbidden_escalation', 'logging.levels', 'logging.max_body', 'engine_aliases', 'locale_hosts',
         'retry.max_attempts', 'retry.base_delay', 'retry.multiplier', 'retry.max_delay', 'retry.server_error_delay',
         'resolver.max_via_depth', 'resolver.max_via_fanout', 'collector.max_urls', 'collector.detect_leaks',
+        'normalizer.strip_tracking_params', 'normalizer.tracking_params', 'normalizer.trailing_slash', 'normalizer.sort_query',
     ];
 
     /**
@@ -135,6 +142,10 @@ final readonly class Config
      * @param string|null                                                                                  $debounceStore `debounce.store`: null = the adapter's default, `memory`, `none`, or an id the adapter resolves to its cache
      * @param string|null                                                                                  $httpClient `http.client`: id or class of a PSR-18 client the adapter resolves; null = discovery
      * @param bool                                                                                         $dryRunExplicit whether $dryRun was chosen by the configuration; see {@see $dryRunExplicit}
+     * @param bool                                                                                         $normalizerStripTrackingParams `normalizer.strip_tracking_params`: drop utm_*, gclid, fbclid, … before dedup, debounce and submission
+     * @param array<mixed, mixed>                                                                          $normalizerTrackingParams `normalizer.tracking_params`: more names (`name` or `prefix*`) to drop
+     * @param string                                                                                       $normalizerTrailingSlash `normalizer.trailing_slash`: keep | add | strip
+     * @param bool                                                                                         $normalizerSortQuery `normalizer.sort_query`: order query parameters by name
      *
      * @throws ConfigurationException
      */
@@ -178,8 +189,16 @@ final readonly class Config
         public ?string $debounceStore = null,
         public ?string $httpClient = null,
         bool $dryRunExplicit = true,
+        public bool $normalizerStripTrackingParams = true,
+        array $normalizerTrackingParams = [],
+        public string $normalizerTrailingSlash = self::DEFAULT_TRAILING_SLASH,
+        public bool $normalizerSortQuery = false,
     ) {
         $this->dryRunExplicit = $dryRunExplicit;
+        if (!\in_array($normalizerTrailingSlash, self::TRAILING_SLASH_MODES, true)) {
+            throw new ConfigurationException(\sprintf('"normalizer.trailing_slash" must be one of %s, got "%s".', implode(', ', self::TRAILING_SLASH_MODES), $normalizerTrailingSlash));
+        }
+        $this->normalizerTrackingParams = self::normalizeTrackingParams($normalizerTrackingParams);
         if ($logBody < 0) {
             throw new ConfigurationException(\sprintf('"logging.max_body" must be >= 0, got %d.', $logBody));
         }
@@ -306,6 +325,26 @@ final readonly class Config
     }
 
     /**
+     * @param array<mixed, mixed> $params
+     *
+     * @return list<string>
+     *
+     * @throws ConfigurationException
+     */
+    private static function normalizeTrackingParams(array $params): array
+    {
+        $out = [];
+        foreach ($params as $name) {
+            if (!\is_string($name) || preg_match('/^[A-Za-z0-9_.\-\[\]]+\*?$/', trim($name)) !== 1) {
+                throw new ConfigurationException(\sprintf('"normalizer.tracking_params" must list query parameter names ("ref", "mtm_*"), got %s.', \is_scalar($name) ? '"' . (string) $name . '"' : get_debug_type($name)));
+            }
+            $out[] = strtolower(trim($name));
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    /**
      * @param array<mixed, mixed> $aliases
      *
      * @return array<string, string>
@@ -410,7 +449,9 @@ final readonly class Config
         $resolver = self::sub($data, 'resolver');
         $collector = self::sub($data, 'collector');
         $keyFile = self::sub($data, 'key_file');
+        $normalizer = self::sub($data, 'normalizer');
         $serveKeyFile = self::serveKeyFileFrom($data);
+        $trackingParams = self::list($normalizer['tracking_params'] ?? null) ?? [];
         /** @var array<mixed, mixed> $logLevels */
         $logLevels = \is_array($logging['levels'] ?? null) ? $logging['levels'] : [];
         /** @var array<mixed, mixed> $engineAliases */
@@ -471,6 +512,10 @@ final readonly class Config
             debounceStore: self::str($debounce['store'] ?? null),
             httpClient: self::str($http['client'] ?? null),
             dryRunExplicit: $dryRunExplicit,
+            normalizerStripTrackingParams: self::bool($normalizer['strip_tracking_params'] ?? null, true, 'normalizer.strip_tracking_params') ?? true,
+            normalizerTrackingParams: $trackingParams,
+            normalizerTrailingSlash: self::str($normalizer['trailing_slash'] ?? null) ?? self::DEFAULT_TRAILING_SLASH,
+            normalizerSortQuery: self::bool($normalizer['sort_query'] ?? null, false, 'normalizer.sort_query') ?? false,
         );
     }
 
@@ -596,6 +641,10 @@ final readonly class Config
             'debounceStore' => $this->debounceStore,
             'httpClient' => $this->httpClient,
             'dryRunExplicit' => $this->dryRunExplicit || \array_key_exists('dryRun', $changes),
+            'normalizerStripTrackingParams' => $this->normalizerStripTrackingParams,
+            'normalizerTrackingParams' => $this->normalizerTrackingParams,
+            'normalizerTrailingSlash' => $this->normalizerTrailingSlash,
+            'normalizerSortQuery' => $this->normalizerSortQuery,
         ];
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {

@@ -81,6 +81,15 @@ Config::fromArray([
 | `resolver.max_via_depth`, `resolver.max_via_fanout` | `resolverMaxViaDepth`, `resolverMaxViaFanout` | `3`, `100` | limits of `via:` traversal in `AttributeUrlResolver`. `IndexNowKit::create()` does not build that resolver: the adapter that does passes `resolverMaxViaDepth`, `resolverMaxViaFanout` and `localeHosts` to it |
 | `collector.max_urls` | `collectorMaxUrls` | `0` | `IndexNowKit::collect()` flushes early at this size; `0` = only on `flush()` |
 | `collector.detect_leaks` | `collectorDetectLeaks` | `true` | shutdown warning about collected, never flushed URLs |
+| `normalizer.strip_tracking_params` | `normalizerStripTrackingParams` | `true` | drop `utm_*`, `gclid`, `fbclid`, `yclid`, … (`Url\CanonicalUrlNormalizer::TRACKING_PARAMS`, a growing list) from the query before de-duplication, debounce and submission: external traffic sources append them, routing never generates them |
+| `normalizer.tracking_params` | `normalizerTrackingParams` | `[]` | more query parameters to drop: names (`ref`) or prefixes (`mtm_*`), case-insensitive |
+| `normalizer.trailing_slash` | `normalizerTrailingSlash` | `'keep'` | `keep` submits the path as generated; `add` ends every path without an extension with `/`; `strip` removes the trailing `/` except on the root. Only when the site has a canonical form: the two forms are different pages otherwise |
+| `normalizer.sort_query` | `normalizerSortQuery` | `false` | order the query parameters by name (stable), so `?b=1&a=2` and `?a=2&b=1` are one URL |
+
+The `normalizer.*` options are applied by `Url\UrlNormalizerFactory::fromConfig()`, which every adapter and
+`IndexNowKit::create()` use to build the normalizer: `Url\UrlNormalizer` (absolute URL, host, port, dot-segments)
+wrapped in `Url\CanonicalUrlNormalizer`. Turning `strip_tracking_params` on or off changes the debounce keys of URLs
+that carried such parameters once.
 
 Constants worth referencing instead of hard-coding: `Config::MAX_BATCH_URLS` (10000),
 `Config::DEFAULT_BATCH_MAX_URLS`, `Config::DEFAULT_DEBOUNCE_PER_URL` (600),
@@ -148,6 +157,10 @@ Symfony and Yii2, `queue` in Laravel) and `debounce.store` (`cache.app` / `cache
 | `resolver.max_via_fanout` | `100` |
 | `collector.max_urls` | `0` |
 | `collector.detect_leaks` | `true` |
+| `normalizer.strip_tracking_params` | `true` |
+| `normalizer.tracking_params` | `[]` |
+| `normalizer.trailing_slash` | `keep` |
+| `normalizer.sort_query` | `false` |
 
 `hosts` (per-host keys, `hosts.<host>.{key, key_location, base_url, engines, previous_key}`) is accepted everywhere too.
 

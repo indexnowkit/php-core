@@ -36,7 +36,7 @@ use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\ObjectChangeHandler;
 use IndexNowKit\Url\ResolverLocatorInterface;
 use IndexNowKit\Url\RouteUrlResolverInterface;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
 use LogicException;
@@ -112,7 +112,7 @@ final class Services
 
     public function normalizer(): UrlNormalizerInterface
     {
-        return $this->memo(self::NORMALIZER, UrlNormalizerInterface::class, fn(): UrlNormalizerInterface => new UrlNormalizer($this->config->baseUrl, $this->config->maxUrlLength));
+        return $this->memo(self::NORMALIZER, UrlNormalizerInterface::class, fn(): UrlNormalizerInterface => UrlNormalizerFactory::fromConfig($this->config));
     }
 
     public function throttle(): ThrottleInterface

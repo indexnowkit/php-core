@@ -10,7 +10,7 @@ use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Debounce\MemoryDebounceStore;
 use IndexNowKit\Exception\InvalidUrlException;
 use IndexNowKit\Submission\SubmissionStoreInterface;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -19,7 +19,7 @@ use Psr\Log\NullLogger;
 use Throwable;
 
 /**
- * One submission: normalize -> dedupe -> debounce -> Client (group, chunk, throttle, POST) -> mark submitted.
+ * One submission: normalize (canonical form: `normalizer.*`) -> dedupe -> debounce -> Client (group, chunk, throttle, POST) -> mark submitted.
  *
  * Ancillary failures (debounce store down, a listener throwing, a submission store throwing) are logged and never
  * abort delivery. Every outcome, including skipped URLs, is a Result handed to listeners, to the optional PSR-14
@@ -48,7 +48,7 @@ final class Submitter implements SubmitterInterface
         private readonly ?SubmissionStoreInterface $store = null,
         ?ClockInterface $clock = null,
     ) {
-        $this->normalizer = $normalizer ?? new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
+        $this->normalizer = $normalizer ?? UrlNormalizerFactory::fromConfig($config);
         $this->clock = $clock ?? new SystemClock();
     }
 

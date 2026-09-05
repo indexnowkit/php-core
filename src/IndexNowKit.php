@@ -24,7 +24,7 @@ use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\NullUrlResolver;
 use IndexNowKit\Url\ObjectChangeHandler;
 use IndexNowKit\Url\ResolvedUrl;
-use IndexNowKit\Url\UrlNormalizer;
+use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
 use Psr\Log\LoggerInterface;
@@ -99,7 +99,7 @@ final class IndexNowKit
                 throw new ConfigurationException(\sprintf('IndexNowKit::create(): $%s cannot be combined with a custom $submitter, which builds its own pipeline. Pass them to your submitter instead.', implode(', $', $ignored)));
             }
         } else {
-            $normalizer ??= new UrlNormalizer($config->baseUrl, $config->maxUrlLength);
+            $normalizer ??= UrlNormalizerFactory::fromConfig($config);
             $throttle ??= TokenBucket::fromConfig($config, $logger);
             $transport ??= TransportFactory::lazy($config);
             $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer, $failureCache);

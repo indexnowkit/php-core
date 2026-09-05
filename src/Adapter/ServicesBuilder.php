@@ -85,7 +85,7 @@ final class ServicesBuilder
         return $this->node(Services::KEYS, $keys);
     }
 
-    /** Default `Url\UrlNormalizer` over `base_url` and `max_url_length`. */
+    /** Default `Url\UrlNormalizerFactory::fromConfig()` (`base_url`, `max_url_length`, the `normalizer.*` options). */
     public function normalizer(UrlNormalizerInterface|Closure $normalizer): self
     {
         return $this->node(Services::NORMALIZER, $normalizer);
