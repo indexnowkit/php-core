@@ -3,6 +3,18 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [Unreleased]
+
+### Added
+
+- `Testing\ReadmeAssertions`: what the "Notes for AI assistants" README section must keep (present in EN and RU, a
+  complete snippet, only existing commands and configuration keys), for the `ReadmeAiNotesTest` of every package.
+- `.phpstorm.meta.php`: completion of `locales` (`current`, `all`) and `events` on `#[IndexNow]` / `#[IndexNowDefaults]`.
+
+### Documentation
+
+- README: "Notes for AI assistants" (package, minimal complete snippet, verification, pitfalls across the adapters).
+
 ## [0.6.0] — 2026-09-05
 
 Wave 0a of docs/spec/17: the one finding of the audits with irreversible consequences (a staging copy with the
