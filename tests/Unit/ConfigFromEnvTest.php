@@ -17,6 +17,7 @@ final class ConfigFromEnvTest extends TestCase
         return [
             'INDEXNOW_ENABLED' => 'false',
             'INDEXNOW_KEY' => 'abcdefgh',
+            'INDEXNOW_PREVIOUS_KEY' => 'previous1234',
             'INDEXNOW_HOSTS' => 'a.com=KEY1abcdef,b.com=KEY2abcdef',
             'INDEXNOW_KEY_LOCATION' => 'https://x.test/k.txt',
             'INDEXNOW_BASE_URL' => 'https://x.test',
@@ -52,6 +53,7 @@ final class ConfigFromEnvTest extends TestCase
 
         self::assertFalse($c->enabled);
         self::assertSame('abcdefgh', $c->key);
+        self::assertSame('previous1234', $c->previousKey);
         self::assertSame(['a.com' => 'KEY1abcdef', 'b.com' => 'KEY2abcdef'], $c->hosts);
         self::assertSame('https://x.test/k.txt', $c->keyLocation);
         self::assertSame('https://x.test', $c->baseUrl);

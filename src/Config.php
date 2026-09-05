@@ -486,8 +486,8 @@ final readonly class Config
      * INDEXNOW_PRODUCTION_ENVIRONMENTS ("prod,live"), INDEXNOW_LOG_URLS, INDEXNOW_FORBIDDEN_ESCALATION,
      * INDEXNOW_RETRY_MAX_ATTEMPTS, INDEXNOW_RETRY_BASE_DELAY, INDEXNOW_RETRY_MULTIPLIER, INDEXNOW_RETRY_MAX_DELAY,
      * INDEXNOW_RETRY_SERVER_ERROR_DELAY, INDEXNOW_KEY_FILE_ENABLED, INDEXNOW_KEY_FILE_CACHE_MAX_AGE,
-     * INDEXNOW_DEBOUNCE_STORE, INDEXNOW_HTTP_CLIENT, plus INDEXNOW_ENV / APP_ENV for the non-production dry-run
-     * safety net.
+     * INDEXNOW_DEBOUNCE_STORE, INDEXNOW_HTTP_CLIENT, INDEXNOW_PREVIOUS_KEY (the key before a rotation), plus
+     * INDEXNOW_ENV / APP_ENV for the non-production dry-run safety net.
      *
      * @param array<string, mixed>|null $env defaults to getenv() + $_SERVER + $_ENV
      *
@@ -511,6 +511,7 @@ final readonly class Config
         return self::fromArray(array_filter([
             'enabled' => $bool($get('ENABLED')),
             'key' => $get('KEY'),
+            'previous_key' => $get('PREVIOUS_KEY'),
             'hosts' => self::parseHosts($get('HOSTS')),
             'key_location' => $get('KEY_LOCATION'),
             'base_url' => $get('BASE_URL'),

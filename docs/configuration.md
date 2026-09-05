@@ -95,6 +95,7 @@ to read from somewhere else, and a second argument to change the `INDEXNOW_` pre
 |---|---|
 | `INDEXNOW_ENABLED` | `enabled` (any boolean literal `filter_var` accepts) |
 | `INDEXNOW_KEY` | `key` |
+| `INDEXNOW_PREVIOUS_KEY` | `previous_key`: the key before a rotation, still served and accepted by the key file, never submitted |
 | `INDEXNOW_HOSTS` | `hosts`, as `host=key,host2=key2`; per-host `key_location`/`base_url` need `fromArray()` |
 | `INDEXNOW_STRICT_HOSTS` | `strict_hosts` |
 | `INDEXNOW_KEY_LOCATION` | `key_location` |
