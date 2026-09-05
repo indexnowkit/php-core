@@ -14,10 +14,10 @@ This page exists because "public API" is ambiguous for a library whose main audi
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
-one directly, pin `^0.5.0` rather than `^0.5` and read the changelog before upgrading. Decorating a shipped
+one directly, pin `^0.7.0` rather than `^0.7` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
 both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` have no shipped implementation to
-decorate (one per framework adapter): pin `^0.5.0` and read the changelog.
+decorate (one per framework adapter): pin `^0.7.0` and read the changelog.
 
 ## Named arguments
 
