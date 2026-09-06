@@ -3,7 +3,7 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## [0.10.0] — Unreleased
+## [0.10.0] — 2026-09-06
 
 The last structural debt before 1.0 (spec 17 §7): the reader registry of `Attribute\ParamExtractor` was process-wide static
 state — two graphs in one process shared it, a test had to unregister what another registered, and nothing in the type
