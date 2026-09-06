@@ -3,7 +3,7 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## [0.12.0] — Unreleased
+## [0.12.0] — 2026-09-07
 
 The design decisions of the 0.10 audit (`docs/plans/audit-0.10.md` §6 in the specification workspace). Three change
 signatures; this is the one breaking minor that carries them, so that the next adapter is written against the final ones.
