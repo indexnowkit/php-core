@@ -25,6 +25,8 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
     /**
      * @param array<string, string> $localeHosts locale => host ({@see Config::$localeHosts}): a rule without `host` generates each
      *                                           locale on that locale's host
+     * @param ParamExtractor|null   $extractor   how `params`, `when`, `url`, `via` and `host` are read off the object; the
+     *                                           adapter's (with its readers: Eloquent attributes), the plain DSL when null
      */
     public function __construct(
         private readonly AttributeReaderInterface $reader,
@@ -34,15 +36,26 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
         private readonly int $maxViaDepth = 3,
         private readonly int $maxViaFanout = 100,
         private readonly array $localeHosts = [],
-    ) {}
+        ?ParamExtractor $extractor = null,
+    ) {
+        $this->extractor = $extractor ?? new ParamExtractor();
+    }
+
+    private readonly ParamExtractor $extractor;
+
+    /** The extractor this resolver reads with. */
+    public function extractor(): ParamExtractor
+    {
+        return $this->extractor;
+    }
 
     /**
      * The resolver an adapter wires: `resolver.max_via_depth`, `resolver.max_via_fanout` and `locale_hosts` from the
      * Config, the framework's router bridge and resolver locator.
      */
-    public static function fromConfig(Config $config, AttributeReaderInterface $reader, ?RouteUrlResolverInterface $router = null, ?ResolverLocatorInterface $locator = null, LoggerInterface $logger = new NullLogger()): self
+    public static function fromConfig(Config $config, AttributeReaderInterface $reader, ?RouteUrlResolverInterface $router = null, ?ResolverLocatorInterface $locator = null, LoggerInterface $logger = new NullLogger(), ?ParamExtractor $extractor = null): self
     {
-        return new self($reader, $router, $locator, $logger, $config->resolverMaxViaDepth, $config->resolverMaxViaFanout, $config->localeHosts);
+        return new self($reader, $router, $locator, $logger, $config->resolverMaxViaDepth, $config->resolverMaxViaFanout, $config->localeHosts, $extractor);
     }
 
     /**
@@ -83,7 +96,7 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
      */
     public function resolveRule(object $subject, UrlRule $rule, Event $event, int $depth = 0, bool $ignoreWhen = false): array
     {
-        if (!$rule->listensTo($event) || (!$ignoreWhen && !$rule->appliesTo($subject))) {
+        if (!$rule->listensTo($event) || (!$ignoreWhen && !$rule->appliesTo($subject, $this->extractor))) {
             return [];
         }
 
@@ -104,11 +117,11 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
         if ($this->router === null) {
             throw new ConfigurationException(\sprintf('%s rule "%s" uses route "%s" but no router bridge is configured. Use a framework adapter, or url:/resolver: instead of route:.', $subject::class, $rule->name, (string) $rule->route));
         }
-        $ruleHost = $rule->host === null ? null : self::stringOrNull(ParamExtractor::resolve($subject, $rule->host));
+        $ruleHost = $rule->host === null ? null : self::stringOrNull($this->extractor->resolve($subject, $rule->host));
         $out = [];
         foreach ($this->router->locales($rule->locales) as $locale) {
             $host = $ruleHost ?? ($locale === null ? null : ($this->localeHosts[strtolower($locale)] ?? null));
-            $params = ParamExtractor::extract($subject, $rule->params, $locale, $host);
+            $params = $this->extractor->extract($subject, $rule->params, $locale, $host);
             $out[] = new ResolvedUrl($this->router->generate((string) $rule->route, $params, $locale, $host), $rule->name, $subject::class, $event, $locale);
         }
 
@@ -120,7 +133,7 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
      */
     private function fromAccessor(object $subject, UrlRule $rule): array
     {
-        $value = ParamExtractor::read($subject, (string) $rule->url);
+        $value = $this->extractor->read($subject, (string) $rule->url);
         if ($value === null) {
             return [];
         }
@@ -165,7 +178,7 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
         if ($depth >= $this->maxViaDepth) {
             throw new ConfigurationException(\sprintf('#[IndexNow(via: "%s")] on %s exceeds the maximum depth of %d; check for a cycle.', (string) $rule->via, $subject::class, $this->maxViaDepth));
         }
-        $target = ParamExtractor::read($subject, (string) $rule->via);
+        $target = $this->extractor->read($subject, (string) $rule->via);
         if ($target === null) {
             return [];
         }

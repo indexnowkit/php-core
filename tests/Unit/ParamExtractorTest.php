@@ -76,59 +76,59 @@ final class ParamExtractorTest extends TestCase
 {
     public function testReadsPrivatePropertyDirectlyWhenNoAccessorExists(): void
     {
-        self::assertSame('hidden-value', ParamExtractor::read(new ParamExtractorSubject(), 'secret'));
+        self::assertSame('hidden-value', (new ParamExtractor())->read(new ParamExtractorSubject(), 'secret'));
     }
 
     public function testIsPrefixMethodIsUsedAsAccessor(): void
     {
-        self::assertTrue(ParamExtractor::read(new ParamExtractorSubject(), 'active'));
+        self::assertTrue((new ParamExtractor())->read(new ParamExtractorSubject(), 'active'));
     }
 
     public function testHasPrefixMethodIsUsedAsAccessor(): void
     {
-        self::assertFalse(ParamExtractor::read(new ParamExtractorSubject(), 'children'));
+        self::assertFalse((new ParamExtractor())->read(new ParamExtractorSubject(), 'children'));
     }
 
     public function testDottedPathThroughNonObjectValueThrows(): void
     {
         $this->expectException(ConfigurationException::class);
-        ParamExtractor::read(new ParamExtractorWithNonObjectProperty(), 'notAnObject.leaf');
+        (new ParamExtractor())->read(new ParamExtractorWithNonObjectProperty(), 'notAnObject.leaf');
     }
 
     public function testExtractReadsEveryParam(): void
     {
         $subject = new ParamExtractorSubject();
 
-        self::assertSame(['name' => 'plain', 'active' => true], ParamExtractor::extract($subject, ['name' => 'name', 'active' => 'active']));
+        self::assertSame(['name' => 'plain', 'active' => true], (new ParamExtractor())->extract($subject, ['name' => 'name', 'active' => 'active']));
     }
 
     public function testValueResolvesToItsConstant(): void
     {
-        self::assertSame('html', ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Value('html')));
+        self::assertSame('html', (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Value('html')));
     }
 
     public function testFormattedFormatsTheDateBehindTheAccessor(): void
     {
-        self::assertSame('2024', ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Formatted('publishedAt', 'Y')));
+        self::assertSame('2024', (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Formatted('publishedAt', 'Y')));
     }
 
     public function testFormattedOnANonDateAccessorThrowsMentioningFormatted(): void
     {
         $this->expectException(ConfigurationException::class);
         $this->expectExceptionMessageMatches('/Formatted/');
-        ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Formatted('tag', 'Y'));
+        (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Formatted('tag', 'Y'));
     }
 
     public function testCallReceivesTheLocalePlaceholder(): void
     {
-        $value = ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Call('slugFor', Placeholder::Locale), locale: 'fr');
+        $value = (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Call('slugFor', Placeholder::Locale), locale: 'fr');
 
         self::assertSame('slug-fr-nohost', $value);
     }
 
     public function testCallReceivesTheHostPlaceholder(): void
     {
-        $value = ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Call('slugFor', Placeholder::Locale, Placeholder::Host), locale: 'fr', host: 'example.com');
+        $value = (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Call('slugFor', Placeholder::Locale, Placeholder::Host), locale: 'fr', host: 'example.com');
 
         self::assertSame('slug-fr-example.com', $value);
     }
@@ -136,35 +136,35 @@ final class ParamExtractorTest extends TestCase
     public function testCallOnAnUnknownMethodThrows(): void
     {
         $this->expectException(ConfigurationException::class);
-        ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Call('nope'));
+        (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Call('nope'));
     }
 
     public function testAccessorReadsThePropertyOrGetter(): void
     {
-        self::assertSame(ParamExtractorStatus::Published, ParamExtractor::resolve(new ParamExtractorTypesSubject(), new Accessor('status')));
+        self::assertSame(ParamExtractorStatus::Published, (new ParamExtractor())->resolve(new ParamExtractorTypesSubject(), new Accessor('status')));
     }
 
     public function testExtractCoercesBackedEnumToItsValue(): void
     {
-        self::assertSame(['s' => 'published'], ParamExtractor::extract(new ParamExtractorTypesSubject(), ['s' => 'status']));
+        self::assertSame(['s' => 'published'], (new ParamExtractor())->extract(new ParamExtractorTypesSubject(), ['s' => 'status']));
     }
 
     public function testExtractCoercesStringableToString(): void
     {
-        self::assertSame(['t' => 'str-value'], ParamExtractor::extract(new ParamExtractorTypesSubject(), ['t' => 'tag']));
+        self::assertSame(['t' => 'str-value'], (new ParamExtractor())->extract(new ParamExtractorTypesSubject(), ['t' => 'tag']));
     }
 
     public function testExtractOfADateWithoutFormattedThrowsMentioningFormatted(): void
     {
         $this->expectException(ConfigurationException::class);
         $this->expectExceptionMessageMatches('/Formatted/');
-        ParamExtractor::extract(new ParamExtractorTypesSubject(), ['p' => 'publishedAt']);
+        (new ParamExtractor())->extract(new ParamExtractorTypesSubject(), ['p' => 'publishedAt']);
     }
 
     public function testExtractKeepsAPlainObjectForRouteModelBinding(): void
     {
         $subject = new ParamExtractorTypesSubject();
 
-        self::assertSame(['post' => $subject], ParamExtractor::extract($subject, ['post' => ParamExtractor::SELF]));
+        self::assertSame(['post' => $subject], (new ParamExtractor())->extract($subject, ['post' => ParamExtractor::SELF]));
     }
 }

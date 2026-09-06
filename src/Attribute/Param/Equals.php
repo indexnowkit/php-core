@@ -14,6 +14,9 @@ use IndexNowKit\Attribute\ParamExtractor;
  * #[IndexNow(route: 'post_show', params: ['slug' => 'slug'], when: new Equals('status', 'published'))]
  *
  * A condition, not a value source: `Equals` in `params` is a type error (`ParamExtractor` names the fix).
+ *
+ * The core evaluates it through the graph's `ParamExtractor` (`heldFor()` of the value read for `field()`), so the
+ * accessor goes through the adapter's readers (Eloquent attributes); {@see evaluate()} alone is the plain DSL.
  */
 final readonly class Equals implements FieldCondition
 {
@@ -21,7 +24,7 @@ final readonly class Equals implements FieldCondition
 
     public function evaluate(object $subject): bool
     {
-        return $this->heldFor(ParamExtractor::read($subject, $this->path));
+        return $this->heldFor((new ParamExtractor())->read($subject, $this->path));
     }
 
     public function field(): string

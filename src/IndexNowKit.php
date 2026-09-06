@@ -6,6 +6,7 @@ namespace IndexNowKit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\AttributeReaderInterface;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Collector\CollectorInterface;
 use IndexNowKit\Debounce\DebounceStoreFactory;
@@ -44,6 +45,8 @@ final class IndexNowKit
      * @param TransportInterface|null $transport the transport submissions go through, for consumers that read documents
      *                                           over the same client (null when the facade was built around a custom
      *                                           submitter: use `Http\TransportFactory::lazy($config)` then)
+     * @param ParamExtractor          $extractor how `params` and `when` are read off objects: the one the resolver was built
+     *                                           with (its readers see Eloquent attributes); the plain DSL by default
      */
     public function __construct(
         public readonly Config $config,
@@ -55,9 +58,10 @@ final class IndexNowKit
         ?UrlResolverInterface $resolver = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         public readonly ?TransportInterface $transport = null,
+        public readonly ParamExtractor $extractor = new ParamExtractor(),
     ) {
         $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
-        $this->changes = new ObjectChangeHandler($attributes, $this->resolver, $logger);
+        $this->changes = new ObjectChangeHandler($attributes, $this->resolver, $logger, $extractor);
     }
 
     /**
@@ -71,6 +75,9 @@ final class IndexNowKit
      * @param CacheInterface|null           $failureCache    PSR-16 cache the 403 counter of the client lives in, shared by every
      *                                                        process of the application (the cache behind the debounce store); null = per process
      * @param SubmissionStoreInterface|null $submissionStore where the submitter records every Result; null = nowhere
+     * @param ParamExtractor|null           $extractor       how `params` and `when` are read off objects (`new ParamExtractor(new
+     *                                                        MySubjectReader())` for objects the DSL cannot see into); the plain DSL when null.
+     *                                                        Build a custom $resolver with the same one.
      *
      * @throws ConfigurationException when no HTTP client can be discovered, on an incompatible combination, or on a
      *                                `dispatch`/`debounce.store`/`http.client` value that needs a framework to resolve it
@@ -90,6 +97,7 @@ final class IndexNowKit
         ?CollectorInterface $collector = null,
         ?CacheInterface $failureCache = null,
         ?SubmissionStoreInterface $submissionStore = null,
+        ?ParamExtractor $extractor = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
@@ -107,7 +115,7 @@ final class IndexNowKit
         }
         $dispatcher ??= DispatcherFactory::fromConfig($config, $submitter, $logger);
 
-        return new self($config, $submitter, $collector ?? Collector::fromConfig($config, $logger), $dispatcher, $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport);
+        return new self($config, $submitter, $collector ?? Collector::fromConfig($config, $logger), $dispatcher, $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $extractor ?? new ParamExtractor());
     }
 
     /**

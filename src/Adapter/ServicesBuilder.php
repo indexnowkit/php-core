@@ -6,6 +6,7 @@ namespace IndexNowKit\Adapter;
 
 use Closure;
 use IndexNowKit\Attribute\AttributeReaderInterface;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Check\CheckInterface;
 use IndexNowKit\ClientInterface;
 use IndexNowKit\Collector\CollectorInterface;
@@ -190,6 +191,15 @@ final class ServicesBuilder
     public function urlResolver(UrlResolverInterface|Closure $resolver): self
     {
         return $this->node(Services::URL_RESOLVER, $resolver);
+    }
+
+    /**
+     * How `params` and `when` are read off objects: `new ParamExtractor(new ActiveRecordSubjectReader())` for models the
+     * DSL cannot see into; the plain DSL by default. The resolver, the change handler and the facade share it.
+     */
+    public function paramExtractor(ParamExtractor|Closure $extractor): self
+    {
+        return $this->node(Services::PARAM_EXTRACTOR, $extractor);
     }
 
     /**

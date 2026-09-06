@@ -6,9 +6,10 @@ namespace IndexNowKit\Attribute;
 
 /**
  * How an accessor is read off objects the plain DSL cannot see into: Active-Record models whose attributes live in
- * an array behind `__get()` (Eloquent), CMS records with a `get_field()` API. Registered once per process with
- * {@see ParamExtractor::registerReader()}; consulted for every single-segment accessor before the DSL
- * (property, getter, is/has method) so a reader can claim `slug` and leave `isPublished()` to the DSL.
+ * an array behind `__get()` (Eloquent), CMS records with a `get_field()` API. Given to the {@see ParamExtractor} of the
+ * graph (`new ParamExtractor(new EloquentSubjectReader())`, `IndexNowKit::create(extractor:)`, the adapter's container);
+ * consulted for every single-segment accessor before the DSL (property, getter, is/has method) so a reader can claim
+ * `slug` and leave `isPublished()` to the DSL.
  *
  * "Implement" tier (docs/bc.md): methods are not added without a major version.
  */

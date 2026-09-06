@@ -125,7 +125,7 @@ final readonly class Between implements Condition
 
     public function evaluate(object $subject): bool
     {
-        $value = ParamExtractor::read($subject, $this->path);
+        $value = (new ParamExtractor())->read($subject, $this->path);   // the plain DSL: a plain Condition reads the object itself
 
         return is_int($value) && $value >= $this->min && $value <= $this->max;
     }
@@ -136,7 +136,7 @@ final readonly class OneOf implements FieldCondition        // reads one field: 
     /** @param list<string> $values */
     public function __construct(private string $path, private array $values) {}
 
-    public function evaluate(object $subject): bool { return $this->heldFor(ParamExtractor::read($subject, $this->path)); }
+    public function evaluate(object $subject): bool { return $this->heldFor((new ParamExtractor())->read($subject, $this->path)); }
     public function field(): string { return $this->path; }
     public function heldFor(mixed $oldValue): bool { return in_array($oldValue, $this->values, true); }
 }
@@ -147,7 +147,9 @@ final readonly class OneOf implements FieldCondition        // reads one field: 
 A plain `Condition` has no old value: `ChangeClassifier` evaluates it on the current object, so `open → closed` is
 classified as a plain update, not as the deletion it is — unless `whenFields` names the field the condition reads
 (then a change of that field counts as a flip). Implement `FieldCondition` (`field()`, `heldFor($oldValue)`) when
-the condition reads one field, and the change set gives the exact old state, as it does for `Equals`. `Condition` and
+the condition reads one field, and the change set gives the exact old state, as it does for `Equals`. The core evaluates a
+`FieldCondition` as `heldFor()` of the value the graph's `ParamExtractor` reads for `field()`, so it sees Eloquent and Active
+Record attributes through the adapter's readers; `evaluate()` is what a plain `Condition` (or your own call) runs. `Condition` and
 `FieldCondition` are in the Implement tier of [bc.md](bc.md), with the pre-1.0 caveat that they are new in 0.8.
 
 `Equals` is a condition, not a value source: `params: ['status' => new Equals(...)]` is a type error, and

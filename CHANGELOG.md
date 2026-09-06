@@ -3,6 +3,41 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.10.0] — Unreleased
+
+The last structural debt before 1.0 (spec 17 §7): the reader registry of `Attribute\ParamExtractor` was process-wide static
+state — two graphs in one process shared it, a test had to unregister what another registered, and nothing in the type
+system said which extractor a resolver read with. It is an object now, built once per graph and injected.
+
+### Changed
+
+- **`Attribute\ParamExtractor` is an instance** (tier Call; constructors take named arguments): `new ParamExtractor(...$readers)`
+  holds the `SubjectReaderInterface`s of the graph; `extract()`, `read()`, `resolve()` and `condition()` are instance methods
+  with unchanged signatures; `with(...$readers)` returns a copy with more readers, `fromReaders(iterable)` builds one for a
+  container, `readers()` lists them. **Removed:** the static `registerReader()` / `unregisterReader()`. Migration: plain PHP
+  — `IndexNowKit::create($config, extractor: new ParamExtractor(new MyReader()))`; a call site that used the static methods —
+  `(new ParamExtractor())->read(...)` (the DSL alone) or the graph's instance (`$indexNow->extractor`). The adapters bind
+  theirs (`ParamExtractor::class` in Laravel, `indexnowkit.param_extractor` in Symfony, `ServicesBuilder::paramExtractor()`
+  in Yii2) and their `EloquentSubjectReader` / `ActiveRecordSubjectReader` go in there.
+- **A `FieldCondition` is evaluated through the extractor:** `ParamExtractor::condition()` reads `field()` with its readers
+  and asks `heldFor()`, so `new Equals('status', 'published')` sees an Eloquent attribute the same way `params` does; a plain
+  `Condition` still runs `evaluate($subject)`. `Equals::evaluate()` alone reads with the plain DSL (it was the static
+  registry before); the core never calls it for a `FieldCondition`. The "no property, getter or method" error says "give the
+  ParamExtractor a SubjectReaderInterface" and lists the readers that were asked.
+
+### Added
+
+- Appended optional parameters carrying the extractor: `IndexNowKit::create(..., ?ParamExtractor $extractor)`, the
+  constructor of `IndexNowKit` (`public readonly ParamExtractor $extractor`), `Url\AttributeUrlResolver` (constructor and
+  `fromConfig()`, plus `extractor()`), `Url\ObjectChangeHandler`, `Attribute\UrlRule::appliesTo(object, ?ParamExtractor)`,
+  `Attribute\ChangeClassifier::classify(..., ?ParamExtractor)`. Null everywhere means the plain DSL, which is what plain PHP
+  objects and Doctrine entities need — nothing changes for them.
+- **`Adapter\Services::paramExtractor()`** and **`Adapter\ServicesBuilder::paramExtractor(ParamExtractor|Closure)`**: the
+  node the resolver, the change handler and the facade of the graph share.
+- `docs/compatibility.md`: the supported PHP and framework versions per package, their upstream end-of-life dates and the rule
+  for dropping one (the minimum PHP is raised in the first minor after the previous version leaves security support; that
+  is not a breaking change under `docs/bc.md`).
+
 ## [0.9.0] — 2026-09-06
 
 The additive minor of spec 17 §7: nothing changed, nothing removed, no `@deprecated` added — the interfaces of 0.8.0

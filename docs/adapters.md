@@ -197,7 +197,7 @@ The merge is deliberate: a top-level raw key replaces the default, the known blo
 | rules registered in code, per class or per object | `Attribute\RuleRegistry` |
 | your own metadata source | implement `Attribute\AttributeReaderInterface` |
 | the object knows its own URL | `#[IndexNowUrl]` on the method, or `Url\CallableUrlResolver` |
-| attributes behind `__get()` / an array (Eloquent, CMS records) | implement `Attribute\SubjectReaderInterface`, register it once with `ParamExtractor::registerReader()` |
+| attributes behind `__get()` / an array (Eloquent, CMS records) | implement `Attribute\SubjectReaderInterface`, give it to the graph's `ParamExtractor` (`ServicesBuilder::paramExtractor(new ParamExtractor(new MyReader()))`, `IndexNowKit::create(extractor:)`) |
 
 `RuleRegistry` decorates any reader, so a CMS adapter keeps attribute support for free:
 

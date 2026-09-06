@@ -7,6 +7,7 @@ namespace IndexNowKit\Adapter;
 use Closure;
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\AttributeReaderInterface;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleRegistry;
 use IndexNowKit\Check\Checker;
 use IndexNowKit\Check\CheckerInterface;
@@ -71,6 +72,7 @@ final class Services
     public const ROUTER = 'router';
     public const RESOLVER_LOCATOR = 'resolverLocator';
     public const URL_RESOLVER = 'urlResolver';
+    public const PARAM_EXTRACTOR = 'paramExtractor';
     public const FAILURE_CACHE = 'failureCache';
     public const SUBMISSION_STORE = 'submissionStore';
 
@@ -206,9 +208,15 @@ final class Services
         return $this->optional(self::RESOLVER_LOCATOR, ResolverLocatorInterface::class);
     }
 
+    /** How `params` and `when` are read off objects: the adapter's readers (Active Record attributes) or the plain DSL by default. */
+    public function paramExtractor(): ParamExtractor
+    {
+        return $this->memo(self::PARAM_EXTRACTOR, ParamExtractor::class, static fn(): ParamExtractor => new ParamExtractor());
+    }
+
     public function urlResolver(): UrlResolverInterface
     {
-        return $this->memo(self::URL_RESOLVER, UrlResolverInterface::class, fn(): UrlResolverInterface => AttributeUrlResolver::fromConfig($this->config, $this->rules(), $this->router(), $this->resolverLocator(), $this->logger));
+        return $this->memo(self::URL_RESOLVER, UrlResolverInterface::class, fn(): UrlResolverInterface => AttributeUrlResolver::fromConfig($this->config, $this->rules(), $this->router(), $this->resolverLocator(), $this->logger, $this->paramExtractor()));
     }
 
     public function guardedResolver(): GuardedUrlResolver
@@ -234,6 +242,7 @@ final class Services
             resolver: $this->guardedResolver(),
             logger: $this->logger,
             transport: $this->transport(),
+            extractor: $this->paramExtractor(),
         );
     }
 

@@ -24,7 +24,7 @@ final readonly class OpenCondition implements Condition
 {
     public function evaluate(object $subject): bool
     {
-        return ParamExtractor::read($subject, 'state') === 'open';
+        return (new ParamExtractor())->read($subject, 'state') === 'open';
     }
 }
 
@@ -33,7 +33,7 @@ final readonly class OpenFieldCondition implements FieldCondition
 {
     public function evaluate(object $subject): bool
     {
-        return $this->heldFor(ParamExtractor::read($subject, 'state'));
+        return $this->heldFor((new ParamExtractor())->read($subject, 'state'));
     }
 
     public function field(): string
@@ -121,7 +121,7 @@ final class WhenConditionTest extends TestCase
         self::assertFalse((new Equals('status', 'published'))->heldFor('draft'));
 
         try {
-            ParamExtractor::extract($post, ['slug' => 'slug', 'v' => new Equals('status', 'published')]);
+            (new ParamExtractor())->extract($post, ['slug' => 'slug', 'v' => new Equals('status', 'published')]);
             self::fail('a condition is not a param value');
         } catch (ConfigurationException $e) {
             self::assertStringContainsString('Param "v" of ' . $post::class . ' is a IndexNowKit\Attribute\Param\Equals, which is not a value source', $e->getMessage());

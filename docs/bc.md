@@ -3,7 +3,10 @@
 `indexnowkit/core` follows SemVer. **Before 1.0, minor versions may contain breaking changes**; every one is listed
 under "Changed" in [CHANGELOG.md](../CHANGELOG.md) with the migration. After 1.0 the rules below become the promise.
 
-This page exists because "public API" is ambiguous for a library whose main audience is other library authors.
+This page exists because "public API" is ambiguous for a library whose main audience is other library authors. Which PHP and
+framework versions a release supports, and the rule for dropping one, is [compatibility.md](compatibility.md); **raising the
+minimum PHP version is not a breaking change** under this promise (Composer does not offer the new minor to an application on
+the old PHP).
 
 ## Three tiers
 
@@ -31,9 +34,13 @@ IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: $
 
 The same holds for the constructors of `Config`, `Client`, `Submitter`, `AttributeUrlResolver`, `GuardedUrlResolver`, `TransactionStaging`, `VerifyingStaging`,
 `RetryPolicy`, `TokenBucket`, `Collector` and `Psr18Transport`: pass anything past the first argument by name.
-`RuleCompiler` (`compile()`, `fromAttributes()`) and `ParamExtractor` (`extract()`, `read()`, `condition()`, `registerReader()`,
-`unregisterReader()`) are public static helpers in the same "call" tier: adapters call them to compile their own declarations and to
-plug in a `SubjectReaderInterface`; their signatures only grow by appended optional parameters.
+`RuleCompiler` (`compile()`, `fromAttributes()`) is a public static helper in the same "call" tier: adapters call it to compile
+their own declarations; its signatures only grow by appended optional parameters. `Attribute\ParamExtractor` is an object of the
+same tier: `new ParamExtractor(...$readers)` takes the `SubjectReaderInterface`s of the graph, `extract()`, `read()`, `resolve()`,
+`condition()` read with them, `with()`/`fromReaders()`/`readers()` compose. One instance per graph — `IndexNowKit::create(extractor:)`,
+`Adapter\ServicesBuilder::paramExtractor()`, the adapters' `ParamExtractor` binding or service — shared by `AttributeUrlResolver`,
+`ObjectChangeHandler` and the `explain` command; the constructors and `fromConfig()` of those take it as an appended optional
+parameter and fall back to the plain DSL.
 
 The shipped default implementations are in the "call" tier as well: construct them with named arguments and their public
 methods stay. That is `Http\LazyTransport` (the default `IndexNowKit::$transport`), `Http\Psr18Transport`,

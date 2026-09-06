@@ -9,6 +9,7 @@ use IndexNowKit\Adapter\Services;
 use IndexNowKit\Adapter\ServicesBuilder;
 use IndexNowKit\Adapter\SubmitterFactory;
 use IndexNowKit\Attribute\AttributeReader;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleRegistry;
 use IndexNowKit\Check\Checker;
 use IndexNowKit\Client;
@@ -93,9 +94,10 @@ final class ServicesParityTest extends TestCase
         $collector = Collector::fromConfig($config, $logger);
         $dispatcher = DispatcherFactory::fromConfig($config, $submitter, $logger);
         $rules = new RuleRegistry(new AttributeReader());
-        $urlResolver = AttributeUrlResolver::fromConfig($config, $rules, null, null, $logger);
+        $extractor = new ParamExtractor();
+        $urlResolver = AttributeUrlResolver::fromConfig($config, $rules, null, null, $logger, $extractor);
         $guarded = new GuardedUrlResolver($urlResolver, $rules, $logger);
-        $kit = new IndexNowKit($config, $submitter, $collector, $dispatcher, $keys, $rules, $guarded, $logger, $transport);
+        $kit = new IndexNowKit($config, $submitter, $collector, $dispatcher, $keys, $rules, $guarded, $logger, $transport, $extractor);
 
         return [
             'transport' => $transport,
@@ -113,6 +115,7 @@ final class ServicesParityTest extends TestCase
             'resolverLocator' => null,
             'failureCache' => null,
             'submissionStore' => null,
+            'paramExtractor' => $extractor,
             'urlResolver' => $urlResolver,
             'guardedResolver' => $guarded,
             'changes' => $kit->changes(),

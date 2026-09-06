@@ -82,12 +82,15 @@ final readonly class UrlRule
     /**
      * Whether the page exists in the object's current state: every `when` condition holds.
      *
+     * @param ParamExtractor|null $extractor the graph's extractor (its readers see Eloquent attributes); the plain DSL when null
+     *
      * @throws ConfigurationException when an accessor cannot be read
      */
-    public function appliesTo(object $subject): bool
+    public function appliesTo(object $subject, ?ParamExtractor $extractor = null): bool
     {
+        $extractor ??= new ParamExtractor();
         foreach ($this->when as $condition) {
-            if (!ParamExtractor::condition($subject, $condition)) {
+            if (!$extractor->condition($subject, $condition)) {
                 return false;
             }
         }

@@ -24,13 +24,15 @@ final class ChangeClassifier
     /**
      * @param list<string>                             $changedFields field names changed in this update
      * @param array<string, array{0: mixed, 1: mixed}> $changeSet     field => [old, new] when the ORM provides it
+     * @param ParamExtractor|null                      $extractor     the graph's extractor (its readers see Eloquent attributes); the plain DSL when null
      *
      * @throws ConfigurationException when a `when` accessor cannot be read
      */
-    public static function classify(UrlRule $rule, object $subject, array $changedFields, array $changeSet = []): ?Event
+    public static function classify(UrlRule $rule, object $subject, array $changedFields, array $changeSet = [], ?ParamExtractor $extractor = null): ?Event
     {
-        $after = $rule->appliesTo($subject);
-        $before = self::appliedBefore($rule, $subject, $changedFields, $changeSet, $after);
+        $extractor ??= new ParamExtractor();
+        $after = $rule->appliesTo($subject, $extractor);
+        $before = self::appliedBefore($rule, $subject, $changedFields, $changeSet, $after, $extractor);
 
         if ($before && !$after) {
             return $rule->listensTo(Event::Deleted) ? Event::Deleted : null;
@@ -85,7 +87,7 @@ final class ChangeClassifier
      * @param list<string>                             $changedFields
      * @param array<string, array{0: mixed, 1: mixed}> $changeSet
      */
-    private static function appliedBefore(UrlRule $rule, object $subject, array $changedFields, array $changeSet, bool $after): bool
+    private static function appliedBefore(UrlRule $rule, object $subject, array $changedFields, array $changeSet, bool $after, ParamExtractor $extractor): bool
     {
         if ($rule->when === []) {
             return true;
@@ -110,7 +112,7 @@ final class ChangeClassifier
                 $unknown = true;
                 continue;
             }
-            if (!ParamExtractor::condition($subject, $condition)) {
+            if (!$extractor->condition($subject, $condition)) {
                 return false;
             }
         }
