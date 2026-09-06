@@ -270,8 +270,16 @@ final class ObjectChangeHandler
      */
     private static function restore(object $subject, array $properties, array $values): void
     {
+        $failed = null;
         foreach ($values as $field => $value) {
-            $properties[$field]->setValue($subject, $value);
+            try {
+                $properties[$field]->setValue($subject, $value); // every field is put back even when one throws (a set hook that validates)
+            } catch (Throwable $e) {
+                $failed ??= $e;
+            }
+        }
+        if ($failed !== null) {
+            throw $failed;
         }
     }
 

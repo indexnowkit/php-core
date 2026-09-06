@@ -112,6 +112,14 @@ final readonly class Response
         if ($date === false) {
             $timestamp = strtotime($header);
             if ($timestamp === false) {
+                // Several Retry-After headers joined by the PSR-7 header line ("120, 60"): the longest wait wins.
+                $parts = array_map('trim', explode(',', $header));
+                if (\count($parts) > 1) {
+                    $delays = array_filter(array_map(static fn(string $part): ?int => self::parseRetryAfter($part, $max, $now), $parts), static fn(?int $d): bool => $d !== null);
+
+                    return $delays === [] ? null : max($delays);
+                }
+
                 return null;
             }
             $date = new DateTimeImmutable('@' . $timestamp);

@@ -24,6 +24,10 @@ final class ForbiddenCounter
 
     /** @var array<string, int> host => consecutive 403 count (without a cache, or while it is unavailable) */
     private array $counts = [];
+    /** @var array<string, true> hosts whose in-process streak already wrote the critical line */
+    private array $escalated = [];
+    /** @var array<string, true> hosts known to have no counter in the shared cache (until the next 403) */
+    private array $cleared = [];
     private bool $warned = false;
 
     /**
@@ -51,6 +55,7 @@ final class ForbiddenCounter
      */
     public function hit(string $host): array
     {
+        unset($this->cleared[$host]);
         if ($this->cache !== null) {
             try {
                 $count = $this->increment($host);
@@ -65,21 +70,26 @@ final class ForbiddenCounter
             }
         }
         $count = $this->counts[$host] = ($this->counts[$host] ?? 0) + 1;
+        $escalate = $count >= $this->threshold && !isset($this->escalated[$host]); // the same rule as with a cache: once per streak
+        if ($escalate) {
+            $this->escalated[$host] = true;
+        }
 
-        return [$count, $count === $this->threshold];
+        return [$count, $escalate];
     }
 
     /** A non-403 answer ends the streak: the shared counter is deleted only when it is set (no write per success). */
     public function reset(string $host): void
     {
-        unset($this->counts[$host]);
-        if ($this->cache === null) {
-            return;
+        unset($this->counts[$host], $this->escalated[$host]);
+        if ($this->cache === null || isset($this->cleared[$host])) {
+            return; // already known clean in this process: no read per successful batch
         }
         try {
             if ($this->stored($host) > 0) {
                 $this->cache->deleteMultiple([$this->key($host, false), $this->key($host, true)]);
             }
+            $this->cleared[$host] = true;
         } catch (Throwable $e) {
             $this->warn($e);
         }
@@ -141,7 +151,10 @@ final class ForbiddenCounter
             $count = $cache->increment($key);
             if (\is_int($count) && $count > 0) {
                 if ($count === 1) {
-                    $cache->set($key, 1, $this->ttl); // a fresh counter gets the TTL; increment() alone would keep it forever on some stores
+                    // A fresh counter gets the TTL; increment() alone would keep it forever on some stores. Re-read first so a
+                    // hit that landed between the two calls is kept (PSR-16 has no atomic "set TTL": the window is one round trip).
+                    $current = $cache->get($key);
+                    $cache->set($key, \is_int($current) && $current > 1 ? $current : 1, $this->ttl);
                 }
 
                 return $count;

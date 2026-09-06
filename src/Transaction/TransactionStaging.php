@@ -7,6 +7,7 @@ namespace IndexNowKit\Transaction;
 use IndexNowKit\Config;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Throwable;
 use WeakMap;
 
 /**
@@ -115,8 +116,14 @@ final class TransactionStaging
     public function commit(object $scope): void
     {
         $urls = $this->take($scope);
-        if ($urls !== [] && $this->sink !== null) {
+        if ($urls === [] || $this->sink === null) {
+            return;
+        }
+        try {
             ($this->sink)($urls);
+        } catch (Throwable $e) {
+            // The database has committed: an exception here would tell the application its commit failed. One error line instead.
+            $this->logger->error('indexnow: {count} URL(s) staged for the committed transaction were not handed over: {error}', ['count' => \count($urls), 'error' => $e->getMessage(), 'exception' => $e, 'urls' => \array_slice($urls, 0, $this->logUrls)]);
         }
     }
 

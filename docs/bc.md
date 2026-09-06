@@ -13,14 +13,16 @@ the old PHP).
 | Tier | What it means | Examples |
 |---|---|---|
 | **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Adapter\SubmitterFactory`, `Submission\ResultSummary`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Retry\ForbiddenCounter`, `Submission\NullSubmissionStore`, the four test doubles of `Testing\` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface`, `Submission\SubmissionStoreInterface` (new in 0.8, see [submission-store.md](submission-store.md)), `Attribute\Param\Condition` and `FieldCondition` (new in 0.8, the `when` guards); the three new interfaces live through one minor unchanged before 1.0 |
-| **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface`, `RouteUrlResolverInterface`, `ResolverLocatorInterface` |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Url\ParamExtractorAwareInterface`, `Url\RouteUrlResolverInterface` and `Url\ResolverLocatorInterface` (one implementation per framework adapter; a capability the core needs later comes as a new interface that extends them, the way `History\HistoryStoreInterface` extends `SubmissionStoreInterface`), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface`, `Submission\SubmissionStoreInterface` (new in 0.8, see [submission-store.md](submission-store.md)), `Attribute\Param\Condition` and `FieldCondition` (new in 0.8, the `when` guards); the three new interfaces live through one minor unchanged before 1.0 |
+| **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface` |
+| **Sealed** | Closed sets the core switches over. Do not implement them: an unknown implementation is a configuration error, or worse, a silent miss. | `Attribute\Param\ParamValue` (`Accessor`, `Value`, `Formatted`, `Call` are the set: a param source of your own is a resolver, `#[IndexNow(resolver: …)]`) |
 
 The "may grow" tier is the honest label for interfaces that are still learning what adapters need. If you implement
 one directly, pin `^0.8.0` rather than `^0.8` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
-both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` have no shipped implementation to
-decorate (one per framework adapter): pin `^0.8.0` and read the changelog.
+both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` used to be listed here; they are
+"Implement" since 0.11: the core ships no implementation to decorate (one per framework adapter), so a method cannot be
+added to them in a minor.
 
 ## Named arguments
 
@@ -40,7 +42,9 @@ same tier: `new ParamExtractor(...$readers)` takes the `SubjectReaderInterface`s
 `condition()` read with them, `with()`/`fromReaders()`/`readers()` compose. One instance per graph — `IndexNowKit::create(extractor:)`,
 `Adapter\ServicesBuilder::paramExtractor()`, the adapters' `ParamExtractor` binding or service — shared by `AttributeUrlResolver`,
 `ObjectChangeHandler` and the `explain` command; the constructors and `fromConfig()` of those take it as an appended optional
-parameter and fall back to the plain DSL.
+parameter. `IndexNowKit` derives its extractor from the resolver it is given (`Url\ParamExtractorAwareInterface`, which
+`AttributeUrlResolver` implements), so the change handler and `explain` read exactly what the resolver reads; a custom
+resolver without the interface falls back to the plain DSL.
 
 The shipped default implementations are in the "call" tier as well: construct them with named arguments and their public
 methods stay. That is `Http\LazyTransport` (the default `IndexNowKit::$transport`), `Http\Psr18Transport`,

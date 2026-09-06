@@ -13,6 +13,7 @@ use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleRegistry;
 use IndexNowKit\Check\Checker;
 use IndexNowKit\Client;
+use IndexNowKit\Clock\SystemClock;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Config;
 use IndexNowKit\Debounce\DebounceStoreFactory;
@@ -28,6 +29,7 @@ use IndexNowKit\Tests\Support\Factory;
 use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\AttributeUrlResolver;
 use IndexNowKit\Url\GuardedUrlResolver;
+use IndexNowKit\Url\ObjectChangeHandler;
 use IndexNowKit\Url\UrlNormalizerFactory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -87,17 +89,19 @@ final class ServicesParityTest extends TestCase
     {
         $keys = StaticKeyProvider::fromConfig($config);
         $normalizer = UrlNormalizerFactory::fromConfig($config);
-        $throttle = TokenBucket::fromConfig($config, $logger);
-        $debounce = DebounceStoreFactory::fromConfig($config);
+        $clock = new SystemClock();
+        $throttle = TokenBucket::fromConfig($config, $logger, $clock);
+        $debounce = DebounceStoreFactory::fromConfig($config, clock: $clock);
         $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer);
-        $submitter = new Submitter($client, $config, $debounce, $logger, $normalizer);
+        $submitter = new Submitter($client, $config, $debounce, $logger, $normalizer, null, null, $clock);
         $collector = Collector::fromConfig($config, $logger);
         $dispatcher = DispatcherFactory::fromConfig($config, $submitter, $logger);
         $rules = new RuleRegistry(new AttributeReader());
         $extractor = new ParamExtractor();
         $urlResolver = AttributeUrlResolver::fromConfig($config, $rules, null, null, $logger, $extractor);
         $guarded = new GuardedUrlResolver($urlResolver, $rules, $logger);
-        $kit = new IndexNowKit($config, $submitter, $collector, $dispatcher, $keys, $rules, $guarded, $logger, $transport, $extractor);
+        $changes = new ObjectChangeHandler($rules, $guarded, $logger, $extractor);
+        $kit = new IndexNowKit($config, $submitter, $collector, $dispatcher, $keys, $rules, $guarded, $logger, $transport, $extractor, $changes);
 
         return [
             'transport' => $transport,
@@ -118,7 +122,9 @@ final class ServicesParityTest extends TestCase
             'paramExtractor' => $extractor,
             'urlResolver' => $urlResolver,
             'guardedResolver' => $guarded,
-            'changes' => $kit->changes(),
+            'changes' => $changes,
+            'clock' => $clock,
+            'events' => null,
             'kit' => $kit,
             'keyFileResponder' => KeyFileResponder::fromConfig($config, $keys),
             'checker' => new Checker($config, $keys, $transport, []),

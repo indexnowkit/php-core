@@ -27,6 +27,12 @@ final class GuardedUrlResolver implements UrlResolverInterface
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {}
 
+    /** The resolver this one guards (an `AttributeUrlResolver` in every shipped graph). */
+    public function inner(): UrlResolverInterface
+    {
+        return $this->inner;
+    }
+
     /**
      * @return list<string> de-duplicated
      */

@@ -37,14 +37,14 @@ final readonly class WorkerOutcome
         $retryAfter = null;
         $reasons = [];
         foreach ($results as $result) {
-            if ($result->status !== ResultStatus::Failed) {
-                continue;
-            }
-            if ($result->retryable) {
+            if ($result->retryable) { // failed 429/5xx, or skipped by the verify pre-flight on an origin error: both come back
                 if ($result->retryAfter !== null) {
                     $retryAfter = max($retryAfter ?? 0, $result->retryAfter);
                 }
 
+                continue;
+            }
+            if ($result->status !== ResultStatus::Failed) {
                 continue;
             }
             $reasons[] = \sprintf('%s %s', $result->engine, $result->httpCode !== null ? (string) $result->httpCode : ($result->reason->value ?? 'failed'));

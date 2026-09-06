@@ -24,10 +24,12 @@ use IndexNowKit\Throttle\TokenBucket;
 use IndexNowKit\Url\GuardedUrlResolver;
 use IndexNowKit\Url\NullUrlResolver;
 use IndexNowKit\Url\ObjectChangeHandler;
+use IndexNowKit\Url\ParamExtractorAwareInterface;
 use IndexNowKit\Url\ResolvedUrl;
 use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
@@ -45,8 +47,11 @@ final class IndexNowKit
      * @param TransportInterface|null $transport the transport submissions go through, for consumers that read documents
      *                                           over the same client (null when the facade was built around a custom
      *                                           submitter: use `Http\TransportFactory::lazy($config)` then)
-     * @param ParamExtractor          $extractor how `params` and `when` are read off objects: the one the resolver was built
-     *                                           with (its readers see Eloquent attributes); the plain DSL by default
+     * @param ParamExtractor|null     $extractor how `params` and `when` are read off objects; null = the one the resolver reads
+     *                                           with ({@see ParamExtractorAwareInterface}, so the change handler and `explain`
+     *                                           agree with the resolver), the plain DSL when the resolver has none
+     * @param ObjectChangeHandler|null $changes  the change handler of the graph when the adapter built it as a service of its own
+     *                                           (`Adapter\Services::changes()`); built here over the resolver otherwise
      */
     public function __construct(
         public readonly Config $config,
@@ -58,11 +63,17 @@ final class IndexNowKit
         ?UrlResolverInterface $resolver = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         public readonly ?TransportInterface $transport = null,
-        public readonly ParamExtractor $extractor = new ParamExtractor(),
+        ?ParamExtractor $extractor = null,
+        ?ObjectChangeHandler $changes = null,
     ) {
         $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
-        $this->changes = new ObjectChangeHandler($attributes, $this->resolver, $logger, $extractor);
+        $inner = $this->resolver->inner();
+        $this->extractor = $extractor ?? ($inner instanceof ParamExtractorAwareInterface ? $inner->extractor() : new ParamExtractor());
+        $this->changes = $changes ?? new ObjectChangeHandler($attributes, $this->resolver, $logger, $this->extractor);
     }
+
+    /** How `params` and `when` are read off objects: what the resolver reads with, shared with the change handler and `explain`. */
+    public readonly ParamExtractor $extractor;
 
     /**
      * Default graph through the factories every adapter uses: PSR-18 discovery with http.timeout
@@ -76,8 +87,10 @@ final class IndexNowKit
      *                                                        process of the application (the cache behind the debounce store); null = per process
      * @param SubmissionStoreInterface|null $submissionStore where the submitter records every Result; null = nowhere
      * @param ParamExtractor|null           $extractor       how `params` and `when` are read off objects (`new ParamExtractor(new
-     *                                                        MySubjectReader())` for objects the DSL cannot see into); the plain DSL when null.
-     *                                                        Build a custom $resolver with the same one.
+     *                                                        MySubjectReader())` for objects the DSL cannot see into); null = the extractor of
+     *                                                        $resolver, the plain DSL when it has none
+     * @param ClockInterface|null           $clock           the clock of the throttle, the debounce store and the submission timestamps
+     *                                                        (`Testing\FrozenClock` in tests); the system clock when null
      *
      * @throws ConfigurationException when no HTTP client can be discovered, on an incompatible combination, or on a
      *                                `dispatch`/`debounce.store`/`http.client` value that needs a framework to resolve it
@@ -98,6 +111,7 @@ final class IndexNowKit
         ?CacheInterface $failureCache = null,
         ?SubmissionStoreInterface $submissionStore = null,
         ?ParamExtractor $extractor = null,
+        ?ClockInterface $clock = null,
     ): self {
         $logger ??= new NullLogger();
         $keys ??= StaticKeyProvider::fromConfig($config);
@@ -108,14 +122,14 @@ final class IndexNowKit
             }
         } else {
             $normalizer ??= UrlNormalizerFactory::fromConfig($config);
-            $throttle ??= TokenBucket::fromConfig($config, $logger);
+            $throttle ??= TokenBucket::fromConfig($config, $logger, $clock);
             $transport ??= TransportFactory::lazy($config);
             $client = new Client($transport, $keys, $config, $logger, $throttle, $normalizer, $failureCache);
-            $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config), $logger, $normalizer, null, $submissionStore);
+            $submitter = new Submitter($client, $config, $debounce ?? DebounceStoreFactory::fromConfig($config, clock: $clock), $logger, $normalizer, null, $submissionStore, $clock);
         }
         $dispatcher ??= DispatcherFactory::fromConfig($config, $submitter, $logger);
 
-        return new self($config, $submitter, $collector ?? Collector::fromConfig($config, $logger), $dispatcher, $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $extractor ?? new ParamExtractor());
+        return new self($config, $submitter, $collector ?? Collector::fromConfig($config, $logger), $dispatcher, $keys, $attributes ?? new AttributeReader(), $resolver, $logger, $transport, $extractor);
     }
 
     /**

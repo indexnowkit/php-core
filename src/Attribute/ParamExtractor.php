@@ -16,6 +16,7 @@ use IndexNowKit\Attribute\Param\ParamValue;
 use IndexNowKit\Attribute\Param\Placeholder;
 use IndexNowKit\Attribute\Param\Value;
 use IndexNowKit\Exception\ConfigurationException;
+use ReflectionProperty;
 use Stringable;
 
 /**
@@ -142,11 +143,11 @@ final class ParamExtractor
                 return $subject->$method(); // @phpstan-ignore method.dynamicName
             }
         }
-        if (property_exists($subject, $accessor)) {
+        if (property_exists($subject, $accessor) && (new ReflectionProperty($subject, $accessor))->isInitialized($subject)) {
             return (fn() => $this->$accessor)->call($subject); // @phpstan-ignore property.dynamicName
         }
 
-        throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no method %s(), %s(), %s() or %s(), no property "%s"%s. Fix the accessor, or give the ParamExtractor a SubjectReaderInterface for this kind of object.', $accessor, $subject::class, $accessor, 'get' . $ucfirst, 'is' . $ucfirst, 'has' . $ucfirst, $accessor, $this->readers === [] ? '' : \sprintf(', and none of the readers (%s) claims it', implode(', ', array_map(static fn(SubjectReaderInterface $r): string => $r::class, $this->readers)))));
+        throw new ConfigurationException(\sprintf('Cannot read "%s" on %s: no method %s(), %s(), %s() or %s(), no initialized property "%s"%s. Fix the accessor, or give the ParamExtractor a SubjectReaderInterface for this kind of object.', $accessor, $subject::class, $accessor, 'get' . $ucfirst, 'is' . $ucfirst, 'has' . $ucfirst, $accessor, $this->readers === [] ? '' : \sprintf(', and none of the readers (%s) claims it', implode(', ', array_map(static fn(SubjectReaderInterface $r): string => $r::class, $this->readers)))));
     }
 
     /**

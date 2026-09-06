@@ -170,7 +170,7 @@ The `sitemap` block is the same in the three adapters and is owned by the sitema
 
 ### Verify keys (`indexnowkit/verify`)
 
-The `verify` block is the same in the three adapters and is owned by the verify package (its `docs/configuration.md` has the table): `verify.enabled`, `verify.redirect`, `verify.non_canonical`, `verify.origin_error`, `verify.delay`, `verify.timeout`, `verify.max_redirects`, `verify.max_batch`, `verify.robots_cache_ttl`, `verify.user_agent`.
+The `verify` block is the same in the three adapters and is owned by the verify package (its `docs/configuration.md` has the table): `verify.enabled`, `verify.redirect`, `verify.non_canonical`, `verify.origin_error`, `verify.delay`, `verify.timeout`, `verify.max_redirects`, `verify.max_batch`, `verify.time_budget`, `verify.robots_cache_ttl`, `verify.user_agent`.
 
 ### History keys (`indexnowkit/history`)
 

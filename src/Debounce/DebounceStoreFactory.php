@@ -7,6 +7,7 @@ namespace IndexNowKit\Debounce;
 use Closure;
 use IndexNowKit\Config;
 use IndexNowKit\Exception\ConfigurationException;
+use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -29,11 +30,11 @@ final class DebounceStoreFactory
      *
      * @throws ConfigurationException when the id needs a locator there is none, or resolves to neither a cache nor a store
      */
-    public static function fromConfig(Config $config, ?Closure $cacheLocator = null, string $default = self::MEMORY): DebounceStoreInterface
+    public static function fromConfig(Config $config, ?Closure $cacheLocator = null, string $default = self::MEMORY, ?ClockInterface $clock = null): DebounceStoreInterface
     {
         $id = $config->debounceStore ?? $default;
         if ($id === self::MEMORY) {
-            return new MemoryDebounceStore();
+            return $clock === null ? new MemoryDebounceStore() : new MemoryDebounceStore($clock);
         }
         if ($id === self::NONE) {
             return new NullDebounceStore();

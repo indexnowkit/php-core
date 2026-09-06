@@ -59,10 +59,12 @@ final class Psr18Transport implements StreamingTransportInterface
      *
      * @param float|null            $timeout      seconds, applied only to clients this method creates
      * @param array<string, string> $extraHeaders sent with every request (a `User-Agent` for GETs, which take no headers)
+     * @param int|null              $getBodyLimit bytes of a GET body before the request fails; null = {@see GET_BODY_LIMIT}
+     *                                            (a consumer that reads only the head of a page passes a small one)
      *
      * @throws ConfigurationException when no PSR-18 client or PSR-17 factories can be found
      */
-    public static function discover(?ClientInterface $client = null, ?float $timeout = null, array $extraHeaders = []): self
+    public static function discover(?ClientInterface $client = null, ?float $timeout = null, array $extraHeaders = [], ?int $getBodyLimit = null): self
     {
         try {
             return new self(
@@ -70,6 +72,7 @@ final class Psr18Transport implements StreamingTransportInterface
                 Psr17FactoryDiscovery::findRequestFactory(),
                 Psr17FactoryDiscovery::findStreamFactory(),
                 $extraHeaders,
+                $getBodyLimit ?? self::GET_BODY_LIMIT,
             );
         } catch (NotFoundException $e) {
             throw new ConfigurationException('No PSR-18 HTTP client / PSR-17 factories found. Install e.g. "symfony/http-client" and "nyholm/psr7", or pass a client explicitly.', 0, $e);

@@ -47,9 +47,9 @@ final class TokenBucket implements ThrottleInterface
     /**
      * The throttle an adapter wires: `throttle.max_requests_per_minute`, system clock, real sleep.
      */
-    public static function fromConfig(Config $config, LoggerInterface $logger = new NullLogger()): self
+    public static function fromConfig(Config $config, LoggerInterface $logger = new NullLogger(), ?ClockInterface $clock = null): self
     {
-        return new self($config->throttleMaxRequestsPerMinute, logger: $logger);
+        return new self($config->throttleMaxRequestsPerMinute, $clock, logger: $logger);
     }
 
     public function acquire(): void
@@ -63,14 +63,17 @@ final class TokenBucket implements ThrottleInterface
             $waitMicro = (int) ceil($deficit * (self::MICROSECONDS_PER_MINUTE / $this->perMinute));
             $this->logger->debug('indexnow: throttle limit of {per_minute} requests/min reached, waiting {wait_ms} ms', ['per_minute' => $this->perMinute, 'wait_ms' => intdiv($waitMicro, 1000)]);
             ($this->sleeper)($waitMicro);
-            $this->refill($waitMicro / 1_000_000);
+            // The wait was sized for exactly the deficit: credit it and move the refill mark by the time slept, so the
+            // next refill() does not count that time again (a real clock has moved by it, a frozen one has not).
+            $this->tokens += $deficit;
+            $this->lastRefill += $waitMicro / 1_000_000;
         }
         $this->tokens = max(0.0, $this->tokens - 1.0);
     }
 
-    private function refill(float $extraSeconds = 0.0): void
+    private function refill(): void
     {
-        $now = $this->nowMicro() + $extraSeconds;
+        $now = $this->nowMicro();
         $elapsed = max(0.0, $now - $this->lastRefill);
         $this->tokens = min((float) $this->perMinute, $this->tokens + $elapsed * ($this->perMinute / 60));
         $this->lastRefill = $now;

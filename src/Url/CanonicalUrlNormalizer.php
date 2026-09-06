@@ -86,7 +86,7 @@ final class CanonicalUrlNormalizer implements UrlNormalizerInterface
     /** Whether a query parameter name is one of the tracking parameters. */
     public function isTrackingParam(string $name): bool
     {
-        $name = strtolower(rawurldecode($name));
+        $name = strtolower(urldecode($name)); // form encoding: `+` is a space, unlike rawurldecode()
         if (\in_array($name, $this->exact, true)) {
             return true;
         }

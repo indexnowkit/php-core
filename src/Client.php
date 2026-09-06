@@ -9,6 +9,7 @@ use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Key\KeyValidator;
+use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Retry\ForbiddenCounter;
 use IndexNowKit\Throttle\NullThrottle;
 use IndexNowKit\Throttle\ThrottleInterface;
@@ -114,7 +115,7 @@ final class Client implements ClientInterface
         }
 
         if ($this->config->dryRun) {
-            $this->logger->log($this->config->logLevel('dry_run'), 'indexnow: dry-run POST {endpoint} {body}', ['endpoint' => $endpoint, 'body' => self::maskKey($json, $key)]);
+            $this->logger->log($this->config->logLevel('dry_run'), 'indexnow: dry-run POST {endpoint} {body}', ['endpoint' => $endpoint, 'body' => $this->maskKey($json, $host, $key)]);
 
             return Result::skipped($host, $urls, Reason::DryRun, engine: $engine, endpoint: $endpoint);
         }
@@ -128,14 +129,14 @@ final class Client implements ClientInterface
         try {
             $response = $this->transport->post($endpoint, $json, ['User-Agent' => $this->config->userAgent()]);
         } catch (TransportException $e) {
-            $this->logger->log($this->config->logLevel('transport'), 'indexnow: {engine} transport error for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key)]);
+            $this->logger->log($this->config->logLevel('transport'), 'indexnow: {engine} transport error for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => $this->maskKey($e->getMessage(), $host, $key)]);
 
-            return Result::failed($engine, $host, $urls, Reason::Transport, self::maskKey($e->getMessage(), $key), retryable: true, endpoint: $endpoint);
+            return Result::failed($engine, $host, $urls, Reason::Transport, $this->maskKey($e->getMessage(), $host, $key), retryable: true, endpoint: $endpoint);
         } catch (Throwable $e) {
             // A misbehaving PSR-18 client must not take the request down, nor put $key into a logged stack trace.
-            $this->logger->error('indexnow: {engine} HTTP client failure for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => self::maskKey($e->getMessage(), $key), 'class' => $e::class]);
+            $this->logger->error('indexnow: {engine} HTTP client failure for {host}: {error}', ['engine' => $engine, 'host' => $host, 'error' => $this->maskKey($e->getMessage(), $host, $key), 'class' => $e::class]);
 
-            return Result::failed($engine, $host, $urls, Reason::Unexpected, self::maskKey(\sprintf('%s: %s', $e::class, $e->getMessage()), $key), retryable: true, endpoint: $endpoint);
+            return Result::failed($engine, $host, $urls, Reason::Unexpected, $this->maskKey(\sprintf('%s: %s', $e::class, $e->getMessage()), $host, $key), retryable: true, endpoint: $endpoint);
         }
 
         return $this->interpret($endpoint, $engine, $host, $urls, $response->status, $response->body, $response->retryAfter, $key);
@@ -146,7 +147,7 @@ final class Client implements ClientInterface
      */
     private function interpret(string $endpoint, string $engine, string $host, array $urls, int $status, string $body, ?int $retryAfter, string $key): Result
     {
-        $ctx = ['engine' => $engine, 'host' => $host, 'count' => \count($urls), 'status' => $status, 'body' => self::maskKey(substr($body, 0, $this->config->logBody), $key)];
+        $ctx = ['engine' => $engine, 'host' => $host, 'count' => \count($urls), 'status' => $status, 'body' => $this->maskKey(substr($body, 0, $this->config->logBody), $host, $key)];
         $failed = fn(Reason $reason, ?string $error = null, bool $retryable = false, ?int $after = null): Result => Result::failed($engine, $host, $urls, $reason, $error, $status, $retryable, $after, $endpoint);
 
         if ($status !== 403) {
@@ -207,8 +208,20 @@ final class Client implements ClientInterface
         return $groups;
     }
 
-    private static function maskKey(string $text, string $key): string
+    /** Every key the host has (the current one, the previous one during a rotation) masked in a log excerpt. */
+    private function maskKey(string $text, string $host, string $key): string
     {
-        return str_replace($key, KeyValidator::mask($key), $text);
+        $keys = [$key];
+        if ($this->keys instanceof StaticKeyProvider) {
+            $previous = $this->keys->previousKeyFor($host);
+            if ($previous !== null) {
+                $keys[] = $previous;
+            }
+        }
+        foreach ($keys as $k) {
+            $text = str_replace($k, KeyValidator::mask($k), $text);
+        }
+
+        return $text;
     }
 }

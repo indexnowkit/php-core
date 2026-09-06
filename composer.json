@@ -55,6 +55,7 @@
         "symfony/http-client": "PSR-18 client configured automatically with http.timeout (with nyholm/psr7)",
         "guzzlehttp/guzzle": "Alternative PSR-18 client, also configured automatically",
         "nyholm/psr7": "PSR-17 factories",
+        "symfony/polyfill-intl-idn": "idn_to_ascii() without ext-intl: full UTS #46 mapping of internationalized host names (the built-in fallback lowercases and punycodes only)",
         "ext-intl": "UTS #46 IDN handling (a pure-PHP punycode encoder is used otherwise)",
         "ext-mbstring": "Unicode case folding of IDN hosts without ext-intl"
     },
@@ -82,7 +83,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.10.x-dev"
+            "dev-main": "0.11.x-dev"
         }
     }
 }

@@ -3,6 +3,62 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.11.0] — Unreleased
+
+Wave G: the fixes of the six-lens audit of 0.10 (`docs/plans/audit-0.10.md` in the specification workspace) that needed no
+design decision. Nothing is removed; a few behaviours change where the old one lost or duplicated URLs.
+
+### Changed
+
+- **`Url\AttributeUrlResolver` `via` walk**: the total number of related objects resolved in one walk is capped at
+  `resolver.max_via_depth × resolver.max_via_fanout` (a warning, then the walk stops); an object already visited in the
+  walk is not entered again (a cycle through different accessor names, `Post::$tags -> Tag::$posts`, or a second path
+  to the same object); **exceeding the depth is a warning and keeps the URLs of the shallower levels** instead of a
+  `ConfigurationException` that dropped everything the rule had collected.
+- **`IndexNowKit` derives its extractor from the resolver** (`Url\ParamExtractorAwareInterface`, implemented by
+  `AttributeUrlResolver`; `GuardedUrlResolver::inner()`): a custom resolver built with readers made the change handler
+  and `explain` read `when` with the plain DSL and fail silently. The constructor parameter is `?ParamExtractor` now,
+  `null` = the resolver's; `$extractor` stays a public readonly property. A new optional `?ObjectChangeHandler $changes`
+  lets a graph pass its own handler (`Adapter\Services::changes()`).
+- **`Check\Checker::robotsDisallows()` follows RFC 9309 group selection**: a crawler obeys the group that names it, else
+  `*`; the two are no longer merged, so `User-agent: * / Disallow: /private/` plus `User-agent: bingbot / Allow: /` no
+  longer blocks the verify pre-flight for Bing. Each IndexNow engine is evaluated with its own group.
+- **`Throttle\TokenBucket`** credits exactly the deficit after a wait instead of refilling over the slept time again:
+  with a real clock four requests at 2/min took 30 s, not 60. `fromConfig()` takes an optional `ClockInterface`.
+- **`Retry\ForbiddenCounter`**: the fresh-counter TTL write re-reads the counter first (a hit that landed between the
+  two calls is kept); `reset()` reads the shared cache once per streak instead of once per successful batch; without a
+  cache the escalation happens once per streak at or above the threshold, as with one.
+- **`Transaction\TransactionStaging::commit()`** catches a throwing sink and logs it: the database has committed, so an
+  exception out of `commit()` told the application its commit failed.
+- **`Url\ObjectChangeHandler`** puts every field back when restoring a previous state even if one `setValue()` throws
+  (a PHP 8.4 set hook), then rethrows.
+- **`Retry\WorkerOutcome`** counts a retryable skipped result (the verify pre-flight on an origin error) as retryable,
+  not as a final failure.
+- **`Http\Response::parseRetryAfter()`** understands several `Retry-After` headers joined by the header line
+  (`120, 60`: the longest wins) instead of returning null.
+- **`Attribute\ParamExtractor::read()`** treats a declared but uninitialized typed property as "no property" (a
+  `ConfigurationException` with the usual hint) instead of a raw `Error`.
+- `Client` masks the previous key of the host in log excerpts too, not only the current one.
+- `Url\CanonicalUrlNormalizer` decodes `+` as a space when matching tracking parameter names.
+- `Testing\FakeTransport` has a `$beforeGet` hook (a test that advances a clock per GET).
+
+### Added
+
+- **`Adapter\Services::changes()` / `ServicesBuilder::changes()`**: the change handler is a node of the graph, built over
+  the rules, the guarded resolver and the extractor only — an ORM hook that yields no URL builds neither the client nor
+  the store (before, `changes()` went through `kit()`, which built everything). **`Adapter\Services::clock()` /
+  `ServicesBuilder::clock()`** and `IndexNowKit::create(clock:)`: one clock for the throttle, the debounce store and the
+  submission timestamps (`Testing\FrozenClock` in an adapter's tests). **`ServicesBuilder::events()` accepts a
+  `Closure`** (called on first use). **A closure node may return `null`** for the nullable nodes (`failureCache`,
+  `submissionStore`, `router`, `resolverLocator`). `Services::events()` returns the dispatcher.
+- **`Hook\ObserverHelper::forChanges(ObjectChangeHandler $changes, Closure $sink)`** (and the constructor accepts an
+  `ObjectChangeHandler` with a `$sink`): the helper over a change handler alone, for a graph that builds lazily.
+- `Http\Psr18Transport::discover(..., ?int $getBodyLimit)` and `Http\TransportFactory::lazy(..., ?int $getBodyLimit)`:
+  a GET body limit per transport (the verify pre-flight uses 1 MiB, not the 50 MiB of key files and sitemaps).
+- `docs/bc.md`: `RouteUrlResolverInterface` and `ResolverLocatorInterface` are "Implement" (the core ships nothing to
+  decorate); `Attribute\Param\ParamValue` is a sealed set; `symfony/polyfill-intl-idn` is suggested for hosts the
+  built-in punycode fallback maps incompletely without ext-intl.
+
 ## [0.10.0] — 2026-09-06
 
 The last structural debt before 1.0 (spec 17 §7): the reader registry of `Attribute\ParamExtractor` was process-wide static

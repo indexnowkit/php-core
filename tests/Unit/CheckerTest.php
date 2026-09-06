@@ -338,6 +338,9 @@ final class CheckerTest extends TestCase
         self::assertStringStartsWith('ok', $robots("User-agent: *\nDisallow: /\nAllow: /*.txt\n")[0], 'a longer wildcard Allow wins too');
         self::assertStringStartsWith('warning', $robots("User-agent: *\nAllow: /\nDisallow: /" . Factory::KEY . ".txt\n")[0], 'the longer Disallow wins');
 
+        self::assertSame('Disallow: /private/', Checker::robotsDisallows("User-agent: *\nDisallow: /private/\n\nUser-agent: bingbot\nAllow: /\n", '/private/k.txt'), 'Yandex has no group of its own and obeys *');
+        self::assertNull(Checker::robotsDisallows("User-agent: *\nDisallow: /\n\nUser-agent: bingbot\nUser-agent: yandex\nUser-agent: seznambot\nUser-agent: yeti\nUser-agent: amazonbot\nUser-agent: ia_archiver\nAllow: /\n", '/k.txt'), 'every engine has its own permissive group: the * rules are not merged in');
+        self::assertSame('Disallow: /k', Checker::robotsDisallows("User-agent: bingbot\nDisallow: /k\n", '/k.txt'), 'no * group: the engine group alone decides');
         self::assertNull(Checker::robotsDisallows("User-agent: *\nDisallow:\n", '/k.txt'), 'an empty Disallow allows everything');
         self::assertSame('Disallow: /k', Checker::robotsDisallows("user-agent: *\ndisallow: /k\n", '/k.txt'), 'field names are case-insensitive');
     }

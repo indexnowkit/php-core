@@ -14,6 +14,7 @@ use IndexNowKit\Check\CheckerInterface;
 use IndexNowKit\Check\CheckInterface;
 use IndexNowKit\Client;
 use IndexNowKit\ClientInterface;
+use IndexNowKit\Clock\SystemClock;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Collector\CollectorInterface;
 use IndexNowKit\Config;
@@ -42,6 +43,7 @@ use IndexNowKit\Url\UrlNormalizerFactory;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
 use LogicException;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -75,6 +77,11 @@ final class Services
     public const PARAM_EXTRACTOR = 'paramExtractor';
     public const FAILURE_CACHE = 'failureCache';
     public const SUBMISSION_STORE = 'submissionStore';
+    public const CHANGES = 'changes';
+    public const CLOCK = 'clock';
+
+    /** The nodes whose accessor is nullable: a closure there may return null ("no store", "no router"). */
+    private const NULLABLE = [self::FAILURE_CACHE, self::SUBMISSION_STORE, self::ROUTER, self::RESOLVER_LOCATOR];
 
     /** @var array<string, object|null> */
     private array $built = [];
@@ -100,9 +107,25 @@ final class Services
         private readonly array $nodes = [],
         private readonly ?Closure $httpClientLocator = null,
         private readonly ?Closure $queueFactory = null,
-        private readonly ?EventDispatcherInterface $events = null,
+        private EventDispatcherInterface|Closure|null $events = null,
         private readonly iterable|Closure|null $checks = null,
     ) {}
+
+    /** The clock of the throttle, the debounce store and the submission timestamps; the system clock by default. */
+    public function clock(): ClockInterface
+    {
+        return $this->memo(self::CLOCK, ClockInterface::class, static fn(): ClockInterface => new SystemClock());
+    }
+
+    /** The PSR-14 dispatcher as given (an object, or a closure called once); none by default. */
+    public function events(): ?EventDispatcherInterface
+    {
+        if ($this->events instanceof Closure) {
+            $this->events = $this->typed(($this->events)($this), EventDispatcherInterface::class, 'events');
+        }
+
+        return $this->events;
+    }
 
     public function transport(): TransportInterface
     {
@@ -121,12 +144,12 @@ final class Services
 
     public function throttle(): ThrottleInterface
     {
-        return $this->memo(self::THROTTLE, ThrottleInterface::class, fn(): ThrottleInterface => TokenBucket::fromConfig($this->config, $this->logger));
+        return $this->memo(self::THROTTLE, ThrottleInterface::class, fn(): ThrottleInterface => TokenBucket::fromConfig($this->config, $this->logger, $this->clock()));
     }
 
     public function debounceStore(): DebounceStoreInterface
     {
-        return $this->memo(self::DEBOUNCE_STORE, DebounceStoreInterface::class, fn(): DebounceStoreInterface => DebounceStoreFactory::fromConfig($this->config));
+        return $this->memo(self::DEBOUNCE_STORE, DebounceStoreInterface::class, fn(): DebounceStoreInterface => DebounceStoreFactory::fromConfig($this->config, clock: $this->clock()));
     }
 
     public function client(): ClientInterface
@@ -152,7 +175,7 @@ final class Services
 
     public function submitter(): SubmitterInterface
     {
-        return $this->memo(self::SUBMITTER, SubmitterInterface::class, fn(): SubmitterInterface => new Submitter($this->client(), $this->config, $this->debounceStore(), $this->logger, $this->normalizer(), $this->events, $this->submissionStore()));
+        return $this->memo(self::SUBMITTER, SubmitterInterface::class, fn(): SubmitterInterface => new Submitter($this->client(), $this->config, $this->debounceStore(), $this->logger, $this->normalizer(), $this->events(), $this->submissionStore(), $this->clock()));
     }
 
     /** The store the submitter records every Result in, as given; none by default (`Submission\NullSubmissionStore` is the adapters' placeholder). */
@@ -224,10 +247,13 @@ final class Services
         return $this->guardedResolver ??= new GuardedUrlResolver($this->urlResolver(), $this->rules(), $this->logger);
     }
 
-    /** The facade's own change handler ({@see IndexNowKit::changes()}). */
+    /**
+     * The change handler of the graph: rules, the guarded resolver and the extractor, nothing else — an ORM hook that
+     * yields no URL builds neither the client nor the store. The facade ({@see kit()}) shares this instance.
+     */
     public function changes(): ObjectChangeHandler
     {
-        return $this->kit()->changes();
+        return $this->memo(self::CHANGES, ObjectChangeHandler::class, fn(): ObjectChangeHandler => new ObjectChangeHandler($this->rules(), $this->guardedResolver(), $this->logger, $this->paramExtractor()));
     }
 
     public function kit(): IndexNowKit
@@ -243,6 +269,7 @@ final class Services
             logger: $this->logger,
             transport: $this->transport(),
             extractor: $this->paramExtractor(),
+            changes: $this->changes(),
         );
     }
 
@@ -267,7 +294,7 @@ final class Services
     /** `Adapter\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
     public function submitterFactory(): SubmitterFactoryInterface
     {
-        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events, $this->failureCache(), $this->submissionStore());
+        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events(), $this->failureCache(), $this->submissionStore());
     }
 
     /** False when the collector was never built (nothing was collected) or is empty; builds nothing. */
@@ -320,7 +347,8 @@ final class Services
     {
         if (!\array_key_exists($name, $this->built)) {
             $node = $this->nodes[$name] ?? null;
-            $this->built[$name] = $node === null ? null : $this->typed($node instanceof Closure ? $node($this) : $node, $type, $name);
+            $value = $node instanceof Closure ? $node($this) : $node;
+            $this->built[$name] = $value === null && ($node === null || \in_array($name, self::NULLABLE, true)) ? null : $this->typed($value, $type, $name);
         }
         $built = $this->built[$name];
         \assert($built === null || $built instanceof $type);

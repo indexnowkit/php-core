@@ -20,7 +20,7 @@ use Stringable;
  * related object, accessor, literal URLs). The `when` guard and the event subscription are applied per rule
  * here, the only place that knows which rule is being built.
  */
-final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
+final class AttributeUrlResolver implements RuleAwareUrlResolverInterface, ParamExtractorAwareInterface
 {
     /**
      * @param array<string, string> $localeHosts locale => host ({@see Config::$localeHosts}): a rule without `host` generates each
@@ -42,6 +42,8 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
     }
 
     private readonly ParamExtractor $extractor;
+    /** The `via` walk in progress: objects already visited and the budget left; null outside a walk. */
+    private ?ViaWalk $walk = null;
 
     /** The extractor this resolver reads with. */
     public function extractor(): ParamExtractor
@@ -176,8 +178,28 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
     private function fromVia(object $subject, UrlRule $rule, int $depth): array
     {
         if ($depth >= $this->maxViaDepth) {
-            throw new ConfigurationException(\sprintf('#[IndexNow(via: "%s")] on %s exceeds the maximum depth of %d; check for a cycle.', (string) $rule->via, $subject::class, $this->maxViaDepth));
+            // Deeper levels are cut, what the shallower levels produced is kept: a legitimate long chain loses its tail, not everything.
+            $this->logger->warning('indexnow: #[IndexNow(via: "{via}")] on {class} stops at depth {max} (resolver.max_via_depth); check for a cycle', ['via' => $rule->via, 'class' => $subject::class, 'max' => $this->maxViaDepth]);
+
+            return [];
         }
+        $root = $this->walk === null;
+        $walk = $this->walk ??= new ViaWalk($this->maxViaDepth * $this->maxViaFanout);
+        try {
+            return $this->walkVia($subject, $rule, $depth, $walk);
+        } finally {
+            if ($root) {
+                $this->walk = null;
+            }
+        }
+    }
+
+    /**
+     * @return list<ResolvedUrl>
+     */
+    private function walkVia(object $subject, UrlRule $rule, int $depth, ViaWalk $walk): array
+    {
+        $walk->visit($subject);
         $target = $this->extractor->read($subject, (string) $rule->via);
         if ($target === null) {
             return [];
@@ -193,8 +215,15 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface
             if (!\is_object($related)) {
                 continue;
             }
+            if ($walk->visited($related)) {
+                continue; // a cycle (Post -> tags -> posts -> the same Post) or a second path to the same object: its pages are already in
+            }
             if (++$seen > $this->maxViaFanout) {
                 $this->logger->warning('indexnow: #[IndexNow(via: "{via}")] on {class} stops after {max} related objects', ['via' => $rule->via, 'class' => $subject::class, 'max' => $this->maxViaFanout]);
+                break;
+            }
+            if (!$walk->spend()) {
+                $this->logger->warning('indexnow: #[IndexNow(via: "{via}")] on {class} stops after {budget} related objects in total (resolver.max_via_depth × resolver.max_via_fanout); narrow the via chain', ['via' => $rule->via, 'class' => $subject::class, 'budget' => $walk->budget]);
                 break;
             }
             foreach ($this->reader->rules($related) as $targetRule) {

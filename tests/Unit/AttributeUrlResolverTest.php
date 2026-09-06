@@ -122,6 +122,19 @@ final class LoopB
     public ?LoopA $toA = null;
 }
 
+#[IndexNowAttribute(route: 'post_show', params: ['slug' => 'slug'])]
+#[IndexNowAttribute(via: 'category', name: 'via:category')]
+final class ViaPostInCategory
+{
+    public function __construct(public string $slug, public ViaCategory $category) {}
+}
+
+#[IndexNowAttribute(via: 'post')]
+final class ViaCommentOnPost
+{
+    public function __construct(public ViaPostInCategory $post) {}
+}
+
 #[IndexNowAttribute(via: 'friends')]
 final class FanoutHub
 {
@@ -315,16 +328,44 @@ final class AttributeUrlResolverTest extends TestCase
         self::assertSame(['https://example.com/category_show/news', 'https://example.com/category_show/sports'], $urls);
     }
 
-    public function testViaExceedingTheMaximumDepthThrows(): void
+    public function testViaCycleThroughDifferentAccessorsStopsAtTheObjectAlreadyVisited(): void
     {
         $a = new LoopA();
         $b = new LoopB();
         $a->toB = $b;
         $b->toA = $a;
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $logger = new ArrayLogger();
+        $resolver = new AttributeUrlResolver(new AttributeReader(), null, null, $logger);
 
-        $this->expectException(ConfigurationException::class);
-        $resolver->resolve($a, Event::Updated);
+        self::assertSame([], $resolver->resolve($a, Event::Updated), 'neither object has a URL of its own');
+        self::assertSame([], $logger->messages('warning'), 'the cycle is cut silently at the visited object, not by the depth limit');
+    }
+
+    public function testViaBeyondTheMaximumDepthKeepsTheShallowerUrlsAndWarns(): void
+    {
+        // Comment -> Post -> Category: with max_via_depth 1 the second hop (Category) is cut, the Post URL of the first hop stays
+        $category = new ViaCategory('books');
+        $post = new ViaPostInCategory('hello', $category);
+        $comment = new ViaCommentOnPost($post);
+        $logger = new ArrayLogger();
+        $resolver = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1);
+
+        $urls = $resolver->resolve($comment, Event::Updated);
+
+        self::assertSame(['https://example.com/post_show/hello'], $urls, 'what depth 1 produced is kept');
+        self::assertCount(1, $logger->messages('warning'));
+        self::assertStringContainsString('stops at depth 1', $logger->messages('warning')[0]);
+    }
+
+    public function testViaTotalBudgetIsDepthTimesFanout(): void
+    {
+        $hub = new FanoutHub([new ViaCategory('a'), new ViaCategory('b'), new ViaCategory('c')]);
+        $logger = new ArrayLogger();
+        $resolver = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 2);
+
+        self::assertCount(2, $resolver->resolve($hub, Event::Updated), 'the fan-out limit of the level');
+        $tight = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 3);
+        self::assertCount(3, $tight->resolve($hub, Event::Updated), 'within depth × fan-out = 3');
     }
 
     public function testViaFanoutBeyondTheLimitLogsAWarningAndStops(): void

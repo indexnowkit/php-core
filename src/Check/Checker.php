@@ -262,18 +262,54 @@ final class Checker implements CheckerInterface
         }
     }
 
+    /** The user-agent tokens of the IndexNow engines' crawlers, one pattern per engine. */
+    private const ENGINE_BOTS = ['/bing|msnbot/i', '/yandex/i', '/seznam/i', '/naver|yeti/i', '/amazon/i', '/ia_archiver|archive/i'];
+
     /**
-     * The `Disallow` rule of $robots that covers $path for every bot or for an IndexNow engine's bot, null when the
-     * path is allowed. Groups by `User-agent`; `*` and `$` in rules as in the robots.txt convention; the longest
-     * matching rule wins, `Allow` on a tie.
+     * The `Disallow` rule of $robots that keeps one of the IndexNow engines' crawlers off $path, null when every engine
+     * may crawl it. RFC 9309: a crawler obeys exactly one group — the group whose `User-agent` names it, else the `*`
+     * group — so a rule for `bingbot` is not merged with the rules for `*`. Within the group the longest matching rule
+     * wins, `Allow` on a tie; `*` and `$` in rules as in the robots.txt convention.
      */
     public static function robotsDisallows(string $robots, string $path): ?string
     {
-        $relevant = false;
+        $groups = self::robotsGroups($robots);
+        $wildcard = null;
+        foreach ($groups as [$agents, $rules]) {
+            if (\in_array('*', $agents, true)) {
+                $wildcard = [...$wildcard ?? [], ...$rules];
+            }
+        }
+        foreach (self::ENGINE_BOTS as $bot) {
+            $own = null;
+            foreach ($groups as [$agents, $rules]) {
+                foreach ($agents as $agent) {
+                    if (preg_match($bot, $agent) === 1) {
+                        $own = [...$own ?? [], ...$rules];
+                        break;
+                    }
+                }
+            }
+            $disallow = self::robotsVerdict($own ?? $wildcard ?? [], $path);
+            if ($disallow !== null) {
+                return $disallow;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The groups of a robots.txt: the user-agent lines of each, and its allow/disallow rules.
+     *
+     * @return list<array{0: list<string>, 1: list<array{0: string, 1: string}>}>
+     */
+    private static function robotsGroups(string $robots): array
+    {
+        $groups = [];
+        $agents = [];
+        $rules = [];
         $sawRule = false;
-        $disallow = null;
-        $disallowLength = -1;
-        $allowLength = -1;
         foreach (explode("\n", str_replace(["\r\n", "\r"], "\n", $robots)) as $line) {
             $line = trim((string) preg_replace('/#.*$/', '', $line));
             if ($line === '' || !str_contains($line, ':')) {
@@ -283,10 +319,12 @@ final class Checker implements CheckerInterface
             $field = strtolower($field);
             if ($field === 'user-agent') {
                 if ($sawRule) {
-                    $relevant = false;
+                    $groups[] = [$agents, $rules];
+                    $agents = [];
+                    $rules = [];
                     $sawRule = false;
                 }
-                $relevant = $relevant || $value === '*' || preg_match('/bing|msnbot|yandex|seznam|naver|yeti|amazon|ia_archiver|archive/i', $value) === 1;
+                $agents[] = $value;
 
                 continue;
             }
@@ -294,7 +332,27 @@ final class Checker implements CheckerInterface
                 continue;
             }
             $sawRule = true;
-            if (!$relevant || $value === '' || !self::robotsRuleMatches($value, $path)) {
+            if ($agents !== [] && $value !== '') {
+                $rules[] = [$field, $value];
+            }
+        }
+        if ($agents !== []) {
+            $groups[] = [$agents, $rules];
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param list<array{0: string, 1: string}> $rules
+     */
+    private static function robotsVerdict(array $rules, string $path): ?string
+    {
+        $disallow = null;
+        $disallowLength = -1;
+        $allowLength = -1;
+        foreach ($rules as [$field, $value]) {
+            if (!self::robotsRuleMatches($value, $path)) {
                 continue;
             }
             if ($field === 'disallow' && \strlen($value) > $disallowLength) {

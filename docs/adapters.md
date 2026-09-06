@@ -47,7 +47,7 @@ final class IndexNowIntegration
             $builder->router($router);
         }
         $this->services = $builder->build();                      // no IO: nothing is built before it is used
-        $this->hooks = new ObserverHelper($this->services->kit(), $logger);
+        $this->hooks = ObserverHelper::forChanges($this->services->changes(), fn(array $urls) => $this->services->kit()->collect($urls), $logger); // the hook resolves without building the client
     }
 
     /** Model save hook. */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Testing;
 
+use Closure;
 use IndexNowKit\Http\Exception\TransportException;
 use IndexNowKit\Http\Response;
 use IndexNowKit\Http\StreamingTransportInterface;
@@ -28,6 +29,9 @@ final class FakeTransport implements StreamingTransportInterface
 
     /** @var array<string, non-empty-list<Response|Throwable>> */
     private array $getResponses = [];
+
+    /** @var (Closure(string): void)|null called with the URL before every GET is answered (a test that advances a clock) */
+    public ?Closure $beforeGet = null;
 
     public function __construct(private readonly Response $default = new Response(200)) {}
 
@@ -68,6 +72,9 @@ final class FakeTransport implements StreamingTransportInterface
     public function get(string $url): Response
     {
         $this->gets[] = $url;
+        if ($this->beforeGet !== null) {
+            ($this->beforeGet)($url);
+        }
         $queue = $this->getResponses[$url] ?? null;
         $response = $queue === null ? new Response(404, 'not found') : $queue[0];
         if ($queue !== null && \count($queue) > 1) {

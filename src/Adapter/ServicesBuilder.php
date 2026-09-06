@@ -22,10 +22,12 @@ use IndexNowKit\Key\KeyProviderInterface;
 use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\SubmitterInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
+use IndexNowKit\Url\ObjectChangeHandler;
 use IndexNowKit\Url\ResolverLocatorInterface;
 use IndexNowKit\Url\RouteUrlResolverInterface;
 use IndexNowKit\Url\UrlNormalizerInterface;
 use IndexNowKit\Url\UrlResolverInterface;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -37,7 +39,10 @@ use Psr\SimpleCache\CacheInterface;
  * on first use. What is not given comes from the factories of the core (`Http\TransportFactory`,
  * `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, the `fromConfig()` constructors), so the result is
  * the graph `IndexNowKit::create()` builds, with every piece replaceable and every dependent piece derived from the
- * replacement (give a transport and the client, the checker and the console submitters use it).
+ * replacement (give a transport and the client, the checker and the console submitters use it). Two differences from
+ * `IndexNowKit::create()`: the resolver defaults to `AttributeUrlResolver::fromConfig()` (the facade alone defaults to
+ * `NullUrlResolver`: without a router or a locator a plain-PHP graph resolves nothing), and `client`, `events`, `router`,
+ * `resolverLocator`, `changes` and `checks` are nodes here only.
  *
  * `build()` does no IO: the transport is lazy, the queue is a closure, nothing is discovered. It throws
  * `ConfigurationException` for what is known to be wrong before the first request: a `debounce.store` id with no
@@ -52,7 +57,7 @@ final class ServicesBuilder
     private array $nodes = [];
     private ?Closure $httpClientLocator = null;
     private ?Closure $queueFactory = null;
-    private ?EventDispatcherInterface $events = null;
+    private EventDispatcherInterface|Closure|null $events = null;
     /** @var iterable<CheckInterface>|Closure|null */
     private iterable|Closure|null $checks = null;
 
@@ -136,8 +141,8 @@ final class ServicesBuilder
         return $this->node(Services::SUBMITTER, $submitter);
     }
 
-    /** PSR-14 dispatcher the submitter and the console submitters publish `Result` events to. */
-    public function events(EventDispatcherInterface $events): self
+    /** PSR-14 dispatcher the submitter and the console submitters publish `Result` events to; a closure is called on first use. */
+    public function events(EventDispatcherInterface|Closure $events): self
     {
         $this->events = $events;
 
@@ -185,6 +190,18 @@ final class ServicesBuilder
     public function resolverLocator(ResolverLocatorInterface|Closure $locator): self
     {
         return $this->node(Services::RESOLVER_LOCATOR, $locator);
+    }
+
+    /** The clock of the throttle, the debounce store and the submission timestamps (`Testing\FrozenClock` in tests); the system clock by default. */
+    public function clock(ClockInterface|Closure $clock): self
+    {
+        return $this->node(Services::CLOCK, $clock);
+    }
+
+    /** Replaces the change handler the ORM hooks use (default: over the rules, the guarded resolver and the extractor of this graph). */
+    public function changes(ObjectChangeHandler|Closure $changes): self
+    {
+        return $this->node(Services::CHANGES, $changes);
     }
 
     /** Replaces the attribute resolver entirely (the router and the locator are then unused). */
