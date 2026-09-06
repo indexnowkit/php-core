@@ -3,7 +3,7 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## [0.9.0] — Unreleased
+## [0.9.0] — 2026-09-06
 
 The additive minor of spec 17 §7: nothing changed, nothing removed, no `@deprecated` added — the interfaces of 0.8.0
 (`Submission\SubmissionStoreInterface`, `Attribute\Param\Condition`, `Http\Response::headers()`, `Check\CheckItem::code`, the
