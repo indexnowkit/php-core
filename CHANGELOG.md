@@ -3,7 +3,7 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## [0.11.0] — Unreleased
+## [0.11.0] — 2026-09-07
 
 Wave G: the fixes of the six-lens audit of 0.10 (`docs/plans/audit-0.10.md` in the specification workspace) that needed no
 design decision. Nothing is removed; a few behaviours change where the old one lost or duplicated URLs.
