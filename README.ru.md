@@ -209,8 +209,9 @@ class Offer
 [docs/attribute-reference.ru.md](docs/attribute-reference.ru.md).
 
 ```php
-$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), $router, $locator));
+$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router, $locator));
 $indexNow->submitEntity($post, IndexNowKit\Event::Updated);
+$indexNow->submitEntities($posts);                    // много объектов: дедупликация, один запрос на хост и батч
 $urls = $indexNow->urlsFor($post, Event::Deleted);   // вычислить, не отправляя
 $rows = $indexNow->explain($post, Event::Updated);   // ResolvedUrl: какое правило дало какой URL
 ```
@@ -344,7 +345,7 @@ $results = $indexNow->submit(['/posts/hello']);              // list<IndexNowKit
 - Проверка: `(new IndexNowKit\Check\Checker($config, $indexNow->keys, $indexNow->transport))->run()` — то, что запускает команда `check` адаптеров; `$indexNow->explain($object)` показывает правило за каждым URL; каждый удалённый исход — `Result` со `status`/`reason`, ничего не бросается.
 - Ловушки:
   - `dispatch: auto` есть в Symfony (`auto` | `messenger` | `sync` | `none`) и Yii2 (`auto` | `queue` | `sync` | `none`), в Laravel **нет** (`queue` | `sync` | `none`).
-  - Локали: `router.locales` в Laravel, `router.languages` в Yii2, `framework.enabled_locales` в Symfony; `locales: 'all'` у правила берёт этот список.
+  - Локали: `router.locales` в Laravel и Yii2, `framework.enabled_locales` в Symfony; `locales: 'all'` у правила берёт этот список.
   - `url:` — имя аксессора (метод или свойство), который возвращает URL; `urls:` — список литеральных URL. Литерал в `url:` не ставить.
   - Строка в `when:` — аксессор, читаемый как truthy (`published`, `isPublished`). Строка статуса требует `Equals`: `when: new Equals('status', 'published')` (`IndexNowKit\Attribute\Param\Equals`).
   - Ручная отправка: `submitEntity()` в Symfony, `submitModel()` в Laravel, `submitRecord()` в Yii2; команды — `indexnow:submit-entity`, `indexnow:submit-model`, `indexnow/submit-record`. Массовые запросы (`update()`, `DB::table()`, `updateAll()`) хуков не вызывают — отправляйте ими после.

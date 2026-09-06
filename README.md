@@ -209,8 +209,9 @@ Full model, semantics table and the adapter-facing types (`UrlRule`, `RuleSet`, 
 [docs/attribute-reference.md](docs/attribute-reference.md).
 
 ```php
-$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), $router, $locator));
+$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router, $locator));
 $indexNow->submitEntity($post, IndexNowKit\Event::Updated);
+$indexNow->submitEntities($posts);                    // many objects, de-duplicated, one request per host and batch
 $urls = $indexNow->urlsFor($post, Event::Deleted);   // resolve without sending
 $rows = $indexNow->explain($post, Event::Updated);   // ResolvedUrl: which rule produced which URL
 ```
@@ -343,7 +344,7 @@ $results = $indexNow->submit(['/posts/hello']);              // list<IndexNowKit
 - Verify: `(new IndexNowKit\Check\Checker($config, $indexNow->keys, $indexNow->transport))->run()` is what the adapters' `check` command runs; `$indexNow->explain($object)` shows the rule behind every URL; every remote outcome is a `Result` with `status`/`reason`, nothing throws.
 - Pitfalls:
   - `dispatch: auto` exists in Symfony (`auto` | `messenger` | `sync` | `none`) and Yii2 (`auto` | `queue` | `sync` | `none`), **not** in Laravel (`queue` | `sync` | `none`).
-  - Locales: `router.locales` in Laravel, `router.languages` in Yii2, `framework.enabled_locales` in Symfony; `locales: 'all'` on a rule uses that list.
+  - Locales: `router.locales` in Laravel and Yii2, `framework.enabled_locales` in Symfony; `locales: 'all'` on a rule uses that list.
   - `url:` names an accessor (method or property) that returns the URL; `urls:` is a list of literal URLs. Never put a literal in `url:`.
   - A string in `when:` is an accessor read as truthy (`published`, `isPublished`). A status string needs `Equals`: `when: new Equals('status', 'published')` (`IndexNowKit\Attribute\Param\Equals`).
   - Manual submission is `submitEntity()` in Symfony, `submitModel()` in Laravel, `submitRecord()` in Yii2; the commands are `indexnow:submit-entity`, `indexnow:submit-model`, `indexnow/submit-record`. Bulk queries (`update()`, `DB::table()`, `updateAll()`) fire no hooks: submit afterwards with those.

@@ -28,7 +28,7 @@ use Stringable;
  * consulted for every single-segment accessor before the DSL. One instance per graph: `IndexNowKit::create(extractor:)`,
  * `Adapter\ServicesBuilder::paramExtractor()`, the adapters' containers (`ParamExtractor` binding / service) — the
  * resolver, the change handler and the `explain` command share it, so a reader added there is seen everywhere.
- * Without readers (`new ParamExtractor()`) it is the DSL alone, which is what plain PHP objects and Doctrine entities need.
+ * Without readers (`ParamExtractor::plain()`) it is the DSL alone, which is what plain PHP objects and Doctrine entities need.
  *
  * Public for adapters that evaluate `params` or `when` outside AttributeUrlResolver.
  */
@@ -43,6 +43,16 @@ final class ParamExtractor
     public function __construct(SubjectReaderInterface ...$readers)
     {
         $this->readers = array_values($readers);
+    }
+
+    /**
+     * The DSL alone, no readers: what plain PHP objects and Doctrine entities need. The same as `new ParamExtractor()`,
+     * named so a graph built by hand says which it is (the resolver, the classifier and the change handler take the
+     * extractor as a required parameter: a graph never falls back to the DSL by omission).
+     */
+    public static function plain(): self
+    {
+        return new self();
     }
 
     /**
@@ -151,14 +161,14 @@ final class ParamExtractor
     }
 
     /**
-     * Evaluate a `when` condition: accessor string (truthy), a {@see Condition} (`Equals` and your own) or a closure
-     * `fn(object): bool` (runtime-registered rules only). A {@see FieldCondition} is asked `heldFor()` the value this
-     * extractor reads for its `field()`, so it sees Eloquent attributes through the readers; a plain Condition
-     * evaluates the object itself.
+     * Evaluate a `when` condition: accessor string (truthy), a {@see FieldCondition} (`Equals` and your own), a
+     * {@see Condition} or a closure `fn(object): bool` (runtime-registered rules only). A FieldCondition is asked
+     * `heldFor()` the value this extractor reads for its `field()`, so it sees Eloquent attributes through the readers;
+     * a Condition evaluates the object itself.
      *
      * @throws ConfigurationException when an accessor cannot be read
      */
-    public function condition(object $subject, string|Condition|Closure $when): bool
+    public function condition(object $subject, string|Condition|FieldCondition|Closure $when): bool
     {
         if ($when instanceof Closure) {
             return (bool) $when($subject);

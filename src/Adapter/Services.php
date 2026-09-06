@@ -234,12 +234,12 @@ final class Services
     /** How `params` and `when` are read off objects: the adapter's readers (Active Record attributes) or the plain DSL by default. */
     public function paramExtractor(): ParamExtractor
     {
-        return $this->memo(self::PARAM_EXTRACTOR, ParamExtractor::class, static fn(): ParamExtractor => new ParamExtractor());
+        return $this->memo(self::PARAM_EXTRACTOR, ParamExtractor::class, static fn(): ParamExtractor => ParamExtractor::plain());
     }
 
     public function urlResolver(): UrlResolverInterface
     {
-        return $this->memo(self::URL_RESOLVER, UrlResolverInterface::class, fn(): UrlResolverInterface => AttributeUrlResolver::fromConfig($this->config, $this->rules(), $this->router(), $this->resolverLocator(), $this->logger, $this->paramExtractor()));
+        return $this->memo(self::URL_RESOLVER, UrlResolverInterface::class, fn(): UrlResolverInterface => AttributeUrlResolver::fromConfig($this->config, $this->rules(), $this->paramExtractor(), $this->router(), $this->resolverLocator(), $this->logger));
     }
 
     public function guardedResolver(): GuardedUrlResolver
@@ -253,7 +253,7 @@ final class Services
      */
     public function changes(): ObjectChangeHandler
     {
-        return $this->memo(self::CHANGES, ObjectChangeHandler::class, fn(): ObjectChangeHandler => new ObjectChangeHandler($this->rules(), $this->guardedResolver(), $this->logger, $this->paramExtractor()));
+        return $this->memo(self::CHANGES, ObjectChangeHandler::class, fn(): ObjectChangeHandler => new ObjectChangeHandler($this->rules(), $this->guardedResolver(), $this->paramExtractor(), $this->logger));
     }
 
     public function kit(): IndexNowKit

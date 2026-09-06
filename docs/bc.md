@@ -41,10 +41,18 @@ their own declarations; its signatures only grow by appended optional parameters
 same tier: `new ParamExtractor(...$readers)` takes the `SubjectReaderInterface`s of the graph, `extract()`, `read()`, `resolve()`,
 `condition()` read with them, `with()`/`fromReaders()`/`readers()` compose. One instance per graph — `IndexNowKit::create(extractor:)`,
 `Adapter\ServicesBuilder::paramExtractor()`, the adapters' `ParamExtractor` binding or service — shared by `AttributeUrlResolver`,
-`ObjectChangeHandler` and the `explain` command; the constructors and `fromConfig()` of those take it as an appended optional
-parameter. `IndexNowKit` derives its extractor from the resolver it is given (`Url\ParamExtractorAwareInterface`, which
+`ObjectChangeHandler` and the `explain` command; the constructors and `fromConfig()` of those take it as a required
+parameter (since 0.12: a graph never falls back to the DSL by omission; `ParamExtractor::plain()` says so when the DSL alone
+is meant). `IndexNowKit` derives its extractor from the resolver it is given (`Url\ParamExtractorAwareInterface`, which
 `AttributeUrlResolver` implements), so the change handler and `explain` read exactly what the resolver reads; a custom
 resolver without the interface falls back to the plain DSL.
+
+`ObjectChangeHandler::renamed(object $subject, array $changeSet, ?object $previous = null, array $selfFields = [])` is the
+contract for the "old URLs of a renamed object": the core rebuilds the previous state by reflection from the change set, and
+an adapter whose objects cannot be reset that way (Eloquent attributes) passes `$previous`, a copy of the object as it was.
+That stays the design: `Attribute\SubjectReaderInterface` is read-only (`supports()`, `has()`, `read()`) and gets no
+`write()` — writing into an ORM object (dirty tracking, model events, casts) is the adapter's business, and the adapter knows
+how to produce a before-image (`replicate()->setRawAttributes(getOriginal())` in Eloquent) better than the core.
 
 The shipped default implementations are in the "call" tier as well: construct them with named arguments and their public
 methods stay. That is `Http\LazyTransport` (the default `IndexNowKit::$transport`), `Http\Psr18Transport`,

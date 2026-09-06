@@ -31,11 +31,6 @@ final readonly class OpenCondition implements Condition
 /** The same condition as a FieldCondition: the change set gives the old state. */
 final readonly class OpenFieldCondition implements FieldCondition
 {
-    public function evaluate(object $subject): bool
-    {
-        return $this->heldFor((new ParamExtractor())->read($subject, 'state'));
-    }
-
     public function field(): string
     {
         return 'state';
@@ -63,9 +58,9 @@ final class WhenConditionTest extends TestCase
         $rules = RuleCompiler::fromAttributes($post::class, [new IndexNow(urls: ['/'], when: new Equals('post_status', 'publish'))]);
         $rule = $rules->rules[0];
 
-        self::assertFalse($rule->appliesTo($post), 'a non-empty string status must not count as truthy');
+        self::assertFalse($rule->appliesTo($post, ParamExtractor::plain()), 'a non-empty string status must not count as truthy');
         $post->post_status = 'publish';
-        self::assertTrue($rule->appliesTo($post));
+        self::assertTrue($rule->appliesTo($post, ParamExtractor::plain()));
         self::assertTrue($rule->whenDependsOn('post_status'));
     }
 
@@ -76,11 +71,11 @@ final class WhenConditionTest extends TestCase
         };
         $rule = RuleCompiler::fromAttributes($post::class, [new IndexNow(urls: ['/p'], when: new Equals('status', WhenStatus::Published))])->rules[0];
 
-        self::assertFalse($rule->appliesTo($post));
-        self::assertSame(Event::Deleted, ChangeClassifier::classify($rule, $post, ['status'], ['status' => [WhenStatus::Published, WhenStatus::Draft]]));
+        self::assertFalse($rule->appliesTo($post, ParamExtractor::plain()));
+        self::assertSame(Event::Deleted, ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['status'], ['status' => [WhenStatus::Published, WhenStatus::Draft]]));
         $post->status = WhenStatus::Published;
-        self::assertSame(Event::Created, ChangeClassifier::classify($rule, $post, ['status'], ['status' => [WhenStatus::Draft, WhenStatus::Published]]));
-        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $post, ['title'], ['title' => ['a', 'b']]));
+        self::assertSame(Event::Created, ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['status'], ['status' => [WhenStatus::Draft, WhenStatus::Published]]));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['title'], ['title' => ['a', 'b']]));
     }
 
     #[TestDox('a custom Condition guards the rule; without FieldCondition the classifier evaluates it on the current object and misses the unpublish, unless whenFields names the field; a FieldCondition gets the exact old state')]
@@ -90,22 +85,22 @@ final class WhenConditionTest extends TestCase
             public string $state = 'open';
         };
         $plain = RuleCompiler::fromAttributes($offer::class, [new IndexNow(urls: ['/o'], when: new OpenCondition())])->rules[0];
-        self::assertTrue($plain->appliesTo($offer));
+        self::assertTrue($plain->appliesTo($offer, ParamExtractor::plain()));
         self::assertFalse($plain->whenDependsOn('state'), 'a plain condition names no field');
         $offer->state = 'closed';
-        self::assertFalse($plain->appliesTo($offer));
-        self::assertNull(ChangeClassifier::classify($plain, $offer, ['state'], ['state' => ['open', 'closed']]), 'the old state is unknown: before is assumed equal to after (false), nothing to do');
+        self::assertFalse($plain->appliesTo($offer, ParamExtractor::plain()));
+        self::assertNull(ChangeClassifier::classify($plain, $offer, ParamExtractor::plain(), ['state'], ['state' => ['open', 'closed']]), 'the old state is unknown: before is assumed equal to after (false), nothing to do');
 
         $declared = RuleCompiler::fromAttributes($offer::class, [new IndexNow(urls: ['/o'], when: new OpenCondition(), whenFields: ['state'])])->rules[0];
-        self::assertSame(Event::Deleted, ChangeClassifier::classify($declared, $offer, ['state'], ['state' => ['open', 'closed']]), 'whenFields makes a change of the field a flip');
+        self::assertSame(Event::Deleted, ChangeClassifier::classify($declared, $offer, ParamExtractor::plain(), ['state'], ['state' => ['open', 'closed']]), 'whenFields makes a change of the field a flip');
 
         $field = RuleCompiler::fromAttributes($offer::class, [new IndexNow(urls: ['/o'], when: new OpenFieldCondition())])->rules[0];
         self::assertTrue($field->whenDependsOn('state'));
-        self::assertSame(Event::Deleted, ChangeClassifier::classify($field, $offer, ['state'], ['state' => ['open', 'closed']]));
-        self::assertNull(ChangeClassifier::classify($field, $offer, ['state'], ['state' => ['reserved', 'closed']]), 'exact: it was not open before either');
+        self::assertSame(Event::Deleted, ChangeClassifier::classify($field, $offer, ParamExtractor::plain(), ['state'], ['state' => ['open', 'closed']]));
+        self::assertNull(ChangeClassifier::classify($field, $offer, ParamExtractor::plain(), ['state'], ['state' => ['reserved', 'closed']]), 'exact: it was not open before either');
         $offer->state = 'open';
-        self::assertSame(Event::Created, ChangeClassifier::classify($field, $offer, ['state'], ['state' => ['closed', 'open']]));
-        self::assertSame(Event::Updated, ChangeClassifier::classify($field, $offer, ['title'], ['title' => ['a', 'b']]));
+        self::assertSame(Event::Created, ChangeClassifier::classify($field, $offer, ParamExtractor::plain(), ['state'], ['state' => ['closed', 'open']]));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($field, $offer, ParamExtractor::plain(), ['title'], ['title' => ['a', 'b']]));
     }
 
     public function testEqualsIsAConditionNotAParamValue(): void
@@ -114,7 +109,7 @@ final class WhenConditionTest extends TestCase
             public string $status = 'published';
             public string $slug = 's';
         };
-        self::assertTrue((new Equals('status', 'published'))->evaluate($post));
+        self::assertTrue(ParamExtractor::plain()->condition($post, new Equals('status', 'published')));
         self::assertSame('status', (new Equals('status', 'published'))->field());
         self::assertTrue((new Equals('status', WhenStatus::Published))->heldFor('published'), 'an enum expected value matches its backing value');
         self::assertTrue((new Equals('status', 'published'))->heldFor(WhenStatus::Published));
@@ -139,11 +134,11 @@ final class WhenConditionTest extends TestCase
         };
         $rule = RuleCompiler::fromAttributes($post::class, [new IndexNow(urls: ['/'], when: static fn(object $p): bool => $p->post_status === 'publish', whenFields: ['post_status'])])->rules[0];
 
-        self::assertTrue($rule->appliesTo($post));
+        self::assertTrue($rule->appliesTo($post, ParamExtractor::plain()));
         self::assertTrue($rule->whenDependsOn('post_status'));
         $post->post_status = 'draft';
         // old value unknowable for a closure: a change of a declared whenField is assumed to have flipped the outcome
-        self::assertSame(Event::Deleted, ChangeClassifier::classify($rule, $post, ['post_status'], ['post_status' => ['publish', 'draft']]));
+        self::assertSame(Event::Deleted, ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['post_status'], ['post_status' => ['publish', 'draft']]));
     }
 
     public function testWhenFieldsOfOneConditionDoNotMakeAnotherConditionUnknown(): void
@@ -166,9 +161,9 @@ final class WhenConditionTest extends TestCase
 
         // never published: toggling the AMP flag must not be mistaken for an unpublish (was a pooled-whenFields bug)
         $post->ampEnabled = true;
-        self::assertNull(ChangeClassifier::classify($rule, $post, ['ampEnabled'], ['ampEnabled' => [false, true]]));
+        self::assertNull(ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['ampEnabled'], ['ampEnabled' => [false, true]]));
         $post->ampEnabled = false;
-        self::assertNull(ChangeClassifier::classify($rule, $post, ['ampEnabled'], ['ampEnabled' => [true, false]]));
+        self::assertNull(ChangeClassifier::classify($rule, $post, ParamExtractor::plain(), ['ampEnabled'], ['ampEnabled' => [true, false]]));
         self::assertSame([['ampEnabled']], array_values(array_filter($rule->whenFields)), 'the field belongs to the hasAmp condition only');
     }
 }

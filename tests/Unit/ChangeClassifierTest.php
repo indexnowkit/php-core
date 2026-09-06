@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\ChangeClassifier;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleSource;
 use IndexNowKit\Attribute\UrlRule;
 use IndexNowKit\Event;
@@ -71,7 +72,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished'], fields: ['title']);
         $subject = new ChangeClassifierPost(published: false);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [true, false]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [true, false]]);
 
         self::assertSame(Event::Deleted, $event);
     }
@@ -81,7 +82,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished'], fields: ['title']);
         $subject = new ChangeClassifierPost(published: true);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [false, true]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [false, true]]);
 
         self::assertSame(Event::Created, $event);
     }
@@ -91,7 +92,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['published'], fields: ['title']);
         $subject = new ChangeClassifierPost(published: false);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [true, false]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [true, false]]);
 
         self::assertSame(Event::Deleted, $event);
     }
@@ -101,7 +102,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(fields: ['title']);
         $subject = new ChangeClassifierPost();
 
-        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ['title']));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['title']));
     }
 
     public function testUnwatchedFieldChangeYieldsNull(): void
@@ -109,7 +110,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(fields: ['title']);
         $subject = new ChangeClassifierPost();
 
-        self::assertNull(ChangeClassifier::classify($rule, $subject, ['views']));
+        self::assertNull(ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['views']));
     }
 
     public function testNoFieldsFilterMeansAnyChangeIsAnUpdate(): void
@@ -117,7 +118,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule();
         $subject = new ChangeClassifierPost();
 
-        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ['views']));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['views']));
     }
 
     public function testWhenFieldsWithADifferentlyNamedGetterAfterFalseIsADeletion(): void
@@ -125,7 +126,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isLive'], whenFields: ['status']);
         $subject = new ChangeClassifierLiveEntity(status: 'draft');
 
-        $event = ChangeClassifier::classify($rule, $subject, ['status']);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['status']);
 
         self::assertSame(Event::Deleted, $event, 'unknown old state guesses the opposite of the current (correct) state');
     }
@@ -135,7 +136,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isLive'], whenFields: ['status']);
         $subject = new ChangeClassifierLiveEntity(status: 'published');
 
-        $event = ChangeClassifier::classify($rule, $subject, ['status']);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['status']);
 
         self::assertSame(Event::Created, $event);
     }
@@ -145,7 +146,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(fields: ['title']);
         $subject = new ChangeClassifierPost();
 
-        self::assertNull(ChangeClassifier::classify($rule, $subject, ['views']));
+        self::assertNull(ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['views']));
     }
 
     public function testFieldsFilterHitYieldsUpdate(): void
@@ -153,7 +154,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(fields: ['title']);
         $subject = new ChangeClassifierPost();
 
-        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ['title']));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['title']));
     }
 
     public function testTwoWhenAccessorsBothMustBeTrueForTheRuleToApply(): void
@@ -161,10 +162,10 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished', 'isFeatured']);
 
         $bothTrue = new ChangeClassifierFeaturedPost(published: true, featured: true);
-        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $bothTrue, ['title']));
+        self::assertSame(Event::Updated, ChangeClassifier::classify($rule, $bothTrue, ParamExtractor::plain(), ['title']));
 
         $featuredOnly = new ChangeClassifierFeaturedPost(published: false, featured: true);
-        self::assertNull(ChangeClassifier::classify($rule, $featuredOnly, ['title']), 'not applicable: `when` is false and there is no transition');
+        self::assertNull(ChangeClassifier::classify($rule, $featuredOnly, ParamExtractor::plain(), ['title']), 'not applicable: `when` is false and there is no transition');
     }
 
     public function testTwoWhenAccessorsTransitionToBothTrueIsACreation(): void
@@ -172,7 +173,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished', 'isFeatured']);
         $subject = new ChangeClassifierFeaturedPost(published: true, featured: true);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [false, true]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [false, true]]);
 
         self::assertSame(Event::Created, $event);
     }
@@ -182,7 +183,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished'], events: [Event::Updated]);
         $subject = new ChangeClassifierPost(published: true);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [false, true]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [false, true]]);
 
         self::assertNull($event, 'Created is not in the subscribed events');
     }
@@ -192,7 +193,7 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(when: ['isPublished'], events: [Event::Updated]);
         $subject = new ChangeClassifierPost(published: false);
 
-        $event = ChangeClassifier::classify($rule, $subject, ['published'], ['published' => [true, false]]);
+        $event = ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['published'], ['published' => [true, false]]);
 
         self::assertNull($event, 'Deleted is not in the subscribed events');
     }
@@ -202,6 +203,6 @@ final class ChangeClassifierTest extends TestCase
         $rule = self::rule(events: [Event::Created]);
         $subject = new ChangeClassifierPost();
 
-        self::assertNull(ChangeClassifier::classify($rule, $subject, ['title']));
+        self::assertNull(ChangeClassifier::classify($rule, $subject, ParamExtractor::plain(), ['title']));
     }
 }

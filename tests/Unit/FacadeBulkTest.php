@@ -6,6 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleSource;
 use IndexNowKit\Attribute\UrlRule;
 use IndexNowKit\Event;
@@ -60,20 +61,22 @@ final class CustomRuleAwareResolver implements RuleAwareUrlResolverInterface
 
 final class FacadeBulkTest extends TestCase
 {
-    #[TestDox('submitAll() and urlsForAll() resolve many objects and de-duplicate across the set: 100 posts of one category yield the category once')]
+    #[TestDox('submitEntities() and urlsForAll() resolve many objects and de-duplicate across the set: 100 posts of one category yield the category once')]
     public function testSubmitAll(): void
     {
         $transport = new FakeTransport();
-        $kit = IndexNowKit::create(Factory::config(), $transport, resolver: new AttributeUrlResolver(new AttributeReader()));
+        $kit = IndexNowKit::create(Factory::config(), $transport, resolver: new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain()));
         $posts = [new BulkPost('a'), new BulkPost('b'), new BulkPost('a')];
 
         self::assertSame(['/posts/a', '/category/news', '/posts/b'], $kit->urlsForAll($posts), 'as resolved, before normalization');
 
-        $results = $kit->submitAll($posts);
+        $results = $kit->submitEntities($posts);
         self::assertCount(1, $results, 'one request per host and batch');
         self::assertCount(1, $transport->posts);
         self::assertSame(['https://www.example.com/posts/a', 'https://www.example.com/category/news', 'https://www.example.com/posts/b'], $transport->posts[0]['body']['urlList']);
-        self::assertSame([], $kit->submitAll([]), 'nothing to submit, no request');
+        self::assertSame([], $kit->submitEntities([]), 'nothing to submit, no request');
+        /** @phpstan-ignore method.deprecated */
+        self::assertCount(1, $kit->submitAll($posts), 'submitAll() is the deprecated alias of submitEntities()');
     }
 
     #[TestDox('GuardedUrlResolver treats any RuleAwareUrlResolverInterface per rule: a failing rule loses its own URLs only')]

@@ -77,7 +77,7 @@ final class WaveGGuardsTest extends TestCase
     public function testFacadeDerivesTheExtractorFromTheResolver(): void
     {
         $extractor = new ParamExtractor(new NoopReader());
-        $kit = IndexNowKit::create(Factory::config(), new FakeTransport(), resolver: new AttributeUrlResolver(new AttributeReader(), extractor: $extractor));
+        $kit = IndexNowKit::create(Factory::config(), new FakeTransport(), resolver: new AttributeUrlResolver(new AttributeReader(), $extractor));
 
         self::assertSame($extractor, $kit->extractor);
         self::assertSame([], (new ParamExtractor())->readers());
@@ -129,14 +129,14 @@ final class WaveGGuardsTest extends TestCase
     public function testObserverHelperOverAChangeHandler(): void
     {
         $delivered = [];
-        $helper = ObserverHelper::forChanges(new ObjectChangeHandler(new AttributeReader(), (new ServicesBuilder(Factory::config()))->transport(new FakeTransport())->build()->guardedResolver()), static function (array $urls) use (&$delivered): void {
+        $helper = ObserverHelper::forChanges(new ObjectChangeHandler(new AttributeReader(), (new ServicesBuilder(Factory::config()))->transport(new FakeTransport())->build()->guardedResolver(), ParamExtractor::plain()), static function (array $urls) use (&$delivered): void {
             $delivered = $urls;
         });
         $helper->deliver(['https://www.example.com/a']);
 
         self::assertSame(['https://www.example.com/a'], $delivered);
         $this->expectException(LogicException::class);
-        new ObserverHelper(new ObjectChangeHandler(new AttributeReader(), (new ServicesBuilder(Factory::config()))->transport(new FakeTransport())->build()->guardedResolver()));
+        new ObserverHelper(new ObjectChangeHandler(new AttributeReader(), (new ServicesBuilder(Factory::config()))->transport(new FakeTransport())->build()->guardedResolver(), ParamExtractor::plain()));
     }
 
     #[TestDox('R11: with a clock that moves while the bucket sleeps, the wait is not credited twice')]

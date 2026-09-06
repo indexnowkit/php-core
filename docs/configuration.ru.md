@@ -97,7 +97,7 @@ Config::fromArray([
 |---|---|---|---|
 | Режим доставки `dispatch` | `auto` \| `messenger` \| `sync` \| `none` | `queue` \| `sync` \| `none` (без `auto`) | `auto` \| `queue` \| `sync` \| `none` |
 | Очередь / транспорт | `messenger.transport` | `queue.connection` | `queue.component` |
-| Локали для `locales: all` | `framework.enabled_locales` | `router.locales` | `router.languages` |
+| Локали для `locales: all` | `framework.enabled_locales` | `router.locales` | `router.locales` (до 0.12 — `router.languages`) |
 | Переключатель ORM-хуков | `doctrine.enabled` | `eloquent.enabled` | `active_record.enabled` |
 | Маршрут файла ключа | `key_file.path` | `key_file.path` | `key_file.pattern` |
 | Куда логировать | `logging.channel` | `logging.channel` | `logging.category` |

@@ -35,19 +35,15 @@ use Throwable;
 final class ObjectChangeHandler
 {
     /**
-     * @param ParamExtractor|null $extractor how `when` is read off the object for the lifecycle decision; the graph's (with
-     *                                       its readers: Eloquent attributes), the plain DSL when null
+     * @param ParamExtractor $extractor how `when` is read off the object for the lifecycle decision: the graph's (with its
+     *                                  readers: Eloquent attributes), `ParamExtractor::plain()` for the DSL alone
      */
     public function __construct(
         private readonly AttributeReaderInterface $rules,
         private readonly GuardedUrlResolver $resolver,
+        private readonly ParamExtractor $extractor,
         private readonly LoggerInterface $logger = new NullLogger(),
-        ?ParamExtractor $extractor = null,
-    ) {
-        $this->extractor = $extractor ?? new ParamExtractor();
-    }
-
-    private readonly ParamExtractor $extractor;
+    ) {}
 
     /**
      * Rules to resolve for a newly persisted object.
@@ -84,7 +80,7 @@ final class ObjectChangeHandler
         $out = [];
         foreach ($this->rulesOf($subject) as $rule) {
             try {
-                $event = ChangeClassifier::classify($rule, $subject, $changedFields, $changeSet, $this->extractor);
+                $event = ChangeClassifier::classify($rule, $subject, $this->extractor, $changedFields, $changeSet);
             } catch (Throwable $e) {
                 $this->logger->error('indexnow: cannot classify the change of {class} for rule "{rule}": {error}', ['class' => $subject::class, 'rule' => $rule->name, 'error' => $e->getMessage(), 'exception' => $e]);
                 continue;

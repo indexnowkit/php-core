@@ -39,10 +39,10 @@ use Psr\SimpleCache\CacheInterface;
  * on first use. What is not given comes from the factories of the core (`Http\TransportFactory`,
  * `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, the `fromConfig()` constructors), so the result is
  * the graph `IndexNowKit::create()` builds, with every piece replaceable and every dependent piece derived from the
- * replacement (give a transport and the client, the checker and the console submitters use it). Two differences from
- * `IndexNowKit::create()`: the resolver defaults to `AttributeUrlResolver::fromConfig()` (the facade alone defaults to
- * `NullUrlResolver`: without a router or a locator a plain-PHP graph resolves nothing), and `client`, `events`, `router`,
- * `resolverLocator`, `changes` and `checks` are nodes here only.
+ * replacement (give a transport and the client, the checker and the console submitters use it). The one difference from
+ * `IndexNowKit::create()`: `client`, `events`, `router`, `resolverLocator`, `changes` and `checks` are nodes here only
+ * (both default the resolver to `AttributeUrlResolver::fromConfig()`; the facade alone has no router or locator, so only
+ * absolute `url:`/`urls:` templates resolve there).
  *
  * `build()` does no IO: the transport is lazy, the queue is a closure, nothing is discovered. It throws
  * `ConfigurationException` for what is known to be wrong before the first request: a `debounce.store` id with no

@@ -22,15 +22,14 @@ final class ChangeClassifier
     private function __construct() {}
 
     /**
+     * @param ParamExtractor                           $extractor     the graph's extractor (its readers see Eloquent attributes); `ParamExtractor::plain()` for the DSL alone
      * @param list<string>                             $changedFields field names changed in this update
      * @param array<string, array{0: mixed, 1: mixed}> $changeSet     field => [old, new] when the ORM provides it
-     * @param ParamExtractor|null                      $extractor     the graph's extractor (its readers see Eloquent attributes); the plain DSL when null
      *
      * @throws ConfigurationException when a `when` accessor cannot be read
      */
-    public static function classify(UrlRule $rule, object $subject, array $changedFields, array $changeSet = [], ?ParamExtractor $extractor = null): ?Event
+    public static function classify(UrlRule $rule, object $subject, ParamExtractor $extractor, array $changedFields, array $changeSet = []): ?Event
     {
-        $extractor ??= new ParamExtractor();
         $after = $rule->appliesTo($subject, $extractor);
         $before = self::appliedBefore($rule, $subject, $changedFields, $changeSet, $after, $extractor);
 
@@ -65,7 +64,7 @@ final class ChangeClassifier
      * Whether a condition held for the old value of its field: truthiness for accessors, {@see FieldCondition::heldFor()}
      * for conditions (only those reach here: a plain Condition has no field in the change set).
      */
-    private static function heldBefore(string|Condition|Closure $condition, mixed $oldValue): bool
+    private static function heldBefore(string|Condition|FieldCondition|Closure $condition, mixed $oldValue): bool
     {
         if ($condition instanceof FieldCondition) {
             return $condition->heldFor($oldValue);

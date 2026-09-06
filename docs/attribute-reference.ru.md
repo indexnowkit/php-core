@@ -104,11 +104,14 @@ use IndexNowKit\Attribute\Param\Equals;
 #[IndexNow(route: 'job_show', params: ['id' => 'id'], when: new Equals('state', JobState::Open))]   // BackedEnum или его value
 ```
 
-`Equals` — это `Attribute\Param\Condition` (`evaluate(object $subject): bool`); любой класс с этим интерфейсом годится в
-`when`. Обычный `Condition` не знает старого значения: `ChangeClassifier` вычисляет его на текущем объекте, и переход
-`open → closed` считается обновлением, а не удалением — если только `whenFields` не называет поле. Реализуйте
-`FieldCondition` (`field()`, `heldFor($oldValue)`), когда условие читает одно поле: тогда change set даёт точное старое
-состояние, как у `Equals`. `Equals` в `params` — ошибка типов (условие — не источник значения). `explain` печатает
+Два интерфейса — по тому, что условие читает. `Attribute\Param\FieldCondition` (`field()`, `heldFor($oldValue)`) читает
+одно поле: ядро читает его через `ParamExtractor` графа (ридеры видят атрибуты Eloquent/ActiveRecord) и спрашивает
+`heldFor()` — для текущего значения и, из change set ORM, для старого; `Equals` — поставляемая реализация.
+`Attribute\Param\Condition` (`evaluate(object $subject): bool`) смотрит на объект целиком — для того, что одним полем не
+сказать. Оба годятся в `when`. `Condition` не знает старого значения: `ChangeClassifier` вычисляет его на текущем объекте,
+и переход `open → closed` считается обновлением, а не удалением — если только `whenFields` не называет поля, которые
+условие читает. Вручную условие вычисляет экстрактор графа: `$indexNow->extractor->condition($subject, new Equals(...))`
+(с 0.12 у `FieldCondition` нет `evaluate()`). `Equals` в `params` — ошибка типов (условие — не источник значения). `explain` печатает
 каждое условие со считанным значением (`when: status ("draft") -> true — a non-empty string is truthy; use new
 Equals('status', "draft")`), `explain --json` — то же одним документом. Подробнее — в английской версии.
 
@@ -175,7 +178,7 @@ class News extends Content {}
 
 ### Восстановление `W_before`
 
-`ChangeClassifier::classify(UrlRule $rule, object $subject, array $changedFields, array $changeSet = [])` возвращает
+`ChangeClassifier::classify(UrlRule $rule, object $subject, ParamExtractor $extractor, array $changedFields, array $changeSet = [])` возвращает
 `Event`, важное правилу, или `null`. Видимость старого состояния — best effort, в три яруса:
 
 1. Аксессор `when`, чьё поле есть в change set, вычисляется **точно** из старого значения. Поле ищется по имени, затем по

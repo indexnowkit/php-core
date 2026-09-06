@@ -6,6 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Collector\CollectorInterface;
 use IndexNowKit\Hook\ObserverHelper;
 use IndexNowKit\IndexNowKit;
@@ -38,7 +39,7 @@ final class ObserverHelperTest extends TestCase
     {
         $config = Factory::config();
 
-        return IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: AttributeUrlResolver::fromConfig($config, new AttributeReader()), collector: $collector);
+        return IndexNowKit::create($config, transport: $transport, logger: $logger, resolver: AttributeUrlResolver::fromConfig($config, new AttributeReader(), ParamExtractor::plain()), collector: $collector);
     }
 
     #[TestDox('guard() resolves through the change handler, logs every URL at debug, and returns the de-duplicated list')]

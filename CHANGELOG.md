@@ -3,6 +3,44 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.12.0] — Unreleased
+
+The design decisions of the 0.10 audit (`docs/plans/audit-0.10.md` §6 in the specification workspace). Three change
+signatures; this is the one breaking minor that carries them, so that the next adapter is written against the final ones.
+
+### Changed
+
+- **`Attribute\Param\FieldCondition` no longer extends `Condition`, and `Equals::evaluate()` is gone.** A field condition
+  is read by the graph's `ParamExtractor` (`heldFor()` of the value it reads for `field()`), so it never reads the object
+  itself; `evaluate()` built a plain `ParamExtractor` inside and answered wrong on Eloquent attributes. `when` accepts
+  `string|Condition|FieldCondition|Closure`. To evaluate one by hand: `$extractor->condition($subject, $equals)`. A custom
+  `FieldCondition` drops its `evaluate()` (an extra method is harmless); a custom `Condition` is unchanged.
+- **The extractor is a required parameter**: `Url\AttributeUrlResolver::__construct($reader, $extractor, ...)` and
+  `::fromConfig($config, $reader, $extractor, ...)`, `Url\ObjectChangeHandler::__construct($rules, $resolver, $extractor,
+  $logger)`, `Attribute\ChangeClassifier::classify($rule, $subject, $extractor, $changedFields, $changeSet)`,
+  `Attribute\UrlRule::appliesTo($subject, $extractor)`. Each fell back to `new ParamExtractor()` when the argument was
+  omitted, and the only symptom of an adapter forgetting it was URLs lost on Eloquent/ActiveRecord objects; now static
+  analysis catches it. `ParamExtractor::plain()` names the DSL-only extractor for graphs built by hand (plain PHP,
+  Doctrine). `IndexNowKit::create(extractor:)` and the facade constructor stay optional: the facade derives it from the
+  resolver (`Url\ParamExtractorAwareInterface`).
+- **`IndexNowKit::create()` and the constructor without `resolver:` build `AttributeUrlResolver::fromConfig()`**, as
+  `Adapter\ServicesBuilder` does, instead of `NullUrlResolver`: a class with `#[IndexNow]` handed to the bare facade resolves
+  its `url`/`urls` rules (a `route:` rule without a router is an error the guard logs), where before it silently yielded
+  nothing. `resolver: new NullUrlResolver()` is the explicit way to resolve nothing.
+
+### Added
+
+- `IndexNowKit::submitEntities()`, the bulk twin of `submitEntity()` (the `submitX`/`submitXs` scheme of every adapter:
+  `submitModels()`, `submitRecords()`). `submitAll()` is its `@deprecated` alias, removed in the next minor
+  (`ClientInterface::submitAll()`, the URL-level method, is unrelated and stays).
+- `Attribute\ParamExtractor::plain()`.
+
+### Documentation
+
+- `docs/bc.md`: `ObjectChangeHandler::renamed($subject, $changeSet, $previous, $selfFields)` — `$previous` is the contract
+  for adapters whose objects cannot be reset by reflection (Eloquent); `Attribute\SubjectReaderInterface` stays read-only,
+  no `write()` is planned. `docs/attribute-reference.md`: conditions rewritten for the split.
+
 ## [0.11.0] — 2026-09-07
 
 Wave G: the fixes of the six-lens audit of 0.10 (`docs/plans/audit-0.10.md` in the specification workspace) that needed no

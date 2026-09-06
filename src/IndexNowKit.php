@@ -21,8 +21,8 @@ use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Submission\SubmissionStoreInterface;
 use IndexNowKit\Throttle\ThrottleInterface;
 use IndexNowKit\Throttle\TokenBucket;
+use IndexNowKit\Url\AttributeUrlResolver;
 use IndexNowKit\Url\GuardedUrlResolver;
-use IndexNowKit\Url\NullUrlResolver;
 use IndexNowKit\Url\ObjectChangeHandler;
 use IndexNowKit\Url\ParamExtractorAwareInterface;
 use IndexNowKit\Url\ResolvedUrl;
@@ -44,6 +44,9 @@ final class IndexNowKit
     private readonly ObjectChangeHandler $changes;
 
     /**
+     * @param UrlResolverInterface|null $resolver the resolver of `#[IndexNow]` rules; null = `AttributeUrlResolver::fromConfig()`
+     *                                           without a router or a locator (absolute `url:`/`urls:` templates resolve, a
+     *                                           `route:` rule is an error the guard logs). `Url\NullUrlResolver` to resolve nothing.
      * @param TransportInterface|null $transport the transport submissions go through, for consumers that read documents
      *                                           over the same client (null when the facade was built around a custom
      *                                           submitter: use `Http\TransportFactory::lazy($config)` then)
@@ -66,10 +69,11 @@ final class IndexNowKit
         ?ParamExtractor $extractor = null,
         ?ObjectChangeHandler $changes = null,
     ) {
-        $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver ?? new NullUrlResolver(), $attributes, $logger);
+        $resolver ??= AttributeUrlResolver::fromConfig($config, $attributes, $extractor ?? ParamExtractor::plain(), logger: $logger);
+        $this->resolver = $resolver instanceof GuardedUrlResolver ? $resolver : new GuardedUrlResolver($resolver, $attributes, $logger);
         $inner = $this->resolver->inner();
-        $this->extractor = $extractor ?? ($inner instanceof ParamExtractorAwareInterface ? $inner->extractor() : new ParamExtractor());
-        $this->changes = $changes ?? new ObjectChangeHandler($attributes, $this->resolver, $logger, $this->extractor);
+        $this->extractor = $extractor ?? ($inner instanceof ParamExtractorAwareInterface ? $inner->extractor() : ParamExtractor::plain());
+        $this->changes = $changes ?? new ObjectChangeHandler($attributes, $this->resolver, $this->extractor, $logger);
     }
 
     /** How `params` and `when` are read off objects: what the resolver reads with, shared with the change handler and `explain`. */
@@ -85,6 +89,10 @@ final class IndexNowKit
      *
      * @param CacheInterface|null           $failureCache    PSR-16 cache the 403 counter of the client lives in, shared by every
      *                                                        process of the application (the cache behind the debounce store); null = per process
+     * @param UrlResolverInterface|null     $resolver        the resolver of `#[IndexNow]` rules; null = `AttributeUrlResolver::fromConfig()`
+     *                                                        with $extractor (or the plain DSL), without a router or a locator: absolute
+     *                                                        `url:`/`urls:` templates resolve, a `route:` rule is an error the guard logs.
+     *                                                        `Adapter\ServicesBuilder` is the same graph with a router, a locator and more.
      * @param SubmissionStoreInterface|null $submissionStore where the submitter records every Result; null = nowhere
      * @param ParamExtractor|null           $extractor       how `params` and `when` are read off objects (`new ParamExtractor(new
      *                                                        MySubjectReader())` for objects the DSL cannot see into); null = the extractor of
@@ -163,9 +171,22 @@ final class IndexNowKit
      *
      * @return list<Result>
      */
-    public function submitAll(iterable $subjects, Event $event = Event::Updated): array
+    public function submitEntities(iterable $subjects, Event $event = Event::Updated): array
     {
         return $this->submit($this->urlsForAll($subjects, $event));
+    }
+
+    /**
+     * @deprecated since core 0.12.0, use {@see submitEntities()} (the `submitX` / `submitXs` scheme of every adapter;
+     *             `submitAll` is the URL-level method of `ClientInterface`). Removed in the next minor.
+     *
+     * @param iterable<object> $subjects
+     *
+     * @return list<Result>
+     */
+    public function submitAll(iterable $subjects, Event $event = Event::Updated): array
+    {
+        return $this->submitEntities($subjects, $event);
     }
 
     /**

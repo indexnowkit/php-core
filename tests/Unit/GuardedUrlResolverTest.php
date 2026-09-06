@@ -6,6 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Event;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Url\AttributeUrlResolver;
@@ -31,7 +32,7 @@ final class GuardedUrlResolverTest extends TestCase
     public function testNeverThrowsAndLogsErrorWithTheRuleNameOnAFailingRule(): void
     {
         $logger = new ArrayLogger();
-        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader()), new AttributeReader(), $logger);
+        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain()), new AttributeReader(), $logger);
 
         $urls = $resolver->resolve(new GuardedRoutedPost(), Event::Updated);
 
@@ -45,7 +46,7 @@ final class GuardedUrlResolverTest extends TestCase
     {
         $logger = new ArrayLogger();
         $reader = new AttributeReader();
-        $resolver = new GuardedUrlResolver(new AttributeUrlResolver($reader), $reader, $logger);
+        $resolver = new GuardedUrlResolver(new AttributeUrlResolver($reader, ParamExtractor::plain()), $reader, $logger);
         $rule = $reader->rules(GuardedRoutedPost::class)->get('x');
         self::assertNotNull($rule);
 
@@ -58,7 +59,7 @@ final class GuardedUrlResolverTest extends TestCase
     public function testDebugLogWhenNothingApplies(): void
     {
         $logger = new ArrayLogger();
-        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader()), new AttributeReader(), $logger);
+        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain()), new AttributeReader(), $logger);
 
         $urls = $resolver->resolve(new NotAnnotatedGuarded(), Event::Updated);
 
@@ -90,7 +91,7 @@ final class GuardedUrlResolverTest extends TestCase
 
     public function testResolveDeduplicatesAcrossRules(): void
     {
-        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader()), new AttributeReader());
+        $resolver = new GuardedUrlResolver(new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain()), new AttributeReader());
 
         $urls = $resolver->resolve(new DuplicateUrlsPost(), Event::Updated);
 

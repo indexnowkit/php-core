@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Collector\Collector;
 use IndexNowKit\Debounce\DebounceStoreFactory;
 use IndexNowKit\Debounce\DebounceStoreInterface;
@@ -164,7 +165,7 @@ final class FactoriesTest extends TestCase
         $bucket->acquire();
         self::assertInstanceOf(TokenBucket::class, $bucket, 'throttle 0 = unlimited, acquire() returns at once');
 
-        $resolver = AttributeUrlResolver::fromConfig($config, new AttributeReader(), logger: $logger);
+        $resolver = AttributeUrlResolver::fromConfig($config, new AttributeReader(), ParamExtractor::plain(), logger: $logger);
         self::assertInstanceOf(RuleAwareUrlResolverInterface::class, $resolver);
 
         $responder = KeyFileResponder::fromConfig($config, StaticKeyProvider::fromConfig($config));

@@ -6,6 +6,7 @@ namespace IndexNowKit\Tests\Unit;
 
 use IndexNowKit\Attribute\AttributeReader;
 use IndexNowKit\Attribute\IndexNow as IndexNowAttribute;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleEvent;
 use IndexNowKit\Event;
 use IndexNowKit\Testing\ArrayLogger;
@@ -74,16 +75,16 @@ final class ObjectChangeHandlerTest extends TestCase
     {
         $logger ??= new ArrayLogger();
         $reader = new AttributeReader();
-        $guarded = new GuardedUrlResolver(new AttributeUrlResolver($reader), $reader, $logger);
+        $guarded = new GuardedUrlResolver(new AttributeUrlResolver($reader, ParamExtractor::plain()), $reader, $logger);
 
-        return new ObjectChangeHandler($reader, $guarded, $logger);
+        return new ObjectChangeHandler($reader, $guarded, ParamExtractor::plain(), $logger);
     }
 
     public function testRenamedYieldsTheOldUrlsOfRouteRulesWhoseParamsChanged(): void
     {
         $reader = new AttributeReader();
         $logger = new ArrayLogger();
-        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, ParamExtractor::plain(), new ObjectChangeHandlerRouter()), $reader, $logger), ParamExtractor::plain(), $logger);
         $post = new ObjectChangeHandlerSluggedPost('new-slug', category: new ObjectChangeHandlerCategory('tech'));
 
         $old = $handler->renamed($post, ['slug' => ['old-slug', 'new-slug'], 'title' => ['a', 'b']]);
@@ -107,7 +108,7 @@ final class ObjectChangeHandlerTest extends TestCase
     {
         $reader = new AttributeReader();
         $logger = new ArrayLogger();
-        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, ParamExtractor::plain(), new ObjectChangeHandlerRouter()), $reader, $logger), ParamExtractor::plain(), $logger);
         $post = new ObjectChangeHandlerSluggedPost('new', category: new ObjectChangeHandlerCategory('tech'));
 
         self::assertCount(1, $handler->renamed($post, ['slug' => ['old', 'new'], 'not_a_property' => [1, 2]]), 'a change-set entry that is not a property is ignored when the URL does not read it');
@@ -121,7 +122,7 @@ final class ObjectChangeHandlerTest extends TestCase
     {
         $reader = new AttributeReader();
         $logger = new ArrayLogger();
-        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, new ObjectChangeHandlerRouter()), $reader, $logger), $logger);
+        $handler = new ObjectChangeHandler($reader, new GuardedUrlResolver(new AttributeUrlResolver($reader, ParamExtractor::plain(), new ObjectChangeHandlerRouter()), $reader, $logger), ParamExtractor::plain(), $logger);
 
         $lazy = (new ReflectionClass(ObjectChangeHandlerLazyPost::class))->newInstanceWithoutConstructor();
         self::assertSame([], $handler->renamed($lazy, ['slug' => ['old', 'new']]), 'an uninitialized typed property cannot be restored: skipped, not a TypeError in flush');

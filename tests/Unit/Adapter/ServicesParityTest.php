@@ -98,9 +98,9 @@ final class ServicesParityTest extends TestCase
         $dispatcher = DispatcherFactory::fromConfig($config, $submitter, $logger);
         $rules = new RuleRegistry(new AttributeReader());
         $extractor = new ParamExtractor();
-        $urlResolver = AttributeUrlResolver::fromConfig($config, $rules, null, null, $logger, $extractor);
+        $urlResolver = AttributeUrlResolver::fromConfig($config, $rules, $extractor, null, null, $logger);
         $guarded = new GuardedUrlResolver($urlResolver, $rules, $logger);
-        $changes = new ObjectChangeHandler($rules, $guarded, $logger, $extractor);
+        $changes = new ObjectChangeHandler($rules, $guarded, $extractor, $logger);
         $kit = new IndexNowKit($config, $submitter, $collector, $dispatcher, $keys, $rules, $guarded, $logger, $transport, $extractor, $changes);
 
         return [

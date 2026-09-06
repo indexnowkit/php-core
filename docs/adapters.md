@@ -11,7 +11,7 @@ application:
 
 ```php
 $locator = new ArrayResolverLocator(['post' => fn (Post $p) => '/posts/' . $p->slug]);
-$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), null, $locator));
+$indexNow = IndexNowKit::create($config, resolver: new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), null, $locator));
 ```
 
 An adapter is warranted when other people's applications should get the same behaviour without wiring it. Three
@@ -189,6 +189,17 @@ The merge is deliberate: a top-level raw key replaces the default, the known blo
 `hosts`) come from the raw array untouched. `key_file.enabled`, `key_file.cache_max_age`, `debounce.store` and
 `http.client` are core options: read them from the `Config`, do not carve them out.
 
+### Names
+
+The vocabulary is the core's, in configuration keys and method names alike, so a reader moving between adapters meets one
+word per concept. `locale` (the attribute's `locales`, `ResolvedUrl::$locale`, `locale_hosts`, `router.locales`,
+`router.locale_parameter`, `router.set_app_locale`) — not "language", even where the framework says so (Yii2 renamed its
+keys back in 0.12). Methods follow `submitX` / `submitXs` with the framework's word for an object: `submitEntity()` /
+`submitEntities()` in the core and Doctrine, `submitModel()` / `submitModels()` in Laravel, `submitRecord()` /
+`submitRecords()` in Yii2 — and the command is `submit-<x>` (`indexnow:submit-entity`, `indexnow:submit-model`,
+`indexnow/submit-record`). Framework-native differences stay where the framework's own vocabulary is the point
+(`queue.connection` / `queue.component`, `logging.channel` / `logging.category`, `eloquent.*` / `active_record.*`).
+
 ## 5. How your framework says "this object has a public page"
 
 | Model | Core piece |
@@ -240,7 +251,7 @@ nothing else, or they break the never-throw contract of `submit()`.
 guarded resolution, and never throws: an invalid rule set or a failing resolver is logged and yields nothing.
 
 ```php
-$changes = $indexNow->changes();                 // or new ObjectChangeHandler($reader, $guarded, $logger)
+$changes = $indexNow->changes();                 // or new ObjectChangeHandler($reader, $guarded, $extractor, $logger)
 $guarded = $indexNow->resolver();                // the GuardedUrlResolver behind it, for explain() and resolveRule()
 
 $changes->created($model);                       // list<ResolvedUrl>

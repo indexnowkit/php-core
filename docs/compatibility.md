@@ -29,18 +29,18 @@ can check them. The promise itself (what may change in a minor, what may not) is
 | `indexnowkit/verify` | `^8.2` | the core's transport; `symfony/console` for `check --sample` (suggested) | as console |
 | `indexnowkit/history` | `^8.2` | `ext-pdo` (sqlite, mysql, pgsql schemas), PSR-16; `symfony/console` for the commands | as console |
 | `indexnowkit/doctrine` | `^8.2` | `doctrine/orm ^2.19 \|\| ^3.0`, `doctrine/dbal ^3.8 \|\| ^4.0` | ORM 2.x / DBAL 3.x: security fixes only, see [doctrine-project.org](https://www.doctrine-project.org/projects.html) |
-| `indexnowkit/symfony-bundle` | `^8.2` | Symfony `^6.4 \|\| ^7.0` (`framework-bundle`, `http-kernel ^6.4.13`), `doctrine/doctrine-bundle ^2.13 \|\| ^3.0` with `indexnowkit/doctrine` | 6.4 LTS: bug fixes to 2026-11, security to 2027-11; 7.4 LTS: 2028-11 / 2029-11 ([symfony.com/releases](https://symfony.com/releases)) |
+| `indexnowkit/symfony-bundle` | `^8.2` | Symfony `^6.4 \|\| ^7.0 \|\| ^8.0` (`framework-bundle`, `http-kernel ^6.4.13`; Symfony 8 needs PHP 8.4), `doctrine/doctrine-bundle ^2.13 \|\| ^3.0` with `indexnowkit/doctrine` | 6.4 LTS: bug fixes to 2026-11, security to 2027-11; 7.4 LTS: 2028-11 / 2029-11 ([symfony.com/releases](https://symfony.com/releases)) |
 | `indexnowkit/laravel` | `^8.2` | `illuminate/support ^12.0 \|\| ^13.0` (Laravel 12, 13) | 12: bug fixes to 2026-08, security to 2027-02; 13: 2027-08 / 2028-02 ([laravel.com/docs/releases](https://laravel.com/docs/releases)) |
 | `indexnowkit/yii2` | `^8.2` | `yiisoft/yii2 ^2.0.45`; `yiisoft/yii2-queue ^2.3` for `dispatch: queue` | 2.0.x maintained, no end date announced ([yiiframework.com](https://www.yiiframework.com/release-cycle)) |
 
 PHP itself: 8.2 security fixes to 2026-12-31, 8.3 to 2027-12-31, 8.4 to 2028-12-31, 8.5 to 2029-12-31
 ([php.net/supported-versions](https://www.php.net/supported-versions.php)).
 
-Symfony 8 is not yet a target of the bundle (its `framework-bundle` constraint stops at `^7.0`); `console`, `sitemap`,
-`history` and `yii2` already accept `symfony/console ^8.0`. Laravel 11 and Symfony 6.3 and below are not supported.
+Symfony 8 is a target of the bundle since 0.13 (CI: PHP 8.4 with `framework-bundle ^8.0`); `console`, `sitemap`, `history`
+and `yii2` accept `symfony/console ^8.0`. Laravel 11 and Symfony 6.3 and below are not supported.
 
 ## Flavours in CI
 
 `bin/ci <package> <flavour>` runs the same install the workflow does: `highest` and `lowest` for every package,
-`dbal3` for `doctrine` (DBAL 3 / ORM 2), `symfony64` for `symfony-bundle` (Symfony 6.4 with the highest of everything
-else). A change that passes `highest` but not `lowest` is a constraint bug, not a code bug: the fix is the constraint.
+`dbal3` for `doctrine` (DBAL 3 / ORM 2), `symfony64` and `symfony8` for `symfony-bundle` (Symfony 6.4, and Symfony 8 on PHP
+8.4, each with the highest of everything else). A change that passes `highest` but not `lowest` is a constraint bug, not a code bug: the fix is the constraint.

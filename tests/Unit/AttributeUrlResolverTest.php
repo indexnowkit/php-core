@@ -10,6 +10,7 @@ use IndexNowKit\Attribute\Param\Accessor;
 use IndexNowKit\Attribute\Param\Call;
 use IndexNowKit\Attribute\Param\Placeholder;
 use IndexNowKit\Attribute\Param\Value;
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Testing\ArrayLogger;
@@ -175,7 +176,7 @@ final class AttributeUrlResolverTest extends TestCase
     {
         $router = new StubRouter(['en', 'de']);
         $reader = new AttributeReader();
-        $resolver = new AttributeUrlResolver($reader, $router, localeHosts: ['de' => 'example.de']);
+        $resolver = new AttributeUrlResolver($reader, ParamExtractor::plain(), $router, localeHosts: ['de' => 'example.de']);
         $post = new AttributeUrlResolverLocalizedPost();
 
         $resolver->resolve($post, Event::Updated);
@@ -185,7 +186,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testNoAttributeReturnsEmpty(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
 
         self::assertSame([], $resolver->resolve(new NotAnnotatedForResolver(), Event::Updated));
     }
@@ -194,14 +195,14 @@ final class AttributeUrlResolverTest extends TestCase
     {
         $inner = new CallableUrlResolver(static fn(): array => ['https://example.com/x']);
         $locator = new ArrayResolverLocator(['custom' => $inner]);
-        $resolver = new AttributeUrlResolver(new AttributeReader(), null, $locator);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), null, $locator);
 
         self::assertSame(['https://example.com/x'], $resolver->resolve(new ResolverBackedPost(), Event::Updated));
     }
 
     public function testResolverWithoutLocatorConfiguredThrows(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
 
         $this->expectException(ConfigurationException::class);
         $resolver->resolve(new ResolverBackedPost(), Event::Updated);
@@ -209,7 +210,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testRouteWithoutRouterConfiguredThrowsMentioningTheRuleName(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
 
         try {
             $resolver->resolve(new RoutedPost('hello'), Event::Updated);
@@ -221,7 +222,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testMissingResolverLocatorConfiguredThrowsMentioningTheRuleName(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
 
         try {
             $resolver->resolve(new ResolverBackedPost(), Event::Updated);
@@ -234,7 +235,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testRouteDelegatesToRouterWithExtractedParamsAndLocales(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $urls = $resolver->resolve(new RoutedPost('hello'), Event::Updated);
 
@@ -246,7 +247,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testSeveralRouteRulesAreAllResolvedAndThePerRuleWhenGuardsEachOne(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $notAmp = $resolver->explain(new MultiRoutePost('hello', amp: false), Event::Updated);
         self::assertCount(1, $notAmp);
@@ -259,7 +260,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testLiteralUrlsAreReturnedAsIs(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
 
         $urls = $resolver->resolve(new LiteralUrlsPost(), Event::Updated);
 
@@ -268,7 +269,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testUrlAccessorReturningAStringYieldsOneUrl(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
         $subject = new UrlAccessorPost();
         $subject->urlValue = '/offers/x';
 
@@ -277,7 +278,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testUrlAccessorReturningAnIterableYieldsEveryUrl(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
         $subject = new UrlAccessorPost();
         $subject->urlValue = ['/a', '/b'];
 
@@ -286,7 +287,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testUrlAccessorReturningNullYieldsNothing(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
         $subject = new UrlAccessorPost();
         $subject->urlValue = null;
 
@@ -295,7 +296,7 @@ final class AttributeUrlResolverTest extends TestCase
 
     public function testUrlAccessorReturningANonStringThrows(): void
     {
-        $resolver = new AttributeUrlResolver(new AttributeReader());
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain());
         $subject = new UrlAccessorPost();
         $subject->urlValue = 42;
 
@@ -306,7 +307,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testViaToASingleRelatedObjectResubmitsItsPageAsUpdated(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
         $subject = new ViaCommentSingle(new ViaCategory('news'));
 
         $resolved = $resolver->explain($subject, Event::Created);
@@ -320,7 +321,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testViaToACollectionResubmitsEveryRelatedObject(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
         $subject = new ViaCommentCollection([new ViaCategory('news'), new ViaCategory('sports')]);
 
         $urls = $resolver->resolve($subject, Event::Created);
@@ -335,7 +336,7 @@ final class AttributeUrlResolverTest extends TestCase
         $a->toB = $b;
         $b->toA = $a;
         $logger = new ArrayLogger();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), null, null, $logger);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), null, null, $logger);
 
         self::assertSame([], $resolver->resolve($a, Event::Updated), 'neither object has a URL of its own');
         self::assertSame([], $logger->messages('warning'), 'the cycle is cut silently at the visited object, not by the depth limit');
@@ -348,7 +349,7 @@ final class AttributeUrlResolverTest extends TestCase
         $post = new ViaPostInCategory('hello', $category);
         $comment = new ViaCommentOnPost($post);
         $logger = new ArrayLogger();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), new StubRouter(), null, $logger, maxViaDepth: 1);
 
         $urls = $resolver->resolve($comment, Event::Updated);
 
@@ -361,17 +362,17 @@ final class AttributeUrlResolverTest extends TestCase
     {
         $hub = new FanoutHub([new ViaCategory('a'), new ViaCategory('b'), new ViaCategory('c')]);
         $logger = new ArrayLogger();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 2);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 2);
 
         self::assertCount(2, $resolver->resolve($hub, Event::Updated), 'the fan-out limit of the level');
-        $tight = new AttributeUrlResolver(new AttributeReader(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 3);
+        $tight = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), new StubRouter(), null, $logger, maxViaDepth: 1, maxViaFanout: 3);
         self::assertCount(3, $tight->resolve($hub, Event::Updated), 'within depth × fan-out = 3');
     }
 
     public function testViaFanoutBeyondTheLimitLogsAWarningAndStops(): void
     {
         $logger = new ArrayLogger();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), null, null, $logger, maxViaFanout: 2);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), null, null, $logger, maxViaFanout: 2);
         $subject = new FanoutHub([new stdClass(), new stdClass(), new stdClass(), new stdClass()]);
 
         $resolver->resolve($subject, Event::Updated);
@@ -384,7 +385,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testHostLiteralIsPassedToTheRouter(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $resolver->resolve(new HostLiteralPost('hello'), Event::Updated);
 
@@ -394,7 +395,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testHostAccessorIsResolvedFromTheSubjectAndPassedToTheRouter(): void
     {
         $router = new StubRouter();
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $resolver->resolve(new HostAccessorPost('hello', 'tenant.example.com'), Event::Updated);
 
@@ -404,7 +405,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testLocalesAllReExtractsParamsPerLocaleUsingTheCallPlaceholder(): void
     {
         $router = new StubRouter(allLocales: ['en', 'fr']);
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $urls = $resolver->resolve(new LocalizedPost(), Event::Updated);
 
@@ -416,7 +417,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testResolveRuleIgnoresWhenOnlyWhenAsked(): void
     {
         $reader = new AttributeReader();
-        $resolver = new AttributeUrlResolver($reader, new StubRouter());
+        $resolver = new AttributeUrlResolver($reader, ParamExtractor::plain(), new StubRouter());
         $subject = new DeletedBypassPost('gone', published: false);
         $rule = $reader->rules(DeletedBypassPost::class)->get('post_show');
         self::assertNotNull($rule);
@@ -432,7 +433,7 @@ final class AttributeUrlResolverTest extends TestCase
     public function testExplainKeepsFullProvenance(): void
     {
         $router = new StubRouter(currentLocale: 'en');
-        $resolver = new AttributeUrlResolver(new AttributeReader(), $router);
+        $resolver = new AttributeUrlResolver(new AttributeReader(), ParamExtractor::plain(), $router);
 
         $resolved = $resolver->explain(new RoutedPost('hello'), Event::Updated);
 

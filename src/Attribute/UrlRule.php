@@ -24,7 +24,7 @@ final readonly class UrlRule
     /**
      * @param array<string, string|ParamValue> $params
      * @param list<string>                     $urls
-     * @param list<string|Condition|Closure>   $when       conjunction: every condition must hold (accessor truthy, a Condition such as Equals, closure)
+     * @param list<string|Condition|FieldCondition|Closure>   $when       conjunction: every condition must hold (accessor truthy, a Condition such as Equals, closure)
      * @param array<int, list<string>>|list<string> $whenFields fields backing each $when condition, keyed by its index; a flat list applies to every condition
      * @param list<string>                     $fields     changed-field filter for updates; [] = any
      * @param list<Event>                      $events
@@ -82,13 +82,12 @@ final readonly class UrlRule
     /**
      * Whether the page exists in the object's current state: every `when` condition holds.
      *
-     * @param ParamExtractor|null $extractor the graph's extractor (its readers see Eloquent attributes); the plain DSL when null
+     * @param ParamExtractor $extractor the graph's extractor (its readers see Eloquent attributes); `ParamExtractor::plain()` for the DSL alone
      *
      * @throws ConfigurationException when an accessor cannot be read
      */
-    public function appliesTo(object $subject, ?ParamExtractor $extractor = null): bool
+    public function appliesTo(object $subject, ParamExtractor $extractor): bool
     {
-        $extractor ??= new ParamExtractor();
         foreach ($this->when as $condition) {
             if (!$extractor->condition($subject, $condition)) {
                 return false;
@@ -132,7 +131,7 @@ final readonly class UrlRule
      * The accessor a condition reads, when it is statically known (a string, a FieldCondition); null for closures and
      * plain conditions.
      */
-    public static function accessorOf(string|Condition|Closure $condition): ?string
+    public static function accessorOf(string|Condition|FieldCondition|Closure $condition): ?string
     {
         return match (true) {
             \is_string($condition) => $condition,

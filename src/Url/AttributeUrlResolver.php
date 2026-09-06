@@ -25,23 +25,19 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface, Param
     /**
      * @param array<string, string> $localeHosts locale => host ({@see Config::$localeHosts}): a rule without `host` generates each
      *                                           locale on that locale's host
-     * @param ParamExtractor|null   $extractor   how `params`, `when`, `url`, `via` and `host` are read off the object; the
-     *                                           adapter's (with its readers: Eloquent attributes), the plain DSL when null
+     * @param ParamExtractor        $extractor   how `params`, `when`, `url`, `via` and `host` are read off the object: the
+     *                                           graph's (with its readers: Eloquent attributes), `ParamExtractor::plain()` for the DSL alone
      */
     public function __construct(
         private readonly AttributeReaderInterface $reader,
+        private readonly ParamExtractor $extractor,
         private readonly ?RouteUrlResolverInterface $router = null,
         private readonly ?ResolverLocatorInterface $locator = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly int $maxViaDepth = 3,
         private readonly int $maxViaFanout = 100,
         private readonly array $localeHosts = [],
-        ?ParamExtractor $extractor = null,
-    ) {
-        $this->extractor = $extractor ?? new ParamExtractor();
-    }
-
-    private readonly ParamExtractor $extractor;
+    ) {}
     /** The `via` walk in progress: objects already visited and the budget left; null outside a walk. */
     private ?ViaWalk $walk = null;
 
@@ -55,9 +51,9 @@ final class AttributeUrlResolver implements RuleAwareUrlResolverInterface, Param
      * The resolver an adapter wires: `resolver.max_via_depth`, `resolver.max_via_fanout` and `locale_hosts` from the
      * Config, the framework's router bridge and resolver locator.
      */
-    public static function fromConfig(Config $config, AttributeReaderInterface $reader, ?RouteUrlResolverInterface $router = null, ?ResolverLocatorInterface $locator = null, LoggerInterface $logger = new NullLogger(), ?ParamExtractor $extractor = null): self
+    public static function fromConfig(Config $config, AttributeReaderInterface $reader, ParamExtractor $extractor, ?RouteUrlResolverInterface $router = null, ?ResolverLocatorInterface $locator = null, LoggerInterface $logger = new NullLogger()): self
     {
-        return new self($reader, $router, $locator, $logger, $config->resolverMaxViaDepth, $config->resolverMaxViaFanout, $config->localeHosts, $extractor);
+        return new self($reader, $extractor, $router, $locator, $logger, $config->resolverMaxViaDepth, $config->resolverMaxViaFanout, $config->localeHosts);
     }
 
     /**

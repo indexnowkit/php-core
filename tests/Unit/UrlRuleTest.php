@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use IndexNowKit\Attribute\ParamExtractor;
 use IndexNowKit\Attribute\RuleSource;
 use IndexNowKit\Attribute\UrlRule;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -102,16 +103,16 @@ final class UrlRuleTest extends TestCase
     {
         $rule = self::rule(when: ['isPublished', 'isVisible']);
 
-        self::assertTrue($rule->appliesTo(new UrlRuleWhenSubject(published: true, visible: true)));
-        self::assertFalse($rule->appliesTo(new UrlRuleWhenSubject(published: true, visible: false)));
-        self::assertFalse($rule->appliesTo(new UrlRuleWhenSubject(published: false, visible: true)));
+        self::assertTrue($rule->appliesTo(new UrlRuleWhenSubject(published: true, visible: true), ParamExtractor::plain()));
+        self::assertFalse($rule->appliesTo(new UrlRuleWhenSubject(published: true, visible: false), ParamExtractor::plain()));
+        self::assertFalse($rule->appliesTo(new UrlRuleWhenSubject(published: false, visible: true), ParamExtractor::plain()));
     }
 
     public function testAppliesToIsTrueWhenThereIsNoWhenAccessor(): void
     {
         $rule = self::rule(when: []);
 
-        self::assertTrue($rule->appliesTo(new UrlRuleWhenSubject(published: false, visible: false)));
+        self::assertTrue($rule->appliesTo(new UrlRuleWhenSubject(published: false, visible: false), ParamExtractor::plain()));
     }
 
     public function testWhenDependsOnDeclaredWhenFields(): void
