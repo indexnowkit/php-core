@@ -118,9 +118,16 @@ sitemap; verify uses `PageSignals::class` as the marker and decorates the submit
   property). No statics: the override travels with the adapter's own configuration. `notInstalledMessage()`,
   `checkLine()`, `checkLevel()` and `check()` are the three texts below, written once.
 - **Separate classes behind it**: every file with a `use IndexNowKit\Sitemap\*` is instantiated only when the
-  predicate holds (`<Adapter>\Sitemap\SitemapServices` that registers the reader, the spool check and the runner;
-  `<Adapter>\Console\SitemapCommand`). A `::class` constant on an absent class is safe; `SitemapConfig::OPTIONS`,
-  `SitemapReader::MAX_*` or `Sitemap\Console\Definitions` in a file that is loaded without the package are a fatal.
+  predicate holds (`<Adapter>\Console\SitemapCommand`, and whatever registers the reader, the spool check and the
+  runner). A `::class` constant on an absent class is safe; `SitemapConfig::OPTIONS`, `SitemapReader::MAX_*` or
+  `Sitemap\Console\Definitions` in a file that is loaded without the package are a fatal.
+- **The package wires itself**: `Sitemap\Adapter\SitemapServices`, `Verify\Adapter\VerifyServices` and
+  `History\Adapter\HistoryServices` hold what every adapter needs from the package — `package()`, `options()`, `config()`,
+  the reader / transport / robots cache / stores, the decorators, the check lines with their texts, the runners — as plain
+  static functions over the pieces, plus `*For()` twins over `Adapter\Services` for a runtime graph. Call them; do not
+  copy the constructions or the texts. What stays in the adapter is what the framework decides: where the block comes
+  from, how a cache, a connection or `http.client` is looked up, the queue facts of `status`, the sample check over the
+  ORM, when a request is a web request.
 - **A stub command with the same name** (`SitemapNotInstalledCommand`, or the Yii action) that ignores its
   arguments, prints `indexnowkit/sitemap is not installed: composer require indexnowkit/sitemap` and exits
   `ExitCode::FAILURE`: a cron that ran `sitemap` before the package went optional gets a sentence, not "command not found".
