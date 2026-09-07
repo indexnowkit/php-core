@@ -121,13 +121,29 @@ final class ConfigParser
     }
 
     /**
-     * The `INDEXNOW_*` variables (the list is on `Config::fromEnv()`) to the nested array of {@see fromArray()}.
+     * The `INDEXNOW_*` variables (the list is on `Config::fromEnv()`) as a Config: {@see fromArray()} of {@see envArray()}.
      *
      * @param array<string, mixed> $env
      *
      * @throws ConfigurationException
      */
     public static function fromEnv(array $env, string $prefix): Config
+    {
+        return self::fromArray(self::envArray($env, $prefix));
+    }
+
+    /**
+     * The `INDEXNOW_*` variables to the nested array of {@see fromArray()}, only the variables that are set: an unset
+     * (or empty) variable leaves no key, so the array merges over a configuration file without its defaults getting in
+     * the way (the body of `Config::arrayFromEnv()`). Values stay strings; `fromArray()` coerces them.
+     *
+     * @param array<string, mixed> $env
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ConfigurationException on an `INDEXNOW_HOSTS` entry without `=`
+     */
+    public static function envArray(array $env, string $prefix): array
     {
         $get = static function (string $name) use ($env, $prefix): ?string {
             $value = $env[$prefix . $name] ?? null;
@@ -141,7 +157,7 @@ final class ConfigParser
         $logging = array_filter(['max_urls' => $get('LOG_URLS'), 'forbidden_escalation' => $get('FORBIDDEN_ESCALATION')], static fn($v) => $v !== null);
         $retry = array_filter(['max_attempts' => $get('RETRY_MAX_ATTEMPTS'), 'base_delay' => $get('RETRY_BASE_DELAY'), 'multiplier' => $get('RETRY_MULTIPLIER'), 'max_delay' => $get('RETRY_MAX_DELAY'), 'server_error_delay' => $get('RETRY_SERVER_ERROR_DELAY')], static fn($v) => $v !== null);
 
-        return self::fromArray(array_filter([
+        return array_filter([
             'enabled' => $bool($get('ENABLED')),
             'key' => $get('KEY'),
             'previous_key' => $get('PREVIOUS_KEY'),
@@ -163,7 +179,7 @@ final class ConfigParser
             'throttle' => $get('THROTTLE_PER_MINUTE') !== null ? ['max_requests_per_minute' => $get('THROTTLE_PER_MINUTE')] : null,
             'http' => ($http = array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT'), 'client' => $get('HTTP_CLIENT')], static fn($v) => $v !== null)) === [] ? null : $http,
             'key_file' => ($keyFile = array_filter(['enabled' => $bool($get('KEY_FILE_ENABLED')), 'cache_max_age' => $get('KEY_FILE_CACHE_MAX_AGE')], static fn($v) => $v !== null)) === [] ? null : $keyFile,
-        ], static fn($v) => $v !== null));
+        ], static fn($v) => $v !== null);
     }
 
     /**

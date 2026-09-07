@@ -90,6 +90,10 @@ final class ConfigTest extends TestCase
         self::assertContains('key_file.enabled', Config::OPTIONS);
         self::assertNotContains('key_file', Config::OPTIONS);
         self::assertSame(['key_file.enabld'], Config::unknownOptions(['key_file' => ['enabld' => true, 'cache_max_age' => 1]]));
+        // a nested block is walked down as long as a known key names its path: `history.pdo` under `history.pdo.dsn` is not unknown, its typo is
+        self::assertSame([], Config::unknownOptions(['history' => ['store' => 'pdo', 'pdo' => ['dsn' => 'sqlite::memory:']]], ['history.store', 'history.pdo.dsn', 'history.pdo.table']));
+        self::assertSame(['history.pdo.dns'], Config::unknownOptions(['history' => ['pdo' => ['dns' => 'x']]], ['history.pdo.dsn']));
+        self::assertSame(['history.pdo'], Config::unknownOptions(['history' => ['pdo' => ['dsn' => 'x']]], ['history.store']), 'a nested block no known key reaches into is unknown as a whole');
     }
 
     public function testMissingKeyThrowsUnlessDryRunOrDisabled(): void

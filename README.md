@@ -68,6 +68,7 @@ changes. The family:
 | [`indexnowkit/verify`](https://github.com/indexnowkit/php/tree/main/packages/verify) | one GET before every submission: noindex, robots.txt, canonical, redirects, origin errors; `check --sample` |
 | [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history) | what was submitted, when, with what answer: PSR-16 and PDO stores, the `history` and `status` commands |
 | [`indexnowkit/console`](https://github.com/indexnowkit/php/tree/main/packages/console) | the `check`, `config`, `submit`, `submit-<subject>`, `explain`, `key:generate` commands (`symfony/console` classes, their bodies and their definitions); every adapter requires it |
+| [`indexnowkit/cli`](https://github.com/indexnowkit/php/tree/main/packages/cli) | no framework: the `indexnow` binary (Composer, PHAR, Docker image, GitHub Action) — `check`, `submit`, `sitemap --new-only`, `key:file`, `history`, `status` over `INDEXNOW_*` variables and a state file; cron on any CMS (Bitrix, WordPress, MODX, OpenCart), static sites on deploy |
 | [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: the conformance kits (C01–C22, A01–A21), the H01–H06 assertions, the mock IndexNow server |
 
 ## Quick start

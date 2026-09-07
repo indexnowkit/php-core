@@ -107,6 +107,23 @@ final class ConfigFromEnvTest extends TestCase
         self::assertNull($c->baseUrl);
     }
 
+    public function testArrayFromEnvIsTheArrayFromEnvReads(): void
+    {
+        $array = Config::arrayFromEnv(self::fullEnv());
+
+        self::assertEquals(Config::fromEnv(self::fullEnv()), Config::fromArray($array), 'fromArray(arrayFromEnv()) is fromEnv()');
+        self::assertSame('abcdefgh', $array['key']);
+        self::assertSame(['a.com' => 'KEY1abcdef', 'b.com' => 'KEY2abcdef'], $array['hosts']);
+        self::assertSame(['per_url' => '120', 'store' => 'redis'], $array['debounce'], 'values stay strings, fromArray() coerces them');
+        self::assertSame(['yandex', 'bing'], $array['engines']);
+        self::assertSame('dev', $array['environment']);
+        self::assertArrayNotHasKey('retry', $array, 'a block with no variable set leaves no key');
+        self::assertSame(['key' => 'abcdefgh'], Config::arrayFromEnv(['INDEXNOW_KEY' => 'abcdefgh', 'INDEXNOW_BASE_URL' => '']), 'an empty variable is not set');
+        self::assertSame([], Config::arrayFromEnv([]), 'no variable, no key: nothing to merge over a file');
+        self::assertSame([], Config::arrayFromEnv(['INDEXNOW_KEY' => 'abcdefgh'], 'MYPFX_'), 'the prefix selects the variables');
+        self::assertSame(['environment' => 'dev'], Config::arrayFromEnv(['APP_ENV' => 'dev']), 'APP_ENV is read, like fromEnv()');
+    }
+
     public function testDefaultsWhenNoEnvironmentVariablesAreSet(): void
     {
         $c = Config::fromEnv(['INDEXNOW_KEY' => 'abcdefgh']);

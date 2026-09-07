@@ -393,7 +393,33 @@ final readonly class Config
      */
     public static function fromEnv(?array $env = null, string $prefix = 'INDEXNOW_'): self
     {
-        return ConfigParser::fromEnv($env ?? array_merge(getenv(), $_SERVER, $_ENV), $prefix);
+        return ConfigParser::fromEnv($env ?? self::processEnvironment(), $prefix);
+    }
+
+    /**
+     * The same variables as {@see fromEnv()} reads, as the nested array {@see fromArray()} takes — **only the variables
+     * that are set**: an unset or empty variable leaves no key, values stay strings (`fromArray()` coerces them). This
+     * is what an application without a framework merges over its configuration file, environment on top
+     * (`Config::fromArray(array_replace_recursive($file, Config::arrayFromEnv()))`); `toArray()` cannot serve there,
+     * because it carries every default. `Config::fromArray(Config::arrayFromEnv($env))` equals `Config::fromEnv($env)`.
+     *
+     * @param array<string, mixed>|null $env defaults to getenv() + $_SERVER + $_ENV
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ConfigurationException on an `INDEXNOW_HOSTS` entry without `=`
+     */
+    public static function arrayFromEnv(?array $env = null, string $prefix = 'INDEXNOW_'): array
+    {
+        return ConfigParser::envArray($env ?? self::processEnvironment(), $prefix);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function processEnvironment(): array
+    {
+        return array_merge(getenv(), $_SERVER, $_ENV);
     }
 
     /**
@@ -544,18 +570,39 @@ final readonly class Config
                 continue;
             }
             if (\is_array($value) && !array_is_list($value)) {
-                foreach ($value as $sub => $subValue) {
-                    $path = $name . '.' . (string) $sub;
-                    if (!\in_array($path, $known, true)) {
-                        $unknown[] = $path;
-                    }
-                }
+                self::unknownIn($value, $name, $known, $unknown);
                 continue;
             }
             $unknown[] = $name;
         }
 
         return $unknown;
+    }
+
+    /**
+     * The keys of a block that no known dotted key names: a nested block (`history.pdo` under `history.pdo.dsn`) is
+     * walked down as long as a known key starts with its path, so a block is reported by its unknown leaves, never as
+     * a whole because it has children.
+     *
+     * @param array<array-key, mixed> $block
+     * @param list<string>            $known
+     * @param list<string>            $unknown
+     */
+    private static function unknownIn(array $block, string $prefix, array $known, array &$unknown): void
+    {
+        foreach ($block as $sub => $value) {
+            $path = $prefix . '.' . (string) $sub;
+            if (\in_array($path, $known, true)) {
+                continue;
+            }
+            $nested = \is_array($value) && !array_is_list($value) && array_filter($known, static fn(string $option): bool => str_starts_with($option, $path . '.')) !== [];
+            if ($nested) {
+                /** @var array<array-key, mixed> $value */
+                self::unknownIn($value, $path, $known, $unknown);
+                continue;
+            }
+            $unknown[] = $path;
+        }
     }
 
     /**

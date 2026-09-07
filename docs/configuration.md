@@ -213,6 +213,15 @@ The `history` block is the same in the four adapters and is owned by the history
 `Config::fromEnv()` reads `getenv()` merged with `$_SERVER` and `$_ENV`. Pass your own array as the first argument
 to read from somewhere else, and a second argument to change the `INDEXNOW_` prefix. Empty strings count as unset.
 
+**Environment over a file: `Config::arrayFromEnv()`.** The same variables as the nested array `fromArray()` takes,
+holding only the variables that are set (values as strings; `fromArray()` coerces them), so an application without a
+framework merges them over its configuration file with the environment winning:
+`Config::fromArray(array_replace_recursive($file, Config::arrayFromEnv()))`. `toArray()` is not the tool for that
+merge — it carries every default. `Config::fromArray(Config::arrayFromEnv($env))` equals `Config::fromEnv($env)`. The
+`indexnow` CLI of [`indexnowkit/cli`](https://github.com/indexnowkit/php/tree/main/packages/cli) reads its
+configuration this way, and extends the rule to the blocks of the optional packages
+(`INDEXNOW_<BLOCK>_<KEY>`: `INDEXNOW_SITEMAP_MAX_DEPTH`, `INDEXNOW_HISTORY_PDO_DSN`).
+
 **Booleans are parsed, not cast.** Every boolean option — `enabled`, `dry_run`, `strict_hosts`, `key_file.enabled`,
 `serve_key_file`, `collector.detect_leaks`, `normalizer.strip_tracking_params`, `normalizer.sort_query` — goes
 through the same parser (`filter_var` with the boolean filter) in `fromEnv()` **and** in `fromArray()`, so the

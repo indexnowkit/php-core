@@ -3,6 +3,19 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## Unreleased
+
+### Added
+
+- **`Config::arrayFromEnv(?array $env = null, string $prefix = 'INDEXNOW_'): array`** (wave N, spec 19b §3.3): the
+  `INDEXNOW_*` variables `fromEnv()` reads, as the nested array `fromArray()` takes and holding **only the variables
+  that are set** (values as strings, `fromArray()` coerces them). What an application without a framework merges over
+  its configuration file with the environment on top — `toArray()` carries every default and cannot serve there.
+  `fromEnv()` is now `fromArray(arrayFromEnv())`; `Config::fromArray(Config::arrayFromEnv($env))` equals
+  `Config::fromEnv($env)`, and a test keeps it so. The `indexnow` CLI (`indexnowkit/cli`) reads its configuration this
+  way. Call tier. Released as a **patch** (0.13.1) although it is an addition: the family's cascade rule (spec 19b §4)
+  — a `^0.14` would force a release of every package that requires `core ^0.13`, for one method none of them calls.
+
 ## [0.13.0] — 2026-09-08
 
 Additive: the predicates of the three optional packages move into the core, so that an adapter can ask "is
