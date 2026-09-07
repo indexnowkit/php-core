@@ -46,10 +46,10 @@
         "phpstan/phpstan": "^2.2.13",
         "phpstan/phpstan-phpunit": "^2.0.18",
         "phpstan/phpstan-strict-rules": "^2.0.12",
-        "phpunit/phpunit": "^11.5",
+        "phpunit/phpunit": "^11.5 || ^12.0 || ^13.0",
         "roave/security-advisories": "dev-latest",
-        "symfony/cache": "^6.4 || ^7.0",
-        "symfony/http-client": "^6.4 || ^7.0"
+        "symfony/cache": "^6.4 || ^7.0 || ^8.0",
+        "symfony/http-client": "^6.4 || ^7.0 || ^8.0"
     },
     "suggest": {
         "symfony/http-client": "PSR-18 client configured automatically with http.timeout (with nyholm/psr7)",
