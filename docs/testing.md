@@ -227,3 +227,29 @@ silently.
   `X-Mock-Scenario` header (`ok200`, `pending202`, `forbidden403`, `ratelimit429`, …), `MOCK_KEYS` for the key files
   it serves and a request log at `GET /_mock/requests`. The core's own `Psr18TransportTest` runs against a private
   copy of the same router (`tests/Support/mock-server/`), because the core cannot depend on `testing`.
+
+## How the family itself is verified
+
+Three floors, one rule each, all in the monorepo CI (`.github/workflows/ci.yml`, `taint.yml`):
+
+| Floor | Where | Tool | Rule |
+|---|---|---|---|
+| Line coverage | `packages/<package>/tests/coverage-floor.txt`, every package | PHPUnit + pcov, `bin/coverage-floor` | the coverage measured when the floor was set; raising it is a normal commit, lowering it a separate commit with the reason |
+| Mutation score (MSI) | `packages/<package>/tests/msi-floor.txt` — core, verify, sitemap, history, console | [Infection](https://infection.github.io) over the whole `src`, `bin/mutation <package>` | the same ratchet; the `mutation` job is non-blocking until every floor is a CI measurement that held three weekly runs, the `mutation / changed lines` job of a pull request mutates only the lines it changes |
+| Taint | `packages/<package>/psalm.xml` — the same five packages | [Psalm](https://psalm.dev/docs/security_analysis/) `--taint-analysis`, `bin/taint <package>` | blocking; a flow that is the feature (a file path from the command line) is suppressed in `psalm.xml` with the reason next to it |
+
+Coverage says a line ran; the mutation score says a test would notice if the line were wrong (`<` for `<=`, a dropped
+`return`, an off-by-one in a limit), which is the difference between "covered" and "checked". Log texts and exception
+messages are not API ([bc.md](bc.md)), so the mutants that only reword them are ignored in `infection.json5` by regex, not
+by annotations in the code. Infection and Psalm are tools of the monorepo (`tools/infection`, `tools/psalm`, with their
+locks), not dev dependencies of the packages: Infection needs PHP 8.3 while the packages support 8.2, and Psalm is used
+for the taint analysis only — phpstan level 9 with strict rules is the type checker.
+
+A library has no taint source of its own, so each package in the taint matrix carries `tests/Taint/entrypoints.php`: its
+public API called with request data (`$_GET`, `$_POST`, `php://input`), the entry points Psalm follows into the sinks it
+knows (`PDO`, `file_put_contents()`, `header()`, `echo`). What Psalm cannot see here, and the tests cover instead: a URL
+that went through `Url\UrlNormalizer` is clean to Psalm (`parse_url()` ends the flow), so the SSRF class — redirects,
+`canonical`, nested sitemaps — is proven by the allow-list tests of verify and sitemap, not by the taint job. The
+framework adapters are outside the matrix: their inputs are the frameworks' request objects, which Psalm does not treat
+as sources without a plugin per framework.
+
