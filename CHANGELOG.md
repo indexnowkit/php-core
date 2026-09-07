@@ -3,6 +3,25 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.13.0] — Unreleased
+
+Additive: the predicates of the three optional packages move into the core, so that an adapter can ask "is
+`indexnowkit/sitemap` installed?" without loading a class that lives in `indexnowkit/sitemap`.
+
+### Added
+
+- **`Adapter\OptionalPackage::sitemap()`, `verify()`, `history()`** (each `?bool $installed = null`): the Composer names,
+  the marker classes (`Sitemap\SitemapReader`, `Verify\PageSignals`, `History\HistoryConfig`, written as strings — the
+  core names no class of a package it does not require) and the feature words of the family's optional packages, in
+  the core. `Sitemap\Adapter\SitemapServices::package()`, `Verify\Adapter\VerifyServices::package()` and
+  `History\Adapter\HistoryServices::package()` delegate to them (sitemap 0.7.1, verify 0.3.1, history 0.3.1); an
+  adapter calls the core's method directly. Before, the Symfony bundle, the Laravel and the Yii2 adapters called the
+  packages' `*Services::package()` unconditionally, which is a `Class "IndexNowKit\Sitemap\Adapter\SitemapServices" not
+  found` at the first configuration build of an application without the package (symfony-bundle 0.14.1, laravel 0.14.1,
+  yii2 0.13.1 fix it; the tests of wave I passed `installed: false` with the packages still installed, so they did not
+  catch it). `docs/adapters.md` §2 "Optional packages" names the new recipe; `docs/bc.md` lists `Adapter\OptionalPackage`
+  in the "call" tier, where it always belonged.
+
 ## [0.12.0] — 2026-09-07
 
 The design decisions of the 0.10 audit (`docs/plans/audit-0.10.md` §6 in the specification workspace). Three change
