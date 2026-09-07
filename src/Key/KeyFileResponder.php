@@ -45,7 +45,12 @@ final readonly class KeyFileResponder
     }
 
     /**
-     * Body to serve for an already extracted key, or null for 404.
+     * Body to serve for an already extracted key, or null for 404. The body is the key once it passed
+     * `KeyValidator` (`[A-Za-z0-9-]{8,128}`): nothing a request can put into it survives, so it needs no escaping
+     * on the way out (the annotations say so to Psalm's taint analysis; bin/taint).
+     *
+     * @psalm-taint-escape html
+     * @psalm-taint-escape has_quotes
      */
     public function bodyForKey(string $key, ?string $host = null): ?string
     {
