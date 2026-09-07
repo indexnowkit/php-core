@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace IndexNowKit;
 
+use IndexNowKit\Config\ConfigNormalizer;
+use IndexNowKit\Config\ConfigParser;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\KeyValidator;
 use IndexNowKit\Url\Punycode;
+use ReflectionMethod;
 
 /**
  * Immutable configuration shared by every indexnowkit adapter. Keys mirror docs/spec/02.
  *
  * Built with {@see fromArray()} (framework config), {@see fromEnv()} (INDEXNOW_* variables) or the
- * constructor; derived copies with {@see with()}.
+ * constructor; derived copies with {@see with()}. The constructor checks the invariants; reading the array and environment
+ * shapes is `Config\ConfigParser`, normalising the raw maps `Config\ConfigNormalizer` — internal, this class is the surface.
  */
 final readonly class Config
 {
@@ -199,7 +203,7 @@ final readonly class Config
         if (!\in_array($normalizerTrailingSlash, self::TRAILING_SLASH_MODES, true)) {
             throw new ConfigurationException(\sprintf('"normalizer.trailing_slash" must be one of %s, got "%s".', implode(', ', self::TRAILING_SLASH_MODES), $normalizerTrailingSlash));
         }
-        $this->normalizerTrackingParams = self::normalizeTrackingParams($normalizerTrackingParams);
+        $this->normalizerTrackingParams = ConfigNormalizer::trackingParams($normalizerTrackingParams);
         if ($logBody < 0) {
             throw new ConfigurationException(\sprintf('"logging.max_body" must be >= 0, got %d.', $logBody));
         }
@@ -212,12 +216,12 @@ final readonly class Config
         if ($httpClient === '') {
             throw new ConfigurationException('"http.client" must be the id or class of a PSR-18 client, not an empty string.');
         }
-        $this->engineAliases = self::normalizeEngineAliases($engineAliases);
-        $this->localeHosts = self::normalizeLocaleHosts($localeHosts);
+        $this->engineAliases = ConfigNormalizer::engineAliases($engineAliases);
+        $this->localeHosts = ConfigNormalizer::localeHosts($localeHosts);
         if ($previousKey !== null) {
             KeyValidator::assertValid($previousKey);
         }
-        $this->logLevels = self::normalizeLogLevels($logLevels);
+        $this->logLevels = ConfigNormalizer::logLevels($logLevels, self::LOG_EVENTS, self::LOG_LEVELS);
         if ($resolverMaxViaDepth < 0) {
             throw new ConfigurationException(\sprintf('"resolver.max_via_depth" must be >= 0 (0 = rules may not follow `via:` at all), got %d.', $resolverMaxViaDepth));
         }
@@ -230,10 +234,7 @@ final readonly class Config
         if ($debounceKeyPrefix === '' || preg_match('/[{}()\/\\@:\s]/', $debounceKeyPrefix) === 1) {
             throw new ConfigurationException(\sprintf('"debounce.key_prefix" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got "%s". Letters, digits, "_", "-" and "." are safe.', $debounceKeyPrefix));
         }
-        $this->productionEnvironments = array_values(array_unique(array_map(static fn(string $e): string => strtolower(trim($e)), array_filter($productionEnvironments, static fn(mixed $e): bool => \is_string($e) && trim($e) !== ''))));
-        if ($this->productionEnvironments === []) {
-            throw new ConfigurationException('"production_environments" must name at least one environment.');
-        }
+        $this->productionEnvironments = ConfigNormalizer::productionEnvironments($productionEnvironments);
         if ($maxUrlLength < 64) {
             throw new ConfigurationException(\sprintf('"max_url_length" must be >= 64 bytes, got %d.', $maxUrlLength));
         }
@@ -264,15 +265,15 @@ final readonly class Config
         if ($key !== null) {
             KeyValidator::assertValid($key);
         }
-        [$this->hosts, $this->keyLocations, $this->hostBaseUrls, $this->hostEngines, $this->previousKeys] = self::normalizeHosts($hosts);
-        if ($baseUrl !== null && !self::isAbsoluteHttpUrl($baseUrl)) {
+        [$this->hosts, $this->keyLocations, $this->hostBaseUrls, $this->hostEngines, $this->previousKeys] = ConfigNormalizer::hosts($hosts);
+        if ($baseUrl !== null && !ConfigNormalizer::isAbsoluteHttpUrl($baseUrl)) {
             throw new ConfigurationException(\sprintf('"base_url" must be an absolute http(s) URL, got "%s".', $baseUrl));
         }
-        if ($keyLocation !== null && !self::isKeyFileUrl($keyLocation)) {
+        if ($keyLocation !== null && !ConfigNormalizer::isKeyFileUrl($keyLocation)) {
             throw new ConfigurationException(\sprintf('"key_location" must be an absolute http(s) URL to the key file, got "%s".', $keyLocation));
         }
-        if ($keyLocation !== null && $baseUrl !== null && self::hostOf($keyLocation) !== self::hostOf($baseUrl)) {
-            throw new ConfigurationException(\sprintf('"key_location" (%s) must be on the host of "base_url" (%s): engines only accept a key file served from the submitted host.', self::hostOf($keyLocation), self::hostOf($baseUrl)));
+        if ($keyLocation !== null && $baseUrl !== null && ConfigNormalizer::hostOf($keyLocation) !== ConfigNormalizer::hostOf($baseUrl)) {
+            throw new ConfigurationException(\sprintf('"key_location" (%s) must be on the host of "base_url" (%s): engines only accept a key file served from the submitted host.', ConfigNormalizer::hostOf($keyLocation), ConfigNormalizer::hostOf($baseUrl)));
         }
         if ($batchMaxUrls < 1 || $batchMaxUrls > self::MAX_BATCH_URLS) {
             throw new ConfigurationException(\sprintf('"batch.max_urls" must be between 1 and %d, got %d.', self::MAX_BATCH_URLS, $batchMaxUrls));
@@ -326,69 +327,6 @@ final readonly class Config
     }
 
     /**
-     * @param array<mixed, mixed> $params
-     *
-     * @return list<string>
-     *
-     * @throws ConfigurationException
-     */
-    private static function normalizeTrackingParams(array $params): array
-    {
-        $out = [];
-        foreach ($params as $name) {
-            if (!\is_string($name) || preg_match('/^[A-Za-z0-9_.\-\[\]]+\*?$/', trim($name)) !== 1) {
-                throw new ConfigurationException(\sprintf('"normalizer.tracking_params" must list query parameter names ("ref", "mtm_*"), got %s.', \is_scalar($name) ? '"' . (string) $name . '"' : get_debug_type($name)));
-            }
-            $out[] = strtolower(trim($name));
-        }
-
-        return array_values(array_unique($out));
-    }
-
-    /**
-     * @param array<mixed, mixed> $aliases
-     *
-     * @return array<string, string>
-     *
-     * @throws ConfigurationException
-     */
-    private static function normalizeEngineAliases(array $aliases): array
-    {
-        $out = [];
-        foreach ($aliases as $name => $endpoint) {
-            if (!\is_string($name) || preg_match('/^[a-z][a-z0-9_-]*$/i', $name) !== 1 || Engine::tryFrom(strtolower($name)) !== null) {
-                throw new ConfigurationException(\sprintf('"engine_aliases" names must be identifiers that are not built-in engines, got "%s".', (string) $name));
-            }
-            if (!\is_string($endpoint) || !self::isAbsoluteHttpUrl($endpoint)) {
-                throw new ConfigurationException(\sprintf('"engine_aliases.%s" must be an endpoint URL.', $name));
-            }
-            $out[strtolower($name)] = Engine::resolveEndpoint($endpoint);
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param array<mixed, mixed> $hosts
-     *
-     * @return array<string, string>
-     *
-     * @throws ConfigurationException
-     */
-    private static function normalizeLocaleHosts(array $hosts): array
-    {
-        $out = [];
-        foreach ($hosts as $locale => $host) {
-            if (!\is_string($locale) || $locale === '' || !\is_string($host) || preg_match('/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i', $host) !== 1) {
-                throw new ConfigurationException(\sprintf('"locale_hosts" must map locales to bare host names, got "%s" => %s.', (string) $locale, \is_scalar($host) ? '"' . (string) $host . '"' : get_debug_type($host)));
-            }
-            $out[strtolower($locale)] = strtolower($host);
-        }
-
-        return $out;
-    }
-
-    /**
      * Endpoints URLs of $host go to: `hosts.<host>.engines` when set, else `engines`.
      *
      * @return list<string>
@@ -407,29 +345,6 @@ final readonly class Config
     }
 
     /**
-     * @param array<mixed, mixed> $levels
-     *
-     * @return array<string, string>
-     *
-     * @throws ConfigurationException
-     */
-    private static function normalizeLogLevels(array $levels): array
-    {
-        $out = [];
-        foreach ($levels as $event => $level) {
-            if (!\is_string($event) || !isset(self::LOG_EVENTS[$event])) {
-                throw new ConfigurationException(\sprintf('"logging.levels" has an unknown event "%s"; known: %s.', (string) $event, implode(', ', array_keys(self::LOG_EVENTS))));
-            }
-            if (!\is_string($level) || !\in_array(strtolower($level), self::LOG_LEVELS, true)) {
-                throw new ConfigurationException(\sprintf('"logging.levels.%s" must be a PSR-3 level (%s), got %s.', $event, implode(', ', self::LOG_LEVELS), \is_scalar($level) ? '"' . (string) $level . '"' : get_debug_type($level)));
-            }
-            $out[$event] = strtolower($level);
-        }
-
-        return $out;
-    }
-
-    /**
      * Build from the canonical nested array shape used by framework configs.
      *
      * Outside production ("environment" key not in {@see PRODUCTION_ENVIRONMENTS}) a missing key switches
@@ -441,84 +356,7 @@ final readonly class Config
      */
     public static function fromArray(array $data): self
     {
-        $batch = self::sub($data, 'batch');
-        $debounce = self::sub($data, 'debounce');
-        $throttle = self::sub($data, 'throttle');
-        $http = self::sub($data, 'http');
-        $logging = self::sub($data, 'logging');
-        $retry = self::sub($data, 'retry');
-        $resolver = self::sub($data, 'resolver');
-        $collector = self::sub($data, 'collector');
-        $keyFile = self::sub($data, 'key_file');
-        $normalizer = self::sub($data, 'normalizer');
-        $serveKeyFile = self::serveKeyFileFrom($data);
-        $trackingParams = self::list($normalizer['tracking_params'] ?? null) ?? [];
-        /** @var array<mixed, mixed> $logLevels */
-        $logLevels = \is_array($logging['levels'] ?? null) ? $logging['levels'] : [];
-        /** @var array<mixed, mixed> $engineAliases */
-        $engineAliases = \is_array($data['engine_aliases'] ?? null) ? $data['engine_aliases'] : [];
-        /** @var array<mixed, mixed> $localeHosts */
-        $localeHosts = \is_array($data['locale_hosts'] ?? null) ? $data['locale_hosts'] : [];
-        $productionEnvironments = self::list($data['production_environments'] ?? null) ?? self::PRODUCTION_ENVIRONMENTS;
-
-        /** @var array<string, string|array{key: string, key_location?: string|null, base_url?: string|null, engines?: list<string>|null, previous_key?: string|null}> $hosts */
-        $hosts = \is_array($data['hosts'] ?? null) ? $data['hosts'] : [];
-        /** @var list<string> $engines */
-        $engines = \is_array($data['engines'] ?? null) ? array_values($data['engines']) : [Engine::Api->value];
-        $key = self::str($data['key'] ?? null);
-        $dryRunValue = self::bool($data['dry_run'] ?? null, null, 'dry_run');
-        $dryRun = $dryRunValue ?? false;
-        $dryRunExplicit = $dryRunValue !== null; // null and '' (an unset environment variable) are "not set
-        $environment = self::str($data['environment'] ?? null);
-        if ($key === null && $hosts === [] && $environment !== null && !\in_array(strtolower($environment), array_map('strtolower', $productionEnvironments), true)) {
-            $dryRun = true;
-        }
-
-        return new self(
-            enabled: self::bool($data['enabled'] ?? null, true, 'enabled') ?? true,
-            key: $key,
-            hosts: $hosts,
-            keyLocation: self::str($data['key_location'] ?? null),
-            baseUrl: self::str($data['base_url'] ?? null),
-            engines: $engines,
-            dispatch: self::str($data['dispatch'] ?? null) ?? 'sync',
-            batchMaxUrls: self::int($batch['max_urls'] ?? null, self::DEFAULT_BATCH_MAX_URLS, 'batch.max_urls'),
-            debouncePerUrl: self::int($debounce['per_url'] ?? null, self::DEFAULT_DEBOUNCE_PER_URL, 'debounce.per_url'),
-            throttleMaxRequestsPerMinute: self::int($throttle['max_requests_per_minute'] ?? null, self::DEFAULT_THROTTLE_PER_MINUTE, 'throttle.max_requests_per_minute'),
-            httpTimeout: self::float($http['timeout'] ?? null, self::DEFAULT_HTTP_TIMEOUT, 'http.timeout'),
-            userAgent: self::str($http['user_agent'] ?? null),
-            serveKeyFile: $serveKeyFile,
-            dryRun: $dryRun,
-            strictHosts: self::bool($data['strict_hosts'] ?? null, false, 'strict_hosts') ?? false,
-            environment: $environment,
-            productionEnvironments: $productionEnvironments,
-            maxUrlLength: self::int($data['max_url_length'] ?? null, self::DEFAULT_MAX_URL_LENGTH, 'max_url_length'),
-            logUrls: self::int($logging['max_urls'] ?? null, self::DEFAULT_LOG_URLS, 'logging.max_urls'),
-            forbiddenEscalation: self::int($logging['forbidden_escalation'] ?? null, self::DEFAULT_FORBIDDEN_ESCALATION, 'logging.forbidden_escalation'),
-            retryMaxAttempts: self::int($retry['max_attempts'] ?? null, self::DEFAULT_RETRY_MAX_ATTEMPTS, 'retry.max_attempts'),
-            retryBaseDelay: self::int($retry['base_delay'] ?? null, self::DEFAULT_RETRY_BASE_DELAY, 'retry.base_delay'),
-            retryMultiplier: self::float($retry['multiplier'] ?? null, self::DEFAULT_RETRY_MULTIPLIER, 'retry.multiplier'),
-            retryMaxDelay: self::int($retry['max_delay'] ?? null, self::DEFAULT_RETRY_MAX_DELAY, 'retry.max_delay'),
-            retryServerErrorDelay: self::int($retry['server_error_delay'] ?? null, self::DEFAULT_RETRY_SERVER_ERROR_DELAY, 'retry.server_error_delay'),
-            previousKey: self::str($data['previous_key'] ?? null),
-            logLevels: $logLevels,
-            resolverMaxViaDepth: self::int($resolver['max_via_depth'] ?? null, self::DEFAULT_RESOLVER_MAX_VIA_DEPTH, 'resolver.max_via_depth'),
-            resolverMaxViaFanout: self::int($resolver['max_via_fanout'] ?? null, self::DEFAULT_RESOLVER_MAX_VIA_FANOUT, 'resolver.max_via_fanout'),
-            debounceKeyPrefix: self::str($debounce['key_prefix'] ?? null) ?? self::DEFAULT_DEBOUNCE_KEY_PREFIX,
-            collectorMaxUrls: self::int($collector['max_urls'] ?? null, 0, 'collector.max_urls'),
-            collectorDetectLeaks: self::bool($collector['detect_leaks'] ?? null, true, 'collector.detect_leaks') ?? true,
-            logBody: self::int($logging['max_body'] ?? null, self::DEFAULT_LOG_BODY, 'logging.max_body'),
-            engineAliases: $engineAliases,
-            localeHosts: $localeHosts,
-            keyFileMaxAge: self::int($keyFile['cache_max_age'] ?? null, KeyFileResponder::DEFAULT_MAX_AGE, 'key_file.cache_max_age'),
-            debounceStore: self::str($debounce['store'] ?? null),
-            httpClient: self::str($http['client'] ?? null),
-            dryRunExplicit: $dryRunExplicit,
-            normalizerStripTrackingParams: self::bool($normalizer['strip_tracking_params'] ?? null, true, 'normalizer.strip_tracking_params') ?? true,
-            normalizerTrackingParams: $trackingParams,
-            normalizerTrailingSlash: self::str($normalizer['trailing_slash'] ?? null) ?? self::DEFAULT_TRAILING_SLASH,
-            normalizerSortQuery: self::bool($normalizer['sort_query'] ?? null, false, 'normalizer.sort_query') ?? false,
-        );
+        return ConfigParser::fromArray($data);
     }
 
     /**
@@ -533,9 +371,7 @@ final readonly class Config
      */
     public static function serveKeyFileFrom(array $data): bool
     {
-        $keyFile = self::sub($data, 'key_file');
-
-        return self::bool($data['serve_key_file'] ?? null, null, 'serve_key_file') ?? self::bool($keyFile['enabled'] ?? null, null, 'key_file.enabled') ?? true;
+        return ConfigParser::serveKeyFileFrom($data);
     }
 
     /**
@@ -557,42 +393,7 @@ final readonly class Config
      */
     public static function fromEnv(?array $env = null, string $prefix = 'INDEXNOW_'): self
     {
-        $env ??= array_merge(getenv(), $_SERVER, $_ENV);
-        $get = static function (string $name) use ($env, $prefix): ?string {
-            $value = $env[$prefix . $name] ?? null;
-
-            return \is_scalar($value) && (string) $value !== '' ? (string) $value : null;
-        };
-        $bool = static fn(?string $value): ?bool => $value === null ? null : filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-        $engines = $get('ENGINES');
-        $appEnv = $env['APP_ENV'] ?? null;
-        $csv = static fn(?string $value): ?array => $value === null ? null : array_values(array_filter(array_map('trim', explode(',', $value)), static fn(string $e) => $e !== ''));
-        $logging = array_filter(['max_urls' => $get('LOG_URLS'), 'forbidden_escalation' => $get('FORBIDDEN_ESCALATION')], static fn($v) => $v !== null);
-        $retry = array_filter(['max_attempts' => $get('RETRY_MAX_ATTEMPTS'), 'base_delay' => $get('RETRY_BASE_DELAY'), 'multiplier' => $get('RETRY_MULTIPLIER'), 'max_delay' => $get('RETRY_MAX_DELAY'), 'server_error_delay' => $get('RETRY_SERVER_ERROR_DELAY')], static fn($v) => $v !== null);
-
-        return self::fromArray(array_filter([
-            'enabled' => $bool($get('ENABLED')),
-            'key' => $get('KEY'),
-            'previous_key' => $get('PREVIOUS_KEY'),
-            'hosts' => self::parseHosts($get('HOSTS')),
-            'key_location' => $get('KEY_LOCATION'),
-            'base_url' => $get('BASE_URL'),
-            'engines' => $csv($engines),
-            'production_environments' => $csv($get('PRODUCTION_ENVIRONMENTS')),
-            'max_url_length' => $get('MAX_URL_LENGTH'),
-            'logging' => $logging === [] ? null : $logging,
-            'retry' => $retry === [] ? null : $retry,
-            'dispatch' => $get('DISPATCH'),
-            'dry_run' => $bool($get('DRY_RUN')),
-            'serve_key_file' => $bool($get('SERVE_KEY_FILE')),
-            'strict_hosts' => $bool($get('STRICT_HOSTS')),
-            'environment' => $get('ENV') ?? (\is_string($appEnv) ? $appEnv : null),
-            'batch' => $get('BATCH_MAX_URLS') !== null ? ['max_urls' => $get('BATCH_MAX_URLS')] : null,
-            'debounce' => ($debounce = array_filter(['per_url' => $get('DEBOUNCE_PER_URL'), 'store' => $get('DEBOUNCE_STORE')], static fn($v) => $v !== null)) === [] ? null : $debounce,
-            'throttle' => $get('THROTTLE_PER_MINUTE') !== null ? ['max_requests_per_minute' => $get('THROTTLE_PER_MINUTE')] : null,
-            'http' => ($http = array_filter(['timeout' => $get('HTTP_TIMEOUT'), 'user_agent' => $get('USER_AGENT'), 'client' => $get('HTTP_CLIENT')], static fn($v) => $v !== null)) === [] ? null : $http,
-            'key_file' => ($keyFile = array_filter(['enabled' => $bool($get('KEY_FILE_ENABLED')), 'cache_max_age' => $get('KEY_FILE_CACHE_MAX_AGE')], static fn($v) => $v !== null)) === [] ? null : $keyFile,
-        ], static fn($v) => $v !== null));
+        return ConfigParser::fromEnv($env ?? array_merge(getenv(), $_SERVER, $_ENV), $prefix);
     }
 
     /**
@@ -603,51 +404,15 @@ final readonly class Config
      */
     public function with(mixed ...$changes): self
     {
-        $current = [
-            'enabled' => $this->enabled,
-            'key' => $this->key,
-            'hosts' => $this->hostsForConstructor(),
-            'keyLocation' => $this->keyLocation,
-            'baseUrl' => $this->baseUrl,
-            'engines' => $this->engines,
-            'dispatch' => $this->dispatch,
-            'batchMaxUrls' => $this->batchMaxUrls,
-            'debouncePerUrl' => $this->debouncePerUrl,
-            'throttleMaxRequestsPerMinute' => $this->throttleMaxRequestsPerMinute,
-            'httpTimeout' => $this->httpTimeout,
-            'userAgent' => $this->userAgent,
-            'serveKeyFile' => $this->serveKeyFile,
-            'dryRun' => $this->dryRun,
-            'strictHosts' => $this->strictHosts,
-            'environment' => $this->environment,
-            'productionEnvironments' => $this->productionEnvironments,
-            'maxUrlLength' => $this->maxUrlLength,
-            'logUrls' => $this->logUrls,
-            'forbiddenEscalation' => $this->forbiddenEscalation,
-            'retryMaxAttempts' => $this->retryMaxAttempts,
-            'retryBaseDelay' => $this->retryBaseDelay,
-            'retryMultiplier' => $this->retryMultiplier,
-            'retryMaxDelay' => $this->retryMaxDelay,
-            'retryServerErrorDelay' => $this->retryServerErrorDelay,
-            'previousKey' => $this->previousKey,
-            'logLevels' => $this->logLevels,
-            'resolverMaxViaDepth' => $this->resolverMaxViaDepth,
-            'resolverMaxViaFanout' => $this->resolverMaxViaFanout,
-            'debounceKeyPrefix' => $this->debounceKeyPrefix,
-            'collectorMaxUrls' => $this->collectorMaxUrls,
-            'collectorDetectLeaks' => $this->collectorDetectLeaks,
-            'logBody' => $this->logBody,
-            'engineAliases' => $this->engineAliases,
-            'localeHosts' => $this->localeHosts,
-            'keyFileMaxAge' => $this->keyFileMaxAge,
-            'debounceStore' => $this->debounceStore,
-            'httpClient' => $this->httpClient,
-            'dryRunExplicit' => $this->dryRunExplicit || \array_key_exists('dryRun', $changes),
-            'normalizerStripTrackingParams' => $this->normalizerStripTrackingParams,
-            'normalizerTrackingParams' => $this->normalizerTrackingParams,
-            'normalizerTrailingSlash' => $this->normalizerTrailingSlash,
-            'normalizerSortQuery' => $this->normalizerSortQuery,
-        ];
+        $current = [];
+        foreach ((new ReflectionMethod($this, '__construct'))->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $current[$name] = match ($name) {
+                'hosts' => $this->hostsForConstructor(),
+                'dryRunExplicit' => $this->dryRunExplicit || \array_key_exists('dryRun', $changes),
+                default => get_object_vars($this)[$name],
+            };
+        }
         foreach ($changes as $name => $value) {
             if (!\is_string($name) || !\array_key_exists($name, $current)) {
                 throw new ConfigurationException(\sprintf('Unknown Config option "%s". Known options: %s.', (string) $name, implode(', ', array_keys($current))));
@@ -811,72 +576,6 @@ final readonly class Config
     }
 
     /**
-     * @param array<string, string|array{key: string, key_location?: string|null, base_url?: string|null, engines?: list<string>|null, previous_key?: string|null}> $hosts
-     *
-     * @return array{0: array<string, string>, 1: array<string, string>, 2: array<string, string>, 3: array<string, list<string>>, 4: array<string, string>}
-     *
-     * @throws ConfigurationException
-     */
-    private static function normalizeHosts(array $hosts): array
-    {
-        $keys = [];
-        $locations = [];
-        $baseUrls = [];
-        $engines = [];
-        $previous = [];
-        foreach ($hosts as $host => $entry) {
-            if (!\is_string($host) || $host === '' || preg_match('/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i', $host) !== 1) {
-                throw new ConfigurationException(\sprintf('"hosts" must map bare host names (no scheme, port or path) to keys, got "%s".', (string) $host));
-            }
-            $host = strtolower($host);
-            $key = \is_array($entry) ? ($entry['key'] ?? '') : $entry;
-            if (!\is_string($key)) {
-                throw new ConfigurationException(\sprintf('"hosts.%s" must be a key string or {key, key_location}.', $host));
-            }
-            KeyValidator::assertValid($key);
-            $keys[$host] = $key;
-            $location = \is_array($entry) ? ($entry['key_location'] ?? null) : null;
-            if ($location !== null) {
-                if (!\is_string($location) || !self::isKeyFileUrl($location)) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.key_location" must be an absolute http(s) URL.', $host));
-                }
-                if (self::hostOf($location) !== $host) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.key_location" must be on host %s, got %s.', $host, $host, self::hostOf($location)));
-                }
-                $locations[$host] = $location;
-            }
-            $baseUrl = \is_array($entry) ? ($entry['base_url'] ?? null) : null;
-            if ($baseUrl !== null) {
-                if (!\is_string($baseUrl) || !self::isAbsoluteHttpUrl($baseUrl)) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.base_url" must be an absolute http(s) URL.', $host));
-                }
-                if (self::hostOf($baseUrl) !== $host) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.base_url" must be on host %s, got %s.', $host, $host, self::hostOf($baseUrl)));
-                }
-                $baseUrls[$host] = $baseUrl;
-            }
-            $hostEngines = \is_array($entry) ? ($entry['engines'] ?? null) : null;
-            if ($hostEngines !== null) {
-                $list = self::list($hostEngines);
-                if ($list === null || $list === []) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.engines" must list at least one engine.', $host));
-                }
-                $engines[$host] = $list;
-            }
-            $previousKey = \is_array($entry) ? ($entry['previous_key'] ?? null) : null;
-            if ($previousKey !== null) {
-                if (!\is_string($previousKey)) {
-                    throw new ConfigurationException(\sprintf('"hosts.%s.previous_key" must be a key string.', $host));
-                }
-                KeyValidator::assertValid($previousKey);
-                $previous[$host] = $previousKey;
-            }
-        }
-
-        return [$keys, $locations, $baseUrls, $engines, $previous];
-    }
-
-    /**
      * @return array<string, string|array{key: string, key_location?: string|null, base_url?: string|null}>
      */
     private function hostsForConstructor(): array
@@ -900,134 +599,5 @@ final readonly class Config
         }
 
         return $hosts;
-    }
-
-    /**
-     * @return array<string, string>|null
-     */
-    private static function parseHosts(?string $spec): ?array
-    {
-        if ($spec === null) {
-            return null;
-        }
-        $hosts = [];
-        foreach (explode(',', $spec) as $pair) {
-            $pair = trim($pair);
-            if ($pair === '') {
-                continue;
-            }
-            if (!str_contains($pair, '=')) {
-                throw new ConfigurationException(\sprintf('INDEXNOW_HOSTS entries must look like "host=key", got "%s".', $pair));
-            }
-            [$host, $key] = explode('=', $pair, 2);
-            $hosts[trim($host)] = trim($key);
-        }
-
-        return $hosts;
-    }
-
-    private static function isAbsoluteHttpUrl(string $url): bool
-    {
-        $parts = parse_url($url);
-
-        return \is_array($parts) && isset($parts['scheme'], $parts['host']) && \in_array(strtolower($parts['scheme']), ['http', 'https'], true) && !isset($parts['user']) && !isset($parts['pass']);
-    }
-
-    private static function hostOf(string $url): string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        return \is_string($host) ? strtolower($host) : '';
-    }
-
-    private static function isKeyFileUrl(string $url): bool
-    {
-        return self::isAbsoluteHttpUrl($url) && \is_string(parse_url($url, PHP_URL_PATH)) && parse_url($url, PHP_URL_PATH) !== '/';
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     *
-     * @return array<string, mixed>
-     */
-    private static function sub(array $data, string $name): array
-    {
-        $value = $data[$name] ?? null;
-
-        return \is_array($value) ? $value : [];
-    }
-
-    /**
-     * @return list<string>|null
-     */
-    private static function list(mixed $value): ?array
-    {
-        if (\is_string($value)) {
-            $value = explode(',', $value);
-        }
-        if (!\is_array($value)) {
-            return null;
-        }
-        $out = [];
-        foreach ($value as $item) {
-            if (\is_string($item) && trim($item) !== '') {
-                $out[] = trim($item);
-            }
-        }
-
-        return $out;
-    }
-
-    private static function str(mixed $value): ?string
-    {
-        return \is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /**
-     * "true"/"false"/"1"/"0"/"yes"/"no" and the like as booleans; any other scalar by PHP truthiness.
-     */
-    private static function bool(mixed $value, ?bool $default, string $option): ?bool
-    {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (\is_bool($value)) {
-            return $value;
-        }
-        if (!\is_scalar($value)) {
-            throw new ConfigurationException(\sprintf('"%s" must be a boolean, got %s.', $option, get_debug_type($value)));
-        }
-
-        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
-    }
-
-    /**
-     * @throws ConfigurationException
-     */
-    private static function int(mixed $value, int $default, string $option): int
-    {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (!is_numeric($value) || (string) (int) $value !== ltrim((string) $value, '+')) {
-            throw new ConfigurationException(\sprintf('"%s" must be an integer, got "%s".', $option, \is_scalar($value) ? (string) $value : get_debug_type($value)));
-        }
-
-        return (int) $value;
-    }
-
-    /**
-     * @throws ConfigurationException
-     */
-    private static function float(mixed $value, float $default, string $option): float
-    {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (!is_numeric($value)) {
-            throw new ConfigurationException(\sprintf('"%s" must be a number, got "%s".', $option, \is_scalar($value) ? (string) $value : get_debug_type($value)));
-        }
-
-        return (float) $value;
     }
 }

@@ -1,0 +1,4817 @@
+{
+    "valid": {
+        "minimal": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "no key outside production": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": "dev",
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": null,
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": "dev",
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "no key, disabled": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": false,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": false,
+                "key": null,
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "no key, dry run": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": null,
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "hosts map without default key": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12"
+                },
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": null,
+                "previous_key": null,
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12"
+                },
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "full": {
+            "properties": {
+                "engines": [
+                    "api",
+                    "https://index.corp.example/indexnow",
+                    "corp"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow",
+                    "https://index.corp.example/indexnow"
+                ],
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12",
+                    "shop.example.com": "shopkeyshopkey12",
+                    "[2001:db8::1]": "ipv6keyipv6key12"
+                },
+                "keyLocations": {
+                    "shop.example.com": "https://shop.example.com/keys/shop.txt"
+                },
+                "hostBaseUrls": {
+                    "shop.example.com": "https://shop.example.com/"
+                },
+                "hostEngines": {
+                    "shop.example.com": [
+                        "yandex",
+                        "corp"
+                    ]
+                },
+                "previousKeys": {
+                    "shop.example.com": "shopoldshopold12"
+                },
+                "logLevels": {
+                    "ok": "info",
+                    "no_key": "error"
+                },
+                "engineAliases": {
+                    "corp": "https://index.corp.example/indexnow",
+                    "other": "https://other.example/x"
+                },
+                "localeHosts": {
+                    "en": "www.example.com",
+                    "de": "example.de"
+                },
+                "productionEnvironments": [
+                    "prod",
+                    "live"
+                ],
+                "normalizerTrackingParams": [
+                    "ref",
+                    "mtm_*"
+                ],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh12345678",
+                "keyLocation": "https://www.example.com/abcdefgh12345678.txt",
+                "baseUrl": "https://www.example.com",
+                "dispatch": "queue",
+                "batchMaxUrls": 500,
+                "debouncePerUrl": 0,
+                "throttleMaxRequestsPerMinute": 0,
+                "httpTimeout": 2.5,
+                "userAgent": "my-agent/1.0",
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": true,
+                "environment": "Staging",
+                "maxUrlLength": 1024,
+                "logUrls": 0,
+                "forbiddenEscalation": 1,
+                "retryMaxAttempts": 1,
+                "retryBaseDelay": 0,
+                "retryMultiplier": 1.0,
+                "retryMaxDelay": 0,
+                "retryServerErrorDelay": 0,
+                "previousKey": "oldkeyoldkey1234",
+                "resolverMaxViaDepth": 0,
+                "resolverMaxViaFanout": 1,
+                "debounceKeyPrefix": "app-1.",
+                "collectorMaxUrls": 10,
+                "collectorDetectLeaks": false,
+                "logBody": 0,
+                "keyFileMaxAge": 0,
+                "debounceStore": "cache.app",
+                "httpClient": "App\\Http\\Client",
+                "normalizerStripTrackingParams": false,
+                "normalizerTrailingSlash": "add",
+                "normalizerSortQuery": true
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh12345678",
+                "previous_key": "oldkeyoldkey1234",
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12",
+                    "shop.example.com": {
+                        "key": "shopkeyshopkey12",
+                        "key_location": "https://shop.example.com/keys/shop.txt",
+                        "base_url": "https://shop.example.com/",
+                        "engines": [
+                            "yandex",
+                            "corp"
+                        ],
+                        "previous_key": "shopoldshopold12"
+                    },
+                    "[2001:db8::1]": "ipv6keyipv6key12"
+                },
+                "key_location": "https://www.example.com/abcdefgh12345678.txt",
+                "base_url": "https://www.example.com",
+                "strict_hosts": true,
+                "engines": [
+                    "api",
+                    "https://index.corp.example/indexnow",
+                    "corp"
+                ],
+                "engine_aliases": {
+                    "corp": "https://index.corp.example/indexnow",
+                    "other": "https://other.example/x"
+                },
+                "locale_hosts": {
+                    "en": "www.example.com",
+                    "de": "example.de"
+                },
+                "dispatch": "queue",
+                "dry_run": false,
+                "environment": "Staging",
+                "production_environments": [
+                    "prod",
+                    "live"
+                ],
+                "max_url_length": 1024,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 0
+                },
+                "batch": {
+                    "max_urls": 500
+                },
+                "debounce": {
+                    "per_url": 0,
+                    "key_prefix": "app-1.",
+                    "store": "cache.app"
+                },
+                "throttle": {
+                    "max_requests_per_minute": 0
+                },
+                "http": {
+                    "timeout": 2.5,
+                    "user_agent": "my-agent/1.0",
+                    "client": "App\\Http\\Client"
+                },
+                "logging": {
+                    "max_urls": 0,
+                    "forbidden_escalation": 1,
+                    "levels": {
+                        "ok": "info",
+                        "no_key": "error"
+                    },
+                    "max_body": 0
+                },
+                "retry": {
+                    "max_attempts": 1,
+                    "base_delay": 0,
+                    "multiplier": 1.0,
+                    "max_delay": 0,
+                    "server_error_delay": 0
+                },
+                "resolver": {
+                    "max_via_depth": 0,
+                    "max_via_fanout": 1
+                },
+                "collector": {
+                    "max_urls": 10,
+                    "detect_leaks": false
+                },
+                "normalizer": {
+                    "strip_tracking_params": false,
+                    "tracking_params": [
+                        "ref",
+                        "mtm_*"
+                    ],
+                    "trailing_slash": "add",
+                    "sort_query": true
+                }
+            },
+            "derived": {
+                "baseHost": "www.example.com",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=0",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 1,
+                    "baseDelay": 0,
+                    "multiplier": 1.0,
+                    "maxDelay": 0,
+                    "serverErrorDelay": 0
+                },
+                "logSample": [],
+                "baseUrlFor": [
+                    "https://www.example.com",
+                    "https://shop.example.com/",
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "info",
+                    "error",
+                    "info"
+                ],
+                "hostForLocale": [
+                    "www.example.com",
+                    "example.de",
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "my-agent/1.0"
+            }
+        },
+        "scalar strings": {
+            "properties": {
+                "engines": [
+                    "bing"
+                ],
+                "endpoints": [
+                    "https://www.bing.com/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "live"
+                ],
+                "normalizerTrackingParams": [
+                    "a",
+                    "b"
+                ],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": "https://a.example",
+                "dispatch": "sync",
+                "batchMaxUrls": 7,
+                "debouncePerUrl": 60,
+                "throttleMaxRequestsPerMinute": 5,
+                "httpTimeout": 1.5,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 128,
+                "logUrls": 3,
+                "forbiddenEscalation": 2,
+                "retryMaxAttempts": 2,
+                "retryBaseDelay": 1,
+                "retryMultiplier": 3.0,
+                "retryMaxDelay": 4,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 1,
+                "resolverMaxViaFanout": 2,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 1,
+                "collectorDetectLeaks": false,
+                "logBody": 10,
+                "keyFileMaxAge": 30,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": false,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": true
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": "https://a.example",
+                "strict_hosts": false,
+                "engines": [
+                    "bing"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "live"
+                ],
+                "max_url_length": 128,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 30
+                },
+                "batch": {
+                    "max_urls": 7
+                },
+                "debounce": {
+                    "per_url": 60,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 5
+                },
+                "http": {
+                    "timeout": 1.5,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 3,
+                    "forbidden_escalation": 2,
+                    "levels": [],
+                    "max_body": 10
+                },
+                "retry": {
+                    "max_attempts": 2,
+                    "base_delay": 1,
+                    "multiplier": 3.0,
+                    "max_delay": 4,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 1,
+                    "max_via_fanout": 2
+                },
+                "collector": {
+                    "max_urls": 1,
+                    "detect_leaks": false
+                },
+                "normalizer": {
+                    "strip_tracking_params": false,
+                    "tracking_params": [
+                        "a",
+                        "b"
+                    ],
+                    "trailing_slash": "keep",
+                    "sort_query": true
+                }
+            },
+            "derived": {
+                "baseHost": "a.example",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=30"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 2,
+                    "baseDelay": 1,
+                    "multiplier": 3.0,
+                    "maxDelay": 4,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    "https://a.example",
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://www.bing.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "serve_key_file legacy wins": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "key_file.enabled": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "empty strings are unset": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "non-array blocks ignored": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "idn base_url": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": "https://Пример.рф/path",
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": true,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": "https://Пример.рф/path",
+                "strict_hosts": true,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": "xn--e1afmkfd.xn--p1ai",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "env full": {
+            "properties": {
+                "engines": [
+                    "yandex",
+                    "bing"
+                ],
+                "endpoints": [
+                    "https://yandex.com/indexnow",
+                    "https://www.bing.com/indexnow"
+                ],
+                "hosts": {
+                    "a.example": "aaaaaaaa1234",
+                    "b.example": "bbbbbbbb1234"
+                },
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "live"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "envkeyenvkey1234",
+                "keyLocation": "https://env.example/k.txt",
+                "baseUrl": "https://env.example",
+                "dispatch": "none",
+                "batchMaxUrls": 9,
+                "debouncePerUrl": 8,
+                "throttleMaxRequestsPerMinute": 7,
+                "httpTimeout": 6.5,
+                "userAgent": "env-agent",
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": true,
+                "environment": "prod",
+                "maxUrlLength": 256,
+                "logUrls": 4,
+                "forbiddenEscalation": 3,
+                "retryMaxAttempts": 2,
+                "retryBaseDelay": 1,
+                "retryMultiplier": 1.5,
+                "retryMaxDelay": 9,
+                "retryServerErrorDelay": 2,
+                "previousKey": "envoldenvold1234",
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 5,
+                "debounceStore": "memory",
+                "httpClient": "App\\Client",
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "envkeyenvkey1234",
+                "previous_key": "envoldenvold1234",
+                "hosts": {
+                    "a.example": "aaaaaaaa1234",
+                    "b.example": "bbbbbbbb1234"
+                },
+                "key_location": "https://env.example/k.txt",
+                "base_url": "https://env.example",
+                "strict_hosts": true,
+                "engines": [
+                    "yandex",
+                    "bing"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "none",
+                "dry_run": false,
+                "environment": "prod",
+                "production_environments": [
+                    "prod",
+                    "live"
+                ],
+                "max_url_length": 256,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 5
+                },
+                "batch": {
+                    "max_urls": 9
+                },
+                "debounce": {
+                    "per_url": 8,
+                    "key_prefix": "indexnowkit_",
+                    "store": "memory"
+                },
+                "throttle": {
+                    "max_requests_per_minute": 7
+                },
+                "http": {
+                    "timeout": 6.5,
+                    "user_agent": "env-agent",
+                    "client": "App\\Client"
+                },
+                "logging": {
+                    "max_urls": 4,
+                    "forbidden_escalation": 3,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 2,
+                    "base_delay": 1,
+                    "multiplier": 1.5,
+                    "max_delay": 9,
+                    "server_error_delay": 2
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": "env.example",
+                "isProduction": true,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=5",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 2,
+                    "baseDelay": 1,
+                    "multiplier": 1.5,
+                    "maxDelay": 9,
+                    "serverErrorDelay": 2
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    "https://env.example"
+                ],
+                "endpointsFor": [
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "env-agent"
+            }
+        },
+        "env minimal APP_ENV": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": "dev",
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": null,
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": "dev",
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "env custom prefix": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "constructor defaults": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "constructor hosts": {
+            "properties": {
+                "engines": [
+                    "yandex"
+                ],
+                "endpoints": [
+                    "https://yandex.com/indexnow"
+                ],
+                "hosts": {
+                    "a.example": "abcdefgh12"
+                },
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": {
+                    "a.example": [
+                        "bing"
+                    ]
+                },
+                "previousKeys": [],
+                "logLevels": {
+                    "ok": "debug"
+                },
+                "engineAliases": {
+                    "x": "https://x.example/i"
+                },
+                "localeHosts": {
+                    "fr": "fr.example"
+                },
+                "productionEnvironments": [
+                    "live"
+                ],
+                "normalizerTrackingParams": [
+                    "p*"
+                ],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": null,
+                "previous_key": null,
+                "hosts": {
+                    "a.example": {
+                        "key": "abcdefgh12",
+                        "engines": [
+                            "bing"
+                        ]
+                    }
+                },
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "yandex"
+                ],
+                "engine_aliases": {
+                    "x": "https://x.example/i"
+                },
+                "locale_hosts": {
+                    "fr": "fr.example"
+                },
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "live"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": {
+                        "ok": "debug"
+                    },
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [
+                        "p*"
+                    ],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://yandex.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    "fr.example",
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "disabled": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": false,
+                "key": null,
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": "dev",
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": false,
+                "key": null,
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": "dev",
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "with dry run": {
+            "properties": {
+                "engines": [
+                    "yandex"
+                ],
+                "endpoints": [
+                    "https://yandex.com/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": "https://www.example.com",
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": "https://www.example.com",
+                "strict_hosts": false,
+                "engines": [
+                    "yandex"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": "www.example.com",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    "https://www.example.com",
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://yandex.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "with several": {
+            "properties": {
+                "engines": [
+                    "api",
+                    "bing"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow",
+                    "https://www.bing.com/indexnow"
+                ],
+                "hosts": {
+                    "b.example": "bbbbbbbb1234"
+                },
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": {
+                    "ok": "notice"
+                },
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": false,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": "https://www.example.com",
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 5,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "strip",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": {
+                    "b.example": "bbbbbbbb1234"
+                },
+                "key_location": null,
+                "base_url": "https://www.example.com",
+                "strict_hosts": false,
+                "engines": [
+                    "api",
+                    "bing"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": {
+                        "ok": "notice"
+                    },
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 5,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "strip",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": "www.example.com",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 5,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    "https://www.example.com",
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "notice",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "withDryRun false": {
+            "properties": {
+                "engines": [
+                    "api"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": false,
+                "strictHosts": false,
+                "environment": "dev",
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "api"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": false,
+                "environment": "dev",
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "with keeps explicit flag": {
+            "properties": {
+                "engines": [
+                    "bing"
+                ],
+                "endpoints": [
+                    "https://www.bing.com/indexnow"
+                ],
+                "hosts": [],
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "production"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh",
+                "keyLocation": null,
+                "baseUrl": null,
+                "dispatch": "sync",
+                "batchMaxUrls": 10000,
+                "debouncePerUrl": 600,
+                "throttleMaxRequestsPerMinute": 60,
+                "httpTimeout": 10.0,
+                "userAgent": null,
+                "serveKeyFile": true,
+                "dryRun": true,
+                "strictHosts": false,
+                "environment": null,
+                "maxUrlLength": 2048,
+                "logUrls": 20,
+                "forbiddenEscalation": 5,
+                "retryMaxAttempts": 3,
+                "retryBaseDelay": 60,
+                "retryMultiplier": 2.0,
+                "retryMaxDelay": 3600,
+                "retryServerErrorDelay": 5,
+                "previousKey": null,
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 300,
+                "debounceStore": null,
+                "httpClient": null,
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh",
+                "previous_key": null,
+                "hosts": [],
+                "key_location": null,
+                "base_url": null,
+                "strict_hosts": false,
+                "engines": [
+                    "bing"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "sync",
+                "dry_run": true,
+                "environment": null,
+                "production_environments": [
+                    "prod",
+                    "production"
+                ],
+                "max_url_length": 2048,
+                "key_file": {
+                    "enabled": true,
+                    "cache_max_age": 300
+                },
+                "batch": {
+                    "max_urls": 10000
+                },
+                "debounce": {
+                    "per_url": 600,
+                    "key_prefix": "indexnowkit_",
+                    "store": null
+                },
+                "throttle": {
+                    "max_requests_per_minute": 60
+                },
+                "http": {
+                    "timeout": 10.0,
+                    "user_agent": null,
+                    "client": null
+                },
+                "logging": {
+                    "max_urls": 20,
+                    "forbidden_escalation": 5,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 3,
+                    "base_delay": 60,
+                    "multiplier": 2.0,
+                    "max_delay": 3600,
+                    "server_error_delay": 5
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": null,
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=300"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 3,
+                    "baseDelay": 60,
+                    "multiplier": 2.0,
+                    "maxDelay": 3600,
+                    "serverErrorDelay": 5
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://www.bing.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "(default)"
+            }
+        },
+        "round trip full": {
+            "properties": {
+                "engines": [
+                    "api",
+                    "https://index.corp.example/indexnow",
+                    "corp"
+                ],
+                "endpoints": [
+                    "https://api.indexnow.org/indexnow",
+                    "https://index.corp.example/indexnow"
+                ],
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12",
+                    "shop.example.com": "shopkeyshopkey12",
+                    "[2001:db8::1]": "ipv6keyipv6key12"
+                },
+                "keyLocations": {
+                    "shop.example.com": "https://shop.example.com/keys/shop.txt"
+                },
+                "hostBaseUrls": {
+                    "shop.example.com": "https://shop.example.com/"
+                },
+                "hostEngines": {
+                    "shop.example.com": [
+                        "yandex",
+                        "corp"
+                    ]
+                },
+                "previousKeys": {
+                    "shop.example.com": "shopoldshopold12"
+                },
+                "logLevels": {
+                    "ok": "info",
+                    "no_key": "error"
+                },
+                "engineAliases": {
+                    "corp": "https://index.corp.example/indexnow",
+                    "other": "https://other.example/x"
+                },
+                "localeHosts": {
+                    "en": "www.example.com",
+                    "de": "example.de"
+                },
+                "productionEnvironments": [
+                    "prod",
+                    "live"
+                ],
+                "normalizerTrackingParams": [
+                    "ref",
+                    "mtm_*"
+                ],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "abcdefgh12345678",
+                "keyLocation": "https://www.example.com/abcdefgh12345678.txt",
+                "baseUrl": "https://www.example.com",
+                "dispatch": "queue",
+                "batchMaxUrls": 500,
+                "debouncePerUrl": 0,
+                "throttleMaxRequestsPerMinute": 0,
+                "httpTimeout": 2.5,
+                "userAgent": "my-agent/1.0",
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": true,
+                "environment": "Staging",
+                "maxUrlLength": 1024,
+                "logUrls": 0,
+                "forbiddenEscalation": 1,
+                "retryMaxAttempts": 1,
+                "retryBaseDelay": 0,
+                "retryMultiplier": 1.0,
+                "retryMaxDelay": 0,
+                "retryServerErrorDelay": 0,
+                "previousKey": "oldkeyoldkey1234",
+                "resolverMaxViaDepth": 0,
+                "resolverMaxViaFanout": 1,
+                "debounceKeyPrefix": "app-1.",
+                "collectorMaxUrls": 10,
+                "collectorDetectLeaks": false,
+                "logBody": 0,
+                "keyFileMaxAge": 0,
+                "debounceStore": "cache.app",
+                "httpClient": "App\\Http\\Client",
+                "normalizerStripTrackingParams": false,
+                "normalizerTrailingSlash": "add",
+                "normalizerSortQuery": true
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "abcdefgh12345678",
+                "previous_key": "oldkeyoldkey1234",
+                "hosts": {
+                    "www.example.com": "hostkeyhostkey12",
+                    "shop.example.com": {
+                        "key": "shopkeyshopkey12",
+                        "key_location": "https://shop.example.com/keys/shop.txt",
+                        "base_url": "https://shop.example.com/",
+                        "engines": [
+                            "yandex",
+                            "corp"
+                        ],
+                        "previous_key": "shopoldshopold12"
+                    },
+                    "[2001:db8::1]": "ipv6keyipv6key12"
+                },
+                "key_location": "https://www.example.com/abcdefgh12345678.txt",
+                "base_url": "https://www.example.com",
+                "strict_hosts": true,
+                "engines": [
+                    "api",
+                    "https://index.corp.example/indexnow",
+                    "corp"
+                ],
+                "engine_aliases": {
+                    "corp": "https://index.corp.example/indexnow",
+                    "other": "https://other.example/x"
+                },
+                "locale_hosts": {
+                    "en": "www.example.com",
+                    "de": "example.de"
+                },
+                "dispatch": "queue",
+                "dry_run": false,
+                "environment": "Staging",
+                "production_environments": [
+                    "prod",
+                    "live"
+                ],
+                "max_url_length": 1024,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 0
+                },
+                "batch": {
+                    "max_urls": 500
+                },
+                "debounce": {
+                    "per_url": 0,
+                    "key_prefix": "app-1.",
+                    "store": "cache.app"
+                },
+                "throttle": {
+                    "max_requests_per_minute": 0
+                },
+                "http": {
+                    "timeout": 2.5,
+                    "user_agent": "my-agent/1.0",
+                    "client": "App\\Http\\Client"
+                },
+                "logging": {
+                    "max_urls": 0,
+                    "forbidden_escalation": 1,
+                    "levels": {
+                        "ok": "info",
+                        "no_key": "error"
+                    },
+                    "max_body": 0
+                },
+                "retry": {
+                    "max_attempts": 1,
+                    "base_delay": 0,
+                    "multiplier": 1.0,
+                    "max_delay": 0,
+                    "server_error_delay": 0
+                },
+                "resolver": {
+                    "max_via_depth": 0,
+                    "max_via_fanout": 1
+                },
+                "collector": {
+                    "max_urls": 10,
+                    "detect_leaks": false
+                },
+                "normalizer": {
+                    "strip_tracking_params": false,
+                    "tracking_params": [
+                        "ref",
+                        "mtm_*"
+                    ],
+                    "trailing_slash": "add",
+                    "sort_query": true
+                }
+            },
+            "derived": {
+                "baseHost": "www.example.com",
+                "isProduction": false,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=0",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 1,
+                    "baseDelay": 0,
+                    "multiplier": 1.0,
+                    "maxDelay": 0,
+                    "serverErrorDelay": 0
+                },
+                "logSample": [],
+                "baseUrlFor": [
+                    "https://www.example.com",
+                    "https://shop.example.com/",
+                    null,
+                    null
+                ],
+                "endpointsFor": [
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ],
+                    [
+                        "https://api.indexnow.org/indexnow",
+                        "https://index.corp.example/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "info",
+                    "error",
+                    "info"
+                ],
+                "hostForLocale": [
+                    "www.example.com",
+                    "example.de",
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "my-agent/1.0"
+            }
+        },
+        "round trip env": {
+            "properties": {
+                "engines": [
+                    "yandex",
+                    "bing"
+                ],
+                "endpoints": [
+                    "https://yandex.com/indexnow",
+                    "https://www.bing.com/indexnow"
+                ],
+                "hosts": {
+                    "a.example": "aaaaaaaa1234",
+                    "b.example": "bbbbbbbb1234"
+                },
+                "keyLocations": [],
+                "hostBaseUrls": [],
+                "hostEngines": [],
+                "previousKeys": [],
+                "logLevels": [],
+                "engineAliases": [],
+                "localeHosts": [],
+                "productionEnvironments": [
+                    "prod",
+                    "live"
+                ],
+                "normalizerTrackingParams": [],
+                "dryRunExplicit": true,
+                "enabled": true,
+                "key": "envkeyenvkey1234",
+                "keyLocation": "https://env.example/k.txt",
+                "baseUrl": "https://env.example",
+                "dispatch": "none",
+                "batchMaxUrls": 9,
+                "debouncePerUrl": 8,
+                "throttleMaxRequestsPerMinute": 7,
+                "httpTimeout": 6.5,
+                "userAgent": "env-agent",
+                "serveKeyFile": false,
+                "dryRun": false,
+                "strictHosts": true,
+                "environment": "prod",
+                "maxUrlLength": 256,
+                "logUrls": 4,
+                "forbiddenEscalation": 3,
+                "retryMaxAttempts": 2,
+                "retryBaseDelay": 1,
+                "retryMultiplier": 1.5,
+                "retryMaxDelay": 9,
+                "retryServerErrorDelay": 2,
+                "previousKey": "envoldenvold1234",
+                "resolverMaxViaDepth": 3,
+                "resolverMaxViaFanout": 100,
+                "debounceKeyPrefix": "indexnowkit_",
+                "collectorMaxUrls": 0,
+                "collectorDetectLeaks": true,
+                "logBody": 300,
+                "keyFileMaxAge": 5,
+                "debounceStore": "memory",
+                "httpClient": "App\\Client",
+                "normalizerStripTrackingParams": true,
+                "normalizerTrailingSlash": "keep",
+                "normalizerSortQuery": false
+            },
+            "toArray": {
+                "enabled": true,
+                "key": "envkeyenvkey1234",
+                "previous_key": "envoldenvold1234",
+                "hosts": {
+                    "a.example": "aaaaaaaa1234",
+                    "b.example": "bbbbbbbb1234"
+                },
+                "key_location": "https://env.example/k.txt",
+                "base_url": "https://env.example",
+                "strict_hosts": true,
+                "engines": [
+                    "yandex",
+                    "bing"
+                ],
+                "engine_aliases": [],
+                "locale_hosts": [],
+                "dispatch": "none",
+                "dry_run": false,
+                "environment": "prod",
+                "production_environments": [
+                    "prod",
+                    "live"
+                ],
+                "max_url_length": 256,
+                "key_file": {
+                    "enabled": false,
+                    "cache_max_age": 5
+                },
+                "batch": {
+                    "max_urls": 9
+                },
+                "debounce": {
+                    "per_url": 8,
+                    "key_prefix": "indexnowkit_",
+                    "store": "memory"
+                },
+                "throttle": {
+                    "max_requests_per_minute": 7
+                },
+                "http": {
+                    "timeout": 6.5,
+                    "user_agent": "env-agent",
+                    "client": "App\\Client"
+                },
+                "logging": {
+                    "max_urls": 4,
+                    "forbidden_escalation": 3,
+                    "levels": [],
+                    "max_body": 300
+                },
+                "retry": {
+                    "max_attempts": 2,
+                    "base_delay": 1,
+                    "multiplier": 1.5,
+                    "max_delay": 9,
+                    "server_error_delay": 2
+                },
+                "resolver": {
+                    "max_via_depth": 3,
+                    "max_via_fanout": 100
+                },
+                "collector": {
+                    "max_urls": 0,
+                    "detect_leaks": true
+                },
+                "normalizer": {
+                    "strip_tracking_params": true,
+                    "tracking_params": [],
+                    "trailing_slash": "keep",
+                    "sort_query": false
+                }
+            },
+            "derived": {
+                "baseHost": "env.example",
+                "isProduction": true,
+                "keyFileHeaders": {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=5",
+                    "Vary": "Host"
+                },
+                "retryPolicy": {
+                    "maxAttempts": 2,
+                    "baseDelay": 1,
+                    "multiplier": 1.5,
+                    "maxDelay": 9,
+                    "serverErrorDelay": 2
+                },
+                "logSample": [
+                    "a",
+                    "b",
+                    "c"
+                ],
+                "baseUrlFor": [
+                    null,
+                    null,
+                    null,
+                    "https://env.example"
+                ],
+                "endpointsFor": [
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ],
+                    [
+                        "https://yandex.com/indexnow",
+                        "https://www.bing.com/indexnow"
+                    ]
+                ],
+                "logLevel": [
+                    "debug",
+                    "warning",
+                    "info"
+                ],
+                "hostForLocale": [
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                "resolveEngine": [
+                    "https://yandex.com/indexnow",
+                    "https://x.example/i"
+                ],
+                "userAgent": "env-agent"
+            }
+        }
+    },
+    "invalid": {
+        "trailing_slash": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"normalizer.trailing_slash\" must be one of keep, add, strip, got \"both\"."
+        ],
+        "logging.max_body": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"logging.max_body\" must be >= 0, got -1."
+        ],
+        "key_file.cache_max_age": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"key_file.cache_max_age\" must be >= 0 seconds, got -1."
+        ],
+        "engine alias name": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"engine_aliases\" names must be identifiers that are not built-in engines, got \"1bad\"."
+        ],
+        "engine alias builtin": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"engine_aliases\" names must be identifiers that are not built-in engines, got \"Yandex\"."
+        ],
+        "engine alias endpoint": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"engine_aliases.corp\" must be an endpoint URL."
+        ],
+        "locale host": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"locale_hosts\" must map locales to bare host names, got \"en\" => \"https://x.example\"."
+        ],
+        "locale empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"locale_hosts\" must map locales to bare host names, got \"\" => \"x.example\"."
+        ],
+        "previous_key": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow key \"shor*\" is invalid: 8-128 characters from [A-Za-z0-9-] required."
+        ],
+        "logging.levels event": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"logging.levels\" has an unknown event \"nope\"; known: ok, pending, invalid_request, unprocessable, rate_limited, server_error, unexpected, transport, no_key, dry_run, disabled, debounced, invalid_url."
+        ],
+        "logging.levels level": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"logging.levels.ok\" must be a PSR-3 level (emergency, alert, critical, error, warning, notice, info, debug), got \"loud\"."
+        ],
+        "resolver.max_via_depth": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"resolver.max_via_depth\" must be >= 0 (0 = rules may not follow `via:` at all), got -1."
+        ],
+        "resolver.max_via_fanout": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"resolver.max_via_fanout\" must be >= 1 (related objects one `via:` hop may yield), got 0."
+        ],
+        "collector.max_urls": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"collector.max_urls\" must be >= 0 (0 = no early flush), got -1."
+        ],
+        "debounce.key_prefix reserved": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"debounce.key_prefix\" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got \"a:b\". Letters, digits, \"_\", \"-\" and \".\" are safe."
+        ],
+        "production_environments empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"production_environments\" must name at least one environment."
+        ],
+        "max_url_length": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"max_url_length\" must be >= 64 bytes, got 63."
+        ],
+        "logging.max_urls": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"logging.max_urls\" must be >= 0 (0 = list no URL), got -1."
+        ],
+        "logging.forbidden_escalation": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"logging.forbidden_escalation\" must be >= 1, got 0."
+        ],
+        "retry.max_attempts": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"retry.max_attempts\" must be >= 1 (the first attempt counts; 1 = never retry), got 0."
+        ],
+        "retry.base_delay": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"retry.base_delay\" must be >= 0 seconds (the wait before the second attempt after a 429), got -1."
+        ],
+        "retry.multiplier": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"retry.multiplier\" must be >= 1.0 (each further wait is the previous one times this), got 0.5."
+        ],
+        "retry.max_delay": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"retry.max_delay\" must be >= 0 seconds (the ceiling of the growing wait), got -1."
+        ],
+        "retry.server_error_delay": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"retry.server_error_delay\" must be >= 0 seconds (the wait after a 5xx or a network failure), got -1."
+        ],
+        "no key in production": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow is enabled but no \"key\" (or \"hosts\" map) is configured. Set INDEXNOW_KEY, or enable dry_run."
+        ],
+        "no key, no environment": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow is enabled but no \"key\" (or \"hosts\" map) is configured. Set INDEXNOW_KEY, or enable dry_run."
+        ],
+        "key invalid": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow key \"no s********\" is invalid: 8-128 characters from [A-Za-z0-9-] required."
+        ],
+        "hosts name": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts\" must map bare host names (no scheme, port or path) to keys, got \"https://x.example\"."
+        ],
+        "hosts entry": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example\" must be a key string or {key, key_location}."
+        ],
+        "hosts key invalid": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow key \"bad ***\" is invalid: 8-128 characters from [A-Za-z0-9-] required."
+        ],
+        "hosts key_location url": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.key_location\" must be an absolute http(s) URL."
+        ],
+        "hosts key_location host": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.key_location\" must be on host x.example, got y.example."
+        ],
+        "hosts base_url url": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.base_url\" must be an absolute http(s) URL."
+        ],
+        "hosts base_url host": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.base_url\" must be on host x.example, got y.example."
+        ],
+        "hosts engines empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.engines\" must list at least one engine."
+        ],
+        "hosts previous_key type": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"hosts.x.example.previous_key\" must be a key string."
+        ],
+        "hosts previous_key invalid": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "IndexNow key \"*\" is invalid: 8-128 characters from [A-Za-z0-9-] required."
+        ],
+        "base_url": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"base_url\" must be an absolute http(s) URL, got \"www.example.com\"."
+        ],
+        "base_url userinfo": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"base_url\" must be an absolute http(s) URL, got \"https://user:pw@www.example.com\"."
+        ],
+        "key_location path": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"key_location\" must be an absolute http(s) URL to the key file, got \"https://www.example.com/\"."
+        ],
+        "key_location host": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"key_location\" (a.example) must be on the host of \"base_url\" (b.example): engines only accept a key file served from the submitted host."
+        ],
+        "batch.max_urls low": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"batch.max_urls\" must be between 1 and 10000, got 0."
+        ],
+        "batch.max_urls high": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"batch.max_urls\" must be between 1 and 10000, got 10001."
+        ],
+        "debounce.per_url": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"debounce.per_url\" must be >= 0 seconds, got -1."
+        ],
+        "throttle": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"throttle.max_requests_per_minute\" must be >= 0 (0 = unlimited), got -1."
+        ],
+        "http.timeout": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"http.timeout\" must be > 0 seconds, got 0."
+        ],
+        "engines empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"engines\" must contain at least one engine."
+        ],
+        "engine unknown": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "Unknown IndexNow engine \"altavista\". Use one of: api, yandex, bing, naver, seznam, yep, internetarchive, amazon, an alias from engine_aliases, or a full https endpoint URL."
+        ],
+        "dispatch": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"dispatch\" must be a short identifier such as sync, queue or none, got \"queue now\"."
+        ],
+        "http.user_agent": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"http.user_agent\" must not contain line breaks."
+        ],
+        "strict_hosts": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"strict_hosts\" needs at least one known host: set \"base_url\" or a \"hosts\" map."
+        ],
+        "tracking_params": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"normalizer.tracking_params\" must list query parameter names (\"ref\", \"mtm_*\"), got \"a b\"."
+        ],
+        "int": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"batch.max_urls\" must be an integer, got \"1.5\"."
+        ],
+        "int text": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"max_url_length\" must be an integer, got \"many\"."
+        ],
+        "float": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"http.timeout\" must be a number, got \"fast\"."
+        ],
+        "bool type": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"dry_run\" must be a boolean, got array."
+        ],
+        "env hosts pair": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "INDEXNOW_HOSTS entries must look like \"host=key\", got \"a.example\"."
+        ],
+        "with unknown": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "Unknown Config option \"dry_run\". Known options: enabled, key, hosts, keyLocation, baseUrl, engines, dispatch, batchMaxUrls, debouncePerUrl, throttleMaxRequestsPerMinute, httpTimeout, userAgent, serveKeyFile, dryRun, strictHosts, environment, productionEnvironments, maxUrlLength, logUrls, forbiddenEscalation, retryMaxAttempts, retryBaseDelay, retryMultiplier, retryMaxDelay, retryServerErrorDelay, previousKey, logLevels, resolverMaxViaDepth, resolverMaxViaFanout, debounceKeyPrefix, collectorMaxUrls, collectorDetectLeaks, logBody, engineAliases, localeHosts, keyFileMaxAge, debounceStore, httpClient, dryRunExplicit, normalizerStripTrackingParams, normalizerTrackingParams, normalizerTrailingSlash, normalizerSortQuery."
+        ],
+        "with positional": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "Unknown Config option \"0\". Known options: enabled, key, hosts, keyLocation, baseUrl, engines, dispatch, batchMaxUrls, debouncePerUrl, throttleMaxRequestsPerMinute, httpTimeout, userAgent, serveKeyFile, dryRun, strictHosts, environment, productionEnvironments, maxUrlLength, logUrls, forbiddenEscalation, retryMaxAttempts, retryBaseDelay, retryMultiplier, retryMaxDelay, retryServerErrorDelay, previousKey, logLevels, resolverMaxViaDepth, resolverMaxViaFanout, debounceKeyPrefix, collectorMaxUrls, collectorDetectLeaks, logBody, engineAliases, localeHosts, keyFileMaxAge, debounceStore, httpClient, dryRunExplicit, normalizerStripTrackingParams, normalizerTrackingParams, normalizerTrailingSlash, normalizerSortQuery."
+        ],
+        "serveKeyFileFrom type": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"serve_key_file\" must be a boolean, got array."
+        ],
+        "constructor key_prefix reserved": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"debounce.key_prefix\" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got \"x y\". Letters, digits, \"_\", \"-\" and \".\" are safe."
+        ],
+        "constructor debounce.store empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"debounce.store\" must be \"memory\", \"none\" or the id of a cache, not an empty string."
+        ],
+        "constructor http.client empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"http.client\" must be the id or class of a PSR-18 client, not an empty string."
+        ],
+        "constructor key_prefix empty": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "\"debounce.key_prefix\" must be a non-empty string without the characters PSR-6 reserves in cache keys ({}()/\\@:) or whitespace, got \"\". Letters, digits, \"_\", \"-\" and \".\" are safe."
+        ],
+        "resolveEngine": [
+            "IndexNowKit\\Exception\\ConfigurationException",
+            "Unknown IndexNow engine \"nope\". Use one of: api, yandex, bing, naver, seznam, yep, internetarchive, amazon, an alias from engine_aliases, or a full https endpoint URL."
+        ]
+    },
+    "static": {
+        "serveKeyFileFrom": [
+            true,
+            false,
+            false,
+            true
+        ],
+        "unknownOptions": [
+            "debounce.per_urls",
+            "typo"
+        ]
+    }
+}

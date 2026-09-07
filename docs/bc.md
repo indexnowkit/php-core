@@ -138,7 +138,8 @@ class, or on `Result::$reason`, never on message text.
 
 ## What is not covered
 
-- Anything marked `@internal` in a docblock. Today that is `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`,
+- Anything marked `@internal` in a docblock. Today that is `Config\ConfigParser` and `Config\ConfigNormalizer` (the readers and the
+  normalisation behind `Config`; call `Config::fromArray()` / `fromEnv()`), `Url\Punycode`, `Transaction\StagingFrame`, `Attribute\IndexNow::normalizeEvents()`,
   `Collector::reportLeak()` and the constructor of `Adapter\Services` (built by `ServicesBuilder::build()`).
 - Private and protected members of `final` classes, which is all of them: the library has no inheritance points by
   design, only interfaces.

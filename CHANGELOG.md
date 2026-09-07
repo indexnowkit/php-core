@@ -83,6 +83,18 @@ against, plus the four constructions every adapter had copied.
   a colon — a PSR-16 reserved character — into the cache key, so a strict cache rejected the read and the write: the
   counter of that host degraded to one warning per 403 and the `critical` escalation never fired for it.
 
+### Changed
+
+- **`Config.php` is 600 lines instead of 1033** (audit 0.13 W11, deferred since 0.10; `docs/plans/config-decomposition.md`
+  in the specification workspace). Reading the array and the environment shapes moved to `Config\ConfigParser`
+  (`fromArray()`, `fromEnv()`, `serveKeyFileFrom()`, the `"3"` / `"true"` scalar parsing, `INDEXNOW_HOSTS`), the
+  normalisation of the raw maps to `Config\ConfigNormalizer` (`hosts`, `engine_aliases`, `locale_hosts`, `logging.levels`,
+  `normalizer.tracking_params`, `production_environments`, the URL predicates); both are `@internal`. `Config::with()`
+  builds its map of current values from the constructor's signature by reflection instead of a hand-written list of 44
+  names. Nothing on the surface changed: the same properties, constants, methods and messages — `ConfigParityTest` holds
+  the snapshot of all of them taken before the move (properties, `toArray()`, derived methods, the exception of every
+  invalid case) and stays as the regression guard.
+
 ## [0.12.0] — 2026-09-07
 
 The design decisions of the 0.10 audit (`docs/plans/audit-0.10.md` §6 in the specification workspace). Three change
