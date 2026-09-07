@@ -30,6 +30,41 @@ against, plus the four constructions every adapter had copied.
 
 ### Added
 
+- **What every router bridge, queue dispatcher and locale check of the family had copied, as core classes** (wave M,
+  spec 19). `Url\RouteOrigin` (static, "call" tier): `expand()` — the locales a rule generates for, `'all'` over the
+  adapter's list, with one warning per process when that list is empty (the rule silently collapsing to one URL was
+  logged by the Laravel bridge only; the other three now say it too); `pinnedRoot()` — `hosts.<host>.base_url`, else
+  `https://<host>`; `rebase()` — scheme, host and port of an origin over the path, query and fragment of a generated
+  URL; `generationFailed()` and `noRequestHost()` — the two `ConfigurationException`s, one text each (four bridges had
+  four spellings of `Cannot generate route`). `Dispatch\BatchingDispatcher(Closure $enqueue, Config, ?Logger, string
+  $noun = 'job')`: one unit per `batch.max_urls`, `newJobId()` (twelve hex characters: three adapters had
+  `bin2hex(random_bytes(6))` each), a push that throws logged as `cannot queue {count} URL(s) ({noun} {id}), they are
+  lost` with `Config::logSample()` and never rethrown; the adapters' dispatchers are the push closure around it.
+  `Check\LocalesCheck($locales, $rules, Closure $classes, $option = 'router.locales', ?string $parameter = null)`, code
+  `router.locales`: the one check three adapters printed with three texts — the warning names the option and up to
+  three classes ("and N more"), the ok line names the locales and the route parameter when the adapter gives one, a
+  class whose rules cannot be read is skipped. `Check\DispatchLine::describe($dispatch)`: the `sync` / `none`
+  sentence of the adapters' queue checks.
+- **`Debounce\DebounceStoreFactory::isShared(?string $store)`**: whether `debounce.store` names a cache shared by
+  every process, the question nine places across five packages answered with their own `in_array($store, [MEMORY,
+  NONE], true)` (the bundle with the literals). **`Check\DebounceStoreCheck::PROBE_KEY`** (`indexnowkit_check`): the
+  key every adapter's probe writes — two adapters wrote `indexnowkit:check`, and `:` is a character PSR-16 reserves,
+  so a strict cache (yiisoft/cache) refused the probe and `check` reported a working store as broken. The docblock of
+  the check says "writes a test key" now; two probes only read one.
+- **`Adapter\OptionalPackage` knows the options its package owns**: a fifth constructor argument, `?string
+  $optionsProvider` — the name of the package's `*Services::options()` as a string, so the core still names no class
+  of a package it does not require — filled by `sitemap()`, `verify()`, `history()`; `options()` calls it only when
+  `installed()` says yes; the static `ownedOptions(list<OptionalPackage>)` and `ignoredBlocks(list<OptionalPackage>)`
+  fold a list of predicates into the two arguments of `Adapter\ConfigFactory`, which three adapters built from eight
+  identical lines each. A fourth package is one line in the core now, not three edits in three adapters.
+- **`Http\Psr18Transport::discover()` and `Http\TransportFactory::lazy()` take the application's PSR-17 factories**
+  (`?RequestFactoryInterface $requestFactory`, `?StreamFactoryInterface $streamFactory`, appended and optional): a
+  PSR-7 stack with a `Psr17Factory` service of its own (Slim, Mezzio, Yii3) hands it over instead of having
+  `php-http/discovery` find one; `null` discovers, as before. The docblock of `sendRequest()` says why the two PSR-18
+  exception subtypes are not told apart; `docs/adapters.md` §12 says what the transport does about redirects (nothing
+  the standard does not: off on the clients it builds, the application's own client keeps its defaults) and §13 why the
+  core takes PSR-16 only (wrap a PSR-6 pool in the view your ecosystem ships) and §11 which key-file recipe each stack
+  gets. `Testing\ArrayLogger`'s docblock says it does not check the level — a double, not a PSR-3 logger.
 - **`Key\KeyFileRequestHandler`** (wave L, spec 18 §3.5): `GET /<key>.txt` over PSR-7 for any PSR-15 stack — a
   `RequestHandlerInterface` (the action of a route: the key is read off the path), a `MiddlewareInterface` (in front
   of the router: a request it does not serve goes on to the next handler untouched) and `respond(?string $key, $request)`

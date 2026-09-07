@@ -22,6 +22,19 @@ final class DebounceStoreFactory
     private function __construct() {}
 
     /**
+     * Whether a `debounce.store` value names a store shared by every process — an id the adapter resolves to a
+     * cache — rather than one of the two reserved values (`memory`, `none`) or nothing at all. The one place for
+     * the question every adapter used to answer with its own `in_array($store, [MEMORY, NONE], true)`: the 403
+     * counter, the robots cache of verify and the `psr16` store of history share the cache behind a shared store
+     * and stay in the process otherwise. Pass the adapter's default for null (`isShared($config->debounceStore ??
+     * 'cache')`) when the unset option means a store.
+     */
+    public static function isShared(?string $store): bool
+    {
+        return $store !== null && $store !== self::MEMORY && $store !== self::NONE;
+    }
+
+    /**
      * @param (Closure(string): mixed)|null $cacheLocator how the adapter resolves a store id: to a PSR-16 cache (wrapped in
      *                                                    Psr16DebounceStore with `debounce.key_prefix`), or to a ready
      *                                                    DebounceStoreInterface when the framework's cache is not PSR-16 (Yii2);

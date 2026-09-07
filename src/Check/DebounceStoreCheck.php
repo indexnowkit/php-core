@@ -11,13 +11,21 @@ use Throwable;
 
 /**
  * The `debounce` line of `check`: the window lives in a store, and a misconfigured store fails open (URLs are
- * still sent) while silently disabling the window. The adapter supplies a probe that writes and reads a test key in
- * its cache and returns a short signature of the store (`cache store "redis" (RedisStore)`), or throws.
+ * still sent) while silently disabling the window. The adapter supplies a probe that writes a test key
+ * ({@see PROBE_KEY}, a few seconds of TTL) into its cache and returns a short signature of the store
+ * (`cache store "redis" (RedisStore)`), or throws.
  */
 final class DebounceStoreCheck implements CheckInterface
 {
     /** The code of every line this check prints ({@see CheckItem::$code}). */
     public const CODE = 'debounce.store';
+
+    /**
+     * The key every adapter's probe writes. PSR-16 reserves `{}()/\@:` in keys and a strict implementation
+     * (yiisoft/cache) rejects them, so it carries no colon: a probe that only a strict cache refuses would report a
+     * working store as broken, and `check` is the one command that must not lie about it.
+     */
+    public const PROBE_KEY = 'indexnowkit_check';
 
     /**
      * @param (Closure(string): string)|null $probe   given the store id, uses the store and returns what to print, or throws

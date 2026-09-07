@@ -501,6 +501,18 @@ return $this->response($body, 200, $config->keyFileHeaders());
 `CONTENT_TYPE` is `text/plain; charset=utf-8`, and `DEFAULT_MAX_AGE` is 300 seconds — short on purpose, because a
 cached old key file turns every submission into a 403 after a rotation. Serve 200 with no redirect, 404 otherwise.
 
+Which of the two a stack gets, in one table — the recipe is decided by whether the framework's request is PSR-7,
+not by taste: a bridge (`symfony/psr-http-message-bridge` plus a PSR-17 implementation) costs two dependencies in
+`require` for thirty lines, so the HttpFoundation and Illuminate adapters keep a controller of their own.
+
+| Stack | Recipe |
+|---|---|
+| Yii3, Slim, Mezzio, Laminas, any PSR-15 pipeline | `Key\KeyFileRequestHandler` as a route handler or a middleware (above); the Yii3 package delegates to it |
+| Symfony (HttpFoundation) | a controller over `Key\KeyFileResponder` (`SymfonyBundle\Controller\KeyFileController`) |
+| Laravel (Illuminate, HttpFoundation underneath) | a controller over `Key\KeyFileResponder` (`Laravel\Http\KeyFileController`) |
+| Yii2 | a controller over `Key\KeyFileResponder` and `Config::keyFileHeaders()` |
+| Bitrix, a plain `index.php` | `KeyFileResponder::bodyForPath($_SERVER['REQUEST_URI'], $_SERVER['HTTP_HOST'])` and `header()` per `Config::keyFileHeaders()` |
+
 `Key\KeyGenerator::generate($length, $hex)` produces CSPRNG keys, 32 hex characters by default; pass `hex: false`
 for the full `[A-Za-z0-9]` alphabet. A `key:generate --write-env` style command is the first thing users run.
 Satisfies H01–H03.
@@ -519,6 +531,17 @@ timeouts, cap the body you read (`Psr18Transport` uses 2 KiB for POST diagnostic
 cap for the largest documents consumers of the transport read). Parse `Retry-After` with `Response::parseRetryAfter($header)` so every adapter interprets delta-seconds
 and HTTP-dates identically and applies the same clamp. Configure no redirects and a timeout.
 
+Redirects deserve a sentence, because PSR-18 says nothing about them: the standard leaves following a 3xx to the
+client, and clients differ (Guzzle follows five by default, Symfony's twenty, a hand-built curl none). `Psr18Transport`
+switches redirects off on the clients it builds itself (`max_redirects: 0`, `allow_redirects: false`); a client the
+application hands in through `http.client` keeps its own defaults, and `check` warns about it (`http.client`), because
+a key file that redirects to a catch-all page then looks like a 200 — the conformance scenario H02 ("the key file
+answers without a redirect") cannot be verified honestly on such a client. When an application must pass its own
+client, pass one configured without redirects. On a PSR-7 stack, hand the transport the application's PSR-17 factories
+as well (`Psr18Transport::discover(requestFactory:, streamFactory:)`, `TransportFactory::lazy(…, requestFactory:,
+streamFactory:)`), so that a request is built by the same implementation the rest of the application uses and
+`php-http/discovery` is never consulted.
+
 Implement `Http\StreamingTransportInterface` too when your stack can read a response body in chunks
 (`download(string $url, $sink): Response` writes the body to a stream resource and returns an empty-bodied
 `Response`). Consumers that read large documents (the add-on packages) then never hold a document in memory; with a
@@ -533,6 +556,16 @@ applications, and memory for CLI and tests.
 
 A debounce store may throw: the submitter treats a failing read as "nothing is recent" and a failing write as
 "window not recorded", logs a warning, and delivers anyway. Preserve that fail-open behaviour in your own store.
+
+The core takes PSR-16 and only PSR-16. A stack whose cache is a PSR-6 pool (Symfony's `cache.app`, a Laminas
+`StorageInterface`) wraps it in the PSR-16 view its own ecosystem ships — `Symfony\Component\Cache\Psr16Cache`,
+`Laminas\Cache\Psr\SimpleCache\SimpleCacheDecorator` — and hands that to `Psr16DebounceStore`; the bundle does exactly
+this. A `Psr6DebounceStore` of the core would be a second store to keep in step for nothing the view does not give.
+Two questions every adapter answers the same way: `Debounce\DebounceStoreFactory::isShared($store)` says whether
+`debounce.store` names a cache shared by every process (the 403 counter, the robots cache of verify and the `psr16`
+history store then share it; `memory` and `none` keep them in the process), and the probe of `Check\DebounceStoreCheck`
+writes `DebounceStoreCheck::PROBE_KEY` — a key without the characters PSR-16 reserves, so a strict cache does not
+refuse it and report a working store as broken.
 
 `TokenBucket` blocks with `usleep()` per process. In a web request `NullThrottle` is often the better default, with
 the real rate limiting in the queue worker. Both take a `Psr\Clock\ClockInterface`, so tests use `FrozenClock`.

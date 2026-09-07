@@ -61,16 +61,18 @@ final class Psr18Transport implements StreamingTransportInterface
      * @param array<string, string> $extraHeaders sent with every request (a `User-Agent` for GETs, which take no headers)
      * @param int|null              $getBodyLimit bytes of a GET body before the request fails; null = {@see GET_BODY_LIMIT}
      *                                            (a consumer that reads only the head of a page passes a small one)
+     * @param RequestFactoryInterface|null $requestFactory the application's PSR-17 request factory; null = discovered
+     * @param StreamFactoryInterface|null  $streamFactory  the application's PSR-17 stream factory; null = discovered
      *
      * @throws ConfigurationException when no PSR-18 client or PSR-17 factories can be found
      */
-    public static function discover(?ClientInterface $client = null, ?float $timeout = null, array $extraHeaders = [], ?int $getBodyLimit = null): self
+    public static function discover(?ClientInterface $client = null, ?float $timeout = null, array $extraHeaders = [], ?int $getBodyLimit = null, ?RequestFactoryInterface $requestFactory = null, ?StreamFactoryInterface $streamFactory = null): self
     {
         try {
             return new self(
                 $client ?? self::createClient($timeout),
-                Psr17FactoryDiscovery::findRequestFactory(),
-                Psr17FactoryDiscovery::findStreamFactory(),
+                $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory(),
+                $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory(),
                 $extraHeaders,
                 $getBodyLimit ?? self::GET_BODY_LIMIT,
             );
@@ -196,6 +198,13 @@ final class Psr18Transport implements StreamingTransportInterface
         return $headers;
     }
 
+    /**
+     * PSR-18: a 4xx/5xx is a response, not an exception, so the status reaches {@see Response}; every
+     * `ClientExceptionInterface` becomes a TransportException. The two subtypes are not told apart on purpose:
+     * `NetworkExceptionInterface` (the request never got an answer: retryable, which is what the client's retry
+     * policy does with a TransportException) and `RequestExceptionInterface` (the request itself is malformed —
+     * "if and only if", and this class builds every request it sends, so the case is not reachable from user input).
+     */
     private function sendRequest(RequestInterface $request): ResponseInterface
     {
         try {

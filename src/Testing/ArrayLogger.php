@@ -8,7 +8,10 @@ use Psr\Log\AbstractLogger;
 use Stringable;
 
 /**
- * Test double: keeps every record; messages() returns them interpolated, optionally filtered by level.
+ * Test double: keeps every record; messages() returns them interpolated, optionally filtered by level. As a double
+ * it does not check the level against PSR-3's eight (`Psr\Log\LogLevel`): an unknown level is stored as given (a
+ * scalar as its string, anything else as `unknown`) rather than thrown, so a test sees what the code under test
+ * wrote — a real logger, and the family's bridges (`YiiLogger`), must throw `Psr\Log\InvalidArgumentException` there.
  */
 final class ArrayLogger extends AbstractLogger
 {

@@ -60,7 +60,7 @@ global lines have `null` there.
 | `url_manager.rule` | yii2 | ok, error | the key file URL rule is registered, or missing (component not in `bootstrap`) |
 | `router.key_file` | yii3 | ok, error | the key file is not served by the application (`key_file.enabled: false`), or `key_file` is misconfigured |
 | `router.route` | yii3 | ok, error | the route `indexnow/key-file` is in the route collection (or the console says the web application serves it), or missing (the `routes` group of the package is not merged) |
-| `router.locales` | symfony-bundle, laravel, yii2 | ok, warning | a rule asks for `locales: 'all'` while the locale list of the application is empty, so one URL in the current locale is generated instead of one per locale (`framework.enabled_locales` in Symfony, `router.locales` in Laravel and Yii2). The bundle writes this line only as the warning; Laravel and Yii2 also write the `ok` line naming the configured locales |
+| `router.locales` | symfony-bundle, laravel, yii2 (the core's `Check\LocalesCheck`) | ok, warning | a rule asks for `locales: 'all'` while the locale list of the application is empty, so one URL in the current locale is generated instead of one per locale (`framework.enabled_locales` in Symfony, `router.locales` in Laravel and Yii2): one text, the option and the classes named. The `ok` line naming the configured locales and the route parameter is written by the adapters that know the parameter (Laravel, Yii2); the bundle prints the warning only |
 
 ## Optional packages
 
