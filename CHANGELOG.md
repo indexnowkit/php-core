@@ -3,7 +3,7 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
-## [0.13.0] — Unreleased
+## [0.13.0] — 2026-09-08
 
 Additive: the predicates of the three optional packages move into the core, so that an adapter can ask "is
 `indexnowkit/sitemap` installed?" without loading a class that lives in `indexnowkit/sitemap`.
@@ -103,6 +103,10 @@ against, plus the four constructions every adapter had copied.
 
 ### Fixed
 
+- **PHP 8.5 without deprecations, phpstan on PHP 8.4+ clean** — `Url\ViaWalk` uses the `SplObjectStorage` offset methods
+  (`attach()`/`contains()` are deprecated since 8.5), `Url\UrlNormalizer` decodes a percent-escape with `hex2bin()` and
+  `Attribute\RuleCompiler::compile()` is `@template T of object` over its `ReflectionClass<T>` (the newest stubs make the
+  template invariant). No runtime change.
 - **`Transaction\VerifyingStaging::rowMatches()` compares only unambiguous values** — integers, strings, booleans,
   backed enums and null — and treats an empty expectation as "the row exists" (R1). The row comes back raw from the
   driver, so `19.9` written by the application met `'19.90'` from a DECIMAL column, a `timestamptz` came back with a
