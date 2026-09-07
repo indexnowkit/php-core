@@ -13,7 +13,7 @@ the old PHP).
 | Tier | What it means | Examples |
 |---|---|---|
 | **Call** | You call it. Signatures do not change incompatibly; new parameters are only appended with defaults. | `IndexNowKit`, `Config` (including the static `serveKeyFileFrom()`), `Submitter`, `Client`, `Result`, `Checker`, `KeyGenerator`, `KeyFileResponder`, `RetryPolicy`, `ObjectChangeHandler`, `GuardedUrlResolver`, `RuleRegistry`, `Transaction\VerifyingStaging`, `Adapter\SubmitterFactory`, `Submission\ResultSummary`, `Adapter\ConfigFactory`, `Adapter\ServicesBuilder`, `Adapter\Services`, `Adapter\OptionalPackage` (including the static `sitemap()`, `verify()`, `history()`), the factories (`Http\TransportFactory`, `Debounce\DebounceStoreFactory`, `Dispatch\DispatcherFactory`, every `fromConfig()`), `Check\DebounceStoreCheck`, `Check\StaticCheck`, the writers of `Check\CheckReport`, `Hook\ObserverHelper`, `Retry\WorkerOutcome`, `Retry\ForbiddenCounter`, `Submission\NullSubmissionStore`, the four test doubles of `Testing\` |
-| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Url\ParamExtractorAwareInterface`, `Url\RouteUrlResolverInterface` and `Url\ResolverLocatorInterface` (one implementation per framework adapter; a capability the core needs later comes as a new interface that extends them, the way `History\HistoryStoreInterface` extends `SubmissionStoreInterface`), `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface`, `Submission\SubmissionStoreInterface` (new in 0.8, see [submission-store.md](submission-store.md)), `Attribute\Param\Condition` and `FieldCondition` (new in 0.8, the `when` guards); the three new interfaces live through one minor unchanged before 1.0 |
+| **Implement** | You implement it, and the core calls you. Methods are not added without a major version. | `TransportInterface`, `StreamingTransportInterface`, `Url\RuleAwareUrlResolverInterface` (until 1.0 a method may still be appended in a minor), `Url\ParamExtractorAwareInterface`, `Url\RouteUrlResolverInterface` (one implementation per framework adapter) and `Url\ResolverLocatorInterface` (one shipped implementation, `Url\ArrayResolverLocator`, which every adapter configures with closures rather than replacing); a capability the core needs later comes as a new interface that extends them, the way `History\HistoryStoreInterface` extends `SubmissionStoreInterface`, `Check\CheckInterface`, `KeyProviderInterface`, `UrlNormalizerInterface`, `UrlResolverInterface`, `DebounceStoreInterface`, `ThrottleInterface`, `DispatcherInterface`, `Attribute\SubjectReaderInterface`, `Adapter\SubmitterFactoryInterface`, `Submission\SubmissionStoreInterface` (new in 0.8, see [submission-store.md](submission-store.md)), `Attribute\Param\Condition` and `FieldCondition` (new in 0.8, the `when` guards); the three new interfaces live through one minor unchanged before 1.0 |
 | **May grow** | Interfaces the core also implements for you, where a new method may appear in a minor. Extend the shipped class rather than implementing the interface from scratch. | `ClientInterface`, `Check\CheckerInterface`, `SubmitterInterface`, `CollectorInterface`, `AttributeReaderInterface` |
 | **Sealed** | Closed sets the core switches over. Do not implement them: an unknown implementation is a configuration error, or worse, a silent miss. | `Attribute\Param\ParamValue` (`Accessor`, `Value`, `Formatted`, `Call` are the set: a param source of your own is a resolver, `#[IndexNow(resolver: …)]`) |
 
@@ -21,13 +21,16 @@ The "may grow" tier is the honest label for interfaces that are still learning w
 one directly, pin `^0.8.0` rather than `^0.8` and read the changelog before upgrading. Decorating a shipped
 implementation (`RetryingSubmitter` decorates `Submitter`, `RuleRegistry` decorates `AttributeReader`) is safe in
 both directions. `RouteUrlResolverInterface` and `ResolverLocatorInterface` used to be listed here; they are
-"Implement" since 0.11: the core ships no implementation to decorate (one per framework adapter), so a method cannot be
-added to them in a minor.
+"Implement" since 0.11, for two different reasons. `RouteUrlResolverInterface` has no shipped implementation to
+decorate — there is one per framework adapter — so a method cannot be added to it in a minor. `ResolverLocatorInterface`
+does have one, `ArrayResolverLocator`, but no adapter decorates or replaces it: all four configure the shipped class
+with the `locate:` and `hint:` closures, so nothing would gain from the interface growing, and the stricter tier is
+what the four call sites actually rely on.
 
 ## Named arguments
 
-`IndexNowKit::create()` takes thirteen optional arguments after `$config` and will take more. **Parameter names are part of the
-promise; the order is not.** New parameters are appended, never inserted, and every call should use named
+`IndexNowKit::create()` takes only named optional parameters after `$config`, and will take more; the list is the
+signature, and that is the one place to read it. **Parameter names are part of the promise; the order is not.** New parameters are appended, never inserted, and every call should use named
 arguments:
 
 ```php
@@ -102,11 +105,19 @@ These are the values to reference instead of hard-coding, and they are covered b
 
 `Config::MAX_BATCH_URLS`, `Config::DEFAULT_BATCH_MAX_URLS`, `Config::DEFAULT_DEBOUNCE_PER_URL`,
 `Config::DEFAULT_THROTTLE_PER_MINUTE`, `Config::DEFAULT_HTTP_TIMEOUT`, `Config::PRODUCTION_ENVIRONMENTS`,
-`Config::OPTIONS`, `Result::NO_ENGINE`, `Client::FORBIDDEN_ESCALATION`, `KeyValidator::MIN_LENGTH`,
+`Config::OPTIONS`, `Result::NO_ENGINE`, `Client::FORBIDDEN_ESCALATION`, `Client::FAILURE_CACHE_TTL` (the lifetime of
+the 403 counter in the failure cache; `History\Adapter\HistoryServices::forbiddenCounter()` needs it), `KeyValidator::MIN_LENGTH`,
 `KeyValidator::MAX_LENGTH`, `KeyValidator::ALPHABET`, `KeyValidator::PATTERN`, `KeyFileResponder::PATH_PATTERN`,
 `KeyFileResponder::CONTENT_TYPE`, `KeyFileResponder::DEFAULT_MAX_AGE`, `Http\Response::MAX_RETRY_AFTER`,
 `Psr18Transport::POST_BODY_LIMIT`, `Psr18Transport::GET_BODY_LIMIT`, `UrlNormalizer::MAX_URL_LENGTH`, `UrlNormalizer::MAX_HOST_LENGTH`, `UrlNormalizer::MAX_LABEL_LENGTH`,
 `ParamExtractor::SELF`, `Version::VERSION`.
+
+The names an adapter writes instead of a string literal: the node names of `Adapter\Services::*` (`TRANSPORT`, `KEYS`,
+`NORMALIZER`, `THROTTLE`, `DEBOUNCE_STORE`, `CLIENT`, `SUBMITTER`, `COLLECTOR`, `DISPATCHER`, `READER`, `ROUTER`,
+`RESOLVER_LOCATOR`, `URL_RESOLVER`, `PARAM_EXTRACTOR`, `FAILURE_CACHE`, `SUBMISSION_STORE`, `CHANGES`, `CLOCK` — a
+container adapter maps them to its definitions), the dispatch modes the core itself knows (`Dispatch\DispatcherFactory::SYNC`,
+`::NONE`) and the two reserved values of `debounce.store` (`Debounce\DebounceStoreFactory::MEMORY`, `::NONE`). A node
+name is added when a node is added, which is a minor; none is renamed or removed before 1.0 without a "Changed" entry.
 
 Enums (`ResultStatus`, `Reason`, `Event`, `Engine`, `Check\CheckLevel`, `Attribute\RuleSource`, `Attribute\Param\Placeholder`)
 and the value objects of the rule model (`Attribute\UrlRule`, `RuleSet`, `RuleEvent`, `Attribute\Param\{Accessor, Value, Formatted,

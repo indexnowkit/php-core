@@ -1,6 +1,6 @@
 # Конфигурация
 
-[English version](configuration.md) — там же генерируемая таблица «One concept, three keys» (ключи трёх адаптеров).
+[English version](configuration.md) — там же генерируемая таблица «One concept, four keys» (ключи четырёх адаптеров).
 
 `IndexNowKit\Config` — неизменяемый value object, общий для всех адаптеров. Строится одним из трёх способов и
 валидируется в конструкторе, поэтому сломанная настройка падает при загрузке, а не при первой отправке.
@@ -61,9 +61,9 @@ Config::fromArray([
 | `http.timeout` | `httpTimeout` | `10.0` | секунды, только для клиентов, которые библиотека создаёт сама |
 | `http.user_agent` | `userAgent` | `null` | заменяет `indexnowkit-php/<version> (+https://github.com/indexnowkit/php)` |
 | `key_file.enabled` | `serveKeyFile` | `true` | должен ли адаптер отвечать на `GET /{key}.txt`; `serve_key_file` — устаревшее имя, побеждает, если заданы оба |
-| `key_file.cache_max_age` | `keyFileMaxAge` / `keyFileHeaders()` | `300` | `Cache-Control: max-age` ответа с файлом ключа; короткий нарочно — закэшированный старый файл после ротации превращает каждую отправку в 403 |
-| `debounce.store` | `debounceStore` | `null` | `memory` (на процесс), `none` или id, который адаптер разрешает в свой общий кэш; `null` = дефолт адаптера (Laravel `cache`, бандл `cache.app`, Yii2 `cache`, чистый PHP `memory`) |
-| `http.client` | `httpClient` | `null` | id или класс PSR-18 клиента, который разрешает адаптер; `null` = discovery |
+| `key_file.cache_max_age` | `keyFileMaxAge` / `keyFileHeaders()` | `300` | `Cache-Control: max-age` ответа с файлом ключа; короткий нарочно — закэшированный старый файл после ротации превращает каждую отправку в 403. `keyFileHeaders()` добавляет `Vary: Host`, когда тело зависит от хоста: есть карта `hosts` **или** включён `strict_hosts` (ключ по умолчанию отдаётся только базовому хосту, остальные получают 404, и общий кэш без `Vary` запомнил бы тот ответ, который пришёл первым) |
+| `debounce.store` | `debounceStore` | `null` | `memory` (на процесс), `none` или id, который адаптер разрешает в свой общий кэш; `null` = дефолт адаптера (Laravel `cache`, бандл `cache.app`, Yii2 `cache`, Yii3 — id контейнера `Psr\SimpleCache\CacheInterface`, чистый PHP `memory`) |
+| `http.client` | `httpClient` | `null` | id или класс PSR-18 клиента, который разрешает адаптер; `null` = discovery. Клиент несёт настройки приложения, поэтому `check` предупреждает, когда он задан (`http.client`): клиент, который сам ходит по редиректам, превращает 30x на страницу-заглушку в 200 при проверке файла ключа. Pre-flight пакета `indexnowkit/verify` его **не** использует — пройденный редирект скрыл бы ровно тот 3xx, ради которого pre-flight и существует, — и строит собственный клиент по `verify.timeout` и `verify.max_redirects` |
 | `dry_run` | `dryRun` | `false` | логировать запрос вместо отправки; вне production незаданный `dry_run` при настроенном ключе делает `check` красным |
 | `environment` | `environment` | `null` | окружение приложения; управляет страховкой ниже |
 | `production_environments` | `productionEnvironments` | `['prod', 'production']` | имена окружений (без учёта регистра), считающихся production; заменяет список по умолчанию |
@@ -82,6 +82,13 @@ Config::fromArray([
 | `collector.max_urls` | `collectorMaxUrls` | `0` | `IndexNowKit::collect()` сбрасывает буфер досрочно при этом размере; `0` = только на `flush()` |
 | `collector.detect_leaks` | `collectorDetectLeaks` | `true` | warning при завершении о собранных, но не сброшенных URL |
 
+Что `Url\UrlNormalizer` делает всегда, без опции: приводит схему и хост к нижнему регистру, интернационализированный
+хост — к punycode, убирает порт по умолчанию, разрешает dot-сегменты, срезает фрагмент и приводит percent-кодирование
+пути и запроса к канонической форме RFC 3986 §6.2.2 — экранированный незарезервированный символ (`A-Za-z0-9-._~`)
+становится символом, остальные экраны переводятся в верхний регистр, так что `/%7Euser/a%2Db` и `/~user/a-b` — один URL
+и дебаунсятся, отправляются и записываются один раз. URL с учётными данными, управляющими символами или схемой не
+`http(s)` отвергается через `InvalidUrlException`.
+
 Константы, на которые стоит ссылаться вместо чисел: `Config::MAX_BATCH_URLS` (10000), `Config::DEFAULT_BATCH_MAX_URLS`,
 `Config::DEFAULT_DEBOUNCE_PER_URL` (600), `Config::DEFAULT_THROTTLE_PER_MINUTE` (60), `Config::DEFAULT_HTTP_TIMEOUT` (10.0),
 `Config::PRODUCTION_ENVIRONMENTS` (`['prod', 'production']`), `Config::DEFAULT_MAX_URL_LENGTH`, `Config::DEFAULT_LOG_URLS`,
@@ -93,19 +100,28 @@ Config::fromArray([
 значений) свой в каждом фреймворке. Таблицы генерируются из кода (`bin/config-table`) и проверяются в CI — см.
 раздел «One concept, four keys» в [английской версии](configuration.md#one-concept-four-keys). Коротко:
 
-| Понятие | Symfony | Laravel | Yii2 |
-|---|---|---|---|
-| Режим доставки `dispatch` | `auto` \| `messenger` \| `sync` \| `none` | `queue` \| `sync` \| `none` (без `auto`) | `auto` \| `queue` \| `sync` \| `none` |
-| Очередь / транспорт | `messenger.transport` | `queue.connection` | `queue.component` |
-| Локали для `locales: all` | `framework.enabled_locales` | `router.locales` | `router.locales` (до 0.12 — `router.languages`) |
-| Переключатель ORM-хуков | `doctrine.enabled` | `eloquent.enabled` | `active_record.enabled` |
-| Маршрут файла ключа | `key_file.path` | `key_file.path` | `key_file.pattern` |
-| Куда логировать | `logging.channel` | `logging.channel` | `logging.category` |
+| Понятие | Symfony | Laravel | Yii2 | Yii3 |
+|---|---|---|---|---|
+| Режим доставки `dispatch` | `auto` \| `messenger` \| `sync` \| `none` | `queue` \| `sync` \| `none` (без `auto`) | `auto` \| `queue` \| `sync` \| `none` | `sync` \| `none` (очередь — заменённый `DispatcherInterface`) |
+| Очередь / транспорт | `messenger.transport` | `queue.connection` | `queue.component` | — |
+| Локали для `locales: all` | `framework.enabled_locales` | `router.locales` | `router.locales` (до 0.12 — `router.languages`) | `router.locales` |
+| Переключатель ORM-хуков | `doctrine.enabled` | `eloquent.enabled` | `active_record.enabled` | `active_record.enabled` |
+| Маршрут файла ключа | `key_file.path` | `key_file.path` | `key_file.pattern` | `key_file.pattern` |
+| Куда логировать | `logging.channel` | `logging.channel` | `logging.category` | `logging.category` |
 
 ## Переменные окружения
 
 `Config::fromEnv()` читает `getenv()`, слитый с `$_SERVER` и `$_ENV`. Первый аргумент — свой массив вместо них, второй —
 другой префикс вместо `INDEXNOW_`. Пустые строки считаются незаданными.
+
+**Булевы значения разбираются, а не приводятся.** Каждая булева опция — `enabled`, `dry_run`, `strict_hosts`,
+`key_file.enabled`, `serve_key_file`, `collector.detect_leaks`, `normalizer.strip_tracking_params`,
+`normalizer.sort_query` — проходит через один и тот же разбор (`filter_var` с булевым фильтром) и в `fromEnv()`, и в
+`fromArray()`: строки `false`, `0`, `no`, `off` означают ложь, `true`, `1`, `yes`, `on` — истину. Пустая строка — «не
+задано» и даёт дефолт, не-скаляр — `ConfigurationException` с именем ключа. Это важно там, где адаптер отдаёт
+переменную окружения прямо в `fromArray()` без собственного приведения — так делает блок params Yii3, и обычный
+`(bool)` прочитал бы `INDEXNOW_DRY_RUN=false` как истину: продакшен молча не отправлял бы ничего, а `check` называл бы
+это осознанным выбором.
 
 | Переменная | Опция |
 |---|---|

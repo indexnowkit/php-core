@@ -22,6 +22,67 @@ Additive: the predicates of the three optional packages move into the core, so t
   catch it). `docs/adapters.md` §2 "Optional packages" names the new recipe; `docs/bc.md` lists `Adapter\OptionalPackage`
   in the "call" tier, where it always belonged.
 
+Then the six-lens audit of 0.13 (`docs/plans/audit-0.13.md` in the specification workspace), run on this wave before it
+was tagged. Everything below went into the same unreleased minor, so there is no 0.13.0 in the wild without it. Two of
+the findings lost URLs silently: an insert whose verifier compared a DECIMAL column never announced the new page, and a
+`dry_run` given as the string `"false"` read as true. The rest is the shape of the API the next adapter is written
+against, plus the four constructions every adapter had copied.
+
+### Added
+
+- **`Adapter\SubmitterFactory` takes `?ClockInterface $clock` as its last parameter** and passes it to the `Submitter`
+  it builds; `Adapter\Services::submitterFactory()` gives it the graph's `clock` node (A1). Appended and optional, so
+  the "call" tier holds. Without it the `clock` node stopped at the application's submitter: `Testing\FrozenClock` left
+  `submit`, `submit-record` and `sitemap` on the wall clock, the submission history recorded commands and requests on
+  two different clocks, and the debounce window was counted twice over.
+- **`Adapter\Services::requireRouter()` and `requireResolverLocator()`** (A9): the same nodes as `router()` and
+  `resolverLocator()`, but typed non-nullable and throwing a `ConfigurationException` that names the missing node. An
+  adapter that always wires one wrote `?? throw` with a message nobody ever read; two adapters had shipped that dead
+  branch before this existed.
+- **The `events` closure of `Adapter\ServicesBuilder` may return `null`** (A8), like the nullable nodes. An adapter
+  whose container may or may not hold a `Psr\EventDispatcher\EventDispatcherInterface` now answers that inside the
+  closure instead of asking the container during `build()`, which is documented to do no IO.
+- **`Check\SampleGateCheck` over `Check\SampleOptions`** (A2): the `--sample` / `--sample-class` gate in front of the
+  optional `indexnowkit/verify`, in the core because it has to load without the package. All four adapters carried a
+  byte-identical copy of the class, the holder and the two user-facing sentences. Every line it writes carries the code
+  `verify.installed`, which is what the adapters always printed — `docs/check-codes.md` had documented `verify.sample`
+  for it, a code that exists only while the package does (D1).
+- **`Hook\ObserverHelper::forKit()`** next to `forChanges()` (A23): the plain case as a named constructor, so the
+  union-typed constructor with its conditionally required `$sink` is no longer the way in.
+- **`Transaction\VerifyingStaging::stage()` takes a subject key** (`?string $key`, appended) and merges a later change
+  of the same subject into the entry already staged, keeping both sets of URLs and the newer verifier (R4). Without it
+  two writes to one row inside one transaction staged two entries, both verified at the end against the **last** state
+  of the row, so the first one's URLs were dropped as "did not land" — including the old URL of a two-step rename.
+- **`Url\ArrayResolverLocator` wraps a throwing container lookup** in a `ConfigurationException` naming the id
+  (`IndexNow URL resolver "%s" cannot be built by the container: %s`) (A10). Three adapters had copied that try/catch
+  with three different sentences and the fourth had none at all, so a container error escaped it raw, past
+  `IndexNowException`. Adapters hand `locate:` a bare lookup now.
+
+### Fixed
+
+- **`Transaction\VerifyingStaging::rowMatches()` compares only unambiguous values** — integers, strings, booleans,
+  backed enums and null — and treats an empty expectation as "the row exists" (R1). The row comes back raw from the
+  driver, so `19.9` written by the application met `'19.90'` from a DECIMAL column, a `timestamptz` came back with a
+  zone suffix, and JSON came back in the database's own spelling. Inserts staged **every** non-null property, so one
+  such column dropped the announcement of every new page of that class, at `debug` level. Floats, dates, arrays and
+  objects are now skipped like a column the row does not carry.
+- **`Config::fromArray()` parses `dry_run`, `enabled`, `strict_hosts` and `collector.detect_leaks`** through the same
+  boolean parser as every neighbouring key instead of casting with `(bool)` (W1). An adapter that hands an environment
+  variable straight to `fromArray()` read `INDEXNOW_DRY_RUN=false` as `true`, and `dryRunExplicit` as true with it, so
+  `check` reported a deliberate choice while production submitted nothing.
+- **`Config::baseHost()` returns the host as punycode, lower-cased** (S4), the same form `Url\UrlNormalizer` produces.
+  With an internationalized `base_url` and `strict_hosts` the two spellings never matched, so every URL of the site was
+  skipped with `no_key` — fail-closed, and with no line saying why.
+- **`Config::keyFileHeaders()` adds `Vary: Host` under `strict_hosts` too**, not only with a `hosts` map (S3). With
+  `strict_hosts` and a `base_url` the key file answers 200 for the base host and 404 for every other one, so a shared
+  cache or CDN kept whichever of the two came first; a cached 404 turns every submission into a 403.
+- **`Url\UrlNormalizer` normalizes percent-encoding** per RFC 3986 §6.2.2: an escape of an unreserved character
+  (`A-Za-z0-9-._~`) becomes the character, every other escape is upper-cased (W9). `/%7Euser` and `/~user` are one URL
+  now, debounced, submitted and recorded once.
+- **`Retry\ForbiddenCounter::key()` drops the brackets and the colons of an IPv6 host** (S10). A host like `[::1]` put
+  a colon — a PSR-16 reserved character — into the cache key, so a strict cache rejected the read and the write: the
+  counter of that host degraded to one warning per 403 and the `critical` escalation never fired for it.
+
 ## [0.12.0] — 2026-09-07
 
 The design decisions of the 0.10 audit (`docs/plans/audit-0.10.md` §6 in the specification workspace). Three change

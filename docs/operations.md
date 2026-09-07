@@ -10,7 +10,8 @@ Before the first real submission, and again after every deployment that touches 
 1. **Key and base URL.** `INDEXNOW_KEY` (8–128 characters of `[A-Za-z0-9-]`) and `base_url` are set; every host you
    submit serves `https://<host>/<key>.txt` with `200`, `text/plain`, the key as the body and no redirect.
 2. **`check --strict` is green** in the environment that submits (`bin/console indexnow:check --strict`, `php artisan
-   indexnow:check --strict`, `php yii indexnow/check --strict`): exit code 0. Put it in the deploy pipeline; it exits 1
+   indexnow:check --strict`, `php yii indexnow/check --strict` in Yii2, `./yii indexnow:check --strict` in Yii3):
+   exit code 0. Put it in the deploy pipeline; it exits 1
    on any error and, with `--strict`, on any warning. `check --json` (schema `docs/check.schema.json` of
    `indexnowkit/console`, codes in [check-codes.md](check-codes.md)) is the form for monitoring: alert on `status`
    and on the codes, never on the texts. `config --json` is what to paste into a bug report. With
@@ -209,17 +210,18 @@ Alert on: `reason=invalid_key` (the key file broke), a sustained `reason=rate_li
 ## Status and history
 
 Two read-only commands come with [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history)
-(`composer require indexnowkit/history`; `indexnow:history` / `indexnow:status` in Symfony and Laravel,
+(`composer require indexnowkit/history`; `indexnow:history` / `indexnow:status` in Symfony, Laravel and Yii3,
 `indexnow/history` / `indexnow/status` in Yii2):
 
 - **`status`** prints the switches (`enabled`, `dry_run`, environment), the dispatch mode with what the adapter
-  knows about its queue (Messenger transport and bus, Laravel connection and queue, the Yii2 queue component), the
+  knows about its queue (Messenger transport and bus, Laravel connection and queue, the Yii2 queue component; Yii3
+  has no queue mode, so it adds nothing there and names the container id of the debounce store instead), the
   debounce window and store, the engines, the **403 counter of every configured host with its escalation flag**
   (`Retry\ForbiddenCounter`, the same cache the client counts in), the last successful submission ("3 min ago, 2
   URLs, api"), the history size and the core version. `--json` follows `status.schema.json` of the package: alert on
   `hosts[].escalated` and on `history.error`. Nothing is fetched.
 - **`history`** lists what the submitter recorded, newest first: `at`, status, reason, engine, HTTP code, URLs
-  (`--host`, `--status=ok|failed|skipped|pending`, `--url` exact after normalization, `--since=2h|3d|2026-09-01`,
+  (`--host`, `--status=ok|pending|failed|skipped`, `--url` exact after normalization, `--since=2h|3d|2026-09-01`,
   `--limit`, `--json`). `history --purge` removes what is older than `history.retention_days` (`--purge=30` for 30
   days) and prints one line — a cron entry.
 
@@ -263,7 +265,8 @@ the rest:
 ```
 
 (Symfony: the channel name is `logging.channel`, default `indexnow`; Laravel: the log channel of
-`indexnow.logging.channel`; Yii2: the `indexnow` category — Yii's Sentry targets pass it as the logger.)
+`indexnow.logging.channel`; Yii2 and Yii3: the category of `logging.category`, default `indexnow` — Yii's Sentry
+targets pass it as the logger.)
 
 ## "My URL was not submitted"
 

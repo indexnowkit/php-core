@@ -40,7 +40,7 @@ global lines have `null` there.
 | `probe.response` (host) | ok, warning, error | `--live`: one line per engine: 200 ok, 202 warning (verification pending), anything else error |
 | `check.failed` | error | a registered `CheckInterface` threw; the line names the class |
 | `debounce.store` | ok, warning, error | `Check\DebounceStoreCheck`: off, `none`, `memory` (warning), a shared store probed ok, or unusable (error) |
-| `<feature>.installed` | ok, warning | `Adapter\OptionalPackage`: an optional package of the family is not installed (`sitemap.installed`, `verify.installed`, `history.installed`); warning when its block is configured and ignored |
+| `<feature>.installed` | ok, warning | `Adapter\OptionalPackage`: an optional package of the family is not installed (`sitemap.installed`, `verify.installed`, `history.installed`); warning when its block is configured and ignored. `verify.installed` also carries the `--sample` gate and is an **error** there, see "Optional packages" below |
 
 ## Adapters
 
@@ -60,6 +60,7 @@ global lines have `null` there.
 | `url_manager.rule` | yii2 | ok, error | the key file URL rule is registered, or missing (component not in `bootstrap`) |
 | `router.key_file` | yii3 | ok, error | the key file is not served by the application (`key_file.enabled: false`), or `key_file` is misconfigured |
 | `router.route` | yii3 | ok, error | the route `indexnow/key-file` is in the route collection (or the console says the web application serves it), or missing (the `routes` group of the package is not merged) |
+| `router.locales` | symfony-bundle, laravel, yii2 | ok, warning | a rule asks for `locales: 'all'` while the locale list of the application is empty, so one URL in the current locale is generated instead of one per locale (`framework.enabled_locales` in Symfony, `router.locales` in Laravel and Yii2). The bundle writes this line only as the warning; Laravel and Yii2 also write the `ok` line naming the configured locales |
 
 ## Optional packages
 
@@ -68,10 +69,10 @@ The line of an optional package that is not installed is `<feature>.installed` (
 | Code | Package | Levels | Line |
 |---|---|---|---|
 | `sitemap.spool` | sitemap | ok, warning, error | where sitemap documents are spooled; error when `spool: disk` has no writable directory |
-| `verify.installed` | verify | ok | `verify: installed, disabled (verify.enabled: false)` or `verify: enabled (redirect: …, non_canonical: …, origin_error: …)` |
+| `verify.installed` | verify, and the core's `Check\SampleGateCheck` | ok, warning, error | with the package: `verify: installed, disabled (verify.enabled: false)` or `verify: enabled (redirect: …, non_canonical: …, origin_error: …)`. Without the package the line comes from the gate the core ships in front of it: the `<feature>.installed` line above plus ` — pre-flight checks off` (warning when a `verify` block is configured and ignored), and **error** `check --sample needs indexnowkit/verify (composer require indexnowkit/verify)` when `--sample` or `--sample-class` was given. Every adapter used to carry a copy of that gate; it is one class in the core now |
 | `verify.dispatch` | verify | warning | `verify.enabled` with `dispatch: sync`: the pre-flight GETs run inside the web request; use a queue |
-| `verify.transport` | verify | warning | `verify.enabled` with an `http.client` of the application: the pre-flight uses that client with its own settings — one that follows redirects internally disables the redirect checks and `verify.timeout` |
-| `verify.sample` (host) | verify | ok, warning, error | one line per `--sample` / `--sample-class` URL: `verify sample {url}: HTTP 200, index, canonical: self, robots: allowed`; noindex, disallow, a foreign canonical, a redirect, a 4xx/5xx or a transport failure are **warnings**, never errors; without the package and with a sample given: error `check --sample needs indexnowkit/verify`; with the package and no sample: ok `no sample given` |
+| `verify.transport` | verify | ok | `verify.enabled` with an `http.client` of the application: the line says that the pre-flight does **not** use it — it builds its own PSR-18 client with `verify.timeout` and no redirects, because a client that follows redirects internally would hide the 3xx the pre-flight exists to see. `http.client` still sends the submissions |
+| `verify.sample` (host) | verify | ok, warning, error | one line per `--sample` / `--sample-class` URL: `verify sample {url}: HTTP 200, index, canonical: self, robots: allowed`; noindex, disallow, a foreign canonical, a redirect, a 4xx/5xx or a transport failure are **warnings**, never errors; with the package and no sample: ok `no sample given`. Without the package a sample is an error under `verify.installed`, not under this code — the code exists only while the package does |
 | `history.store` | history | ok, error | the configured store (`history: pdo store (indexnow_submissions)`, `history: psr16 store (500 records kept)`, `history: custom store (<class>)`, `history: installed, no store configured (history.store)`); error with the exception and the migration hint when the store fails (a missing table) |
 | `history.records` | history | ok | `history: 1 240 records, last 3 min ago`, or `history: no records yet` |
 

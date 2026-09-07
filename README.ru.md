@@ -64,7 +64,7 @@ composer require indexnowkit/core symfony/http-client nyholm/psr7   # подой
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: события ActiveRecord с проверкой на коммите, yii2-queue, консольный контроллер |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | читает sitemap (индекс, gzip, текст) и отправляет его URL; команда `sitemap` каждого адаптера |
 | [`indexnowkit/console`](https://github.com/indexnowkit/php/tree/main/packages/console) | тела команд `check`, `submit`, `submit-<subject>`, `explain`, `key:generate` и их определения (`symfony/console`); его требует каждый адаптер |
-| [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: киты соответствия (C01–C22, A01–A21), ассерции H01–H05, mock-сервер IndexNow |
+| [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing) | `require-dev`: киты соответствия (C01–C22, A01–A21), ассерции H01–H06, mock-сервер IndexNow |
 
 ## Быстрый старт
 

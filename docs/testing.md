@@ -175,7 +175,7 @@ where you care about the exact payload.
 
 ## Assertions for an adapter's HTTP and command tests
 
-The conformance scenarios H01–H05 are the same in every framework, only the way a response or a command output is
+The conformance scenarios H01–H06 are the same in every framework, only the way a response or a command output is
 captured differs. Two static helpers of [`indexnowkit/testing`](https://github.com/indexnowkit/php/tree/main/packages/testing)
 (`composer require --dev indexnowkit/testing`) hold the assertions, so an adapter test parses its framework's objects and
 asserts once:
@@ -184,7 +184,8 @@ asserts once:
 use IndexNowKit\Testing\Conformance\CheckOutputAssertions;
 use IndexNowKit\Testing\Conformance\KeyFileAssertions;
 
-// H01: 200, text/plain, the key as the body, Cache-Control with public and max-age, Vary: Host only with a hosts map
+// H01: 200, text/plain, the key as the body, Cache-Control with public and max-age, Vary: Host exactly when the
+// body depends on the host — a hosts map or strict_hosts, which is what Config::keyFileHeaders() decides
 KeyFileAssertions::assertKeyFileResponse($response->getStatusCode(), $response->headers->all(), $response->getContent(), $key, maxAge: 300, expectVaryHost: true);
 // H02/H03: an unknown key, another host's key, key_file.enabled: false
 KeyFileAssertions::assertNotServed($response->getStatusCode());

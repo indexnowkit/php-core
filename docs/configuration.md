@@ -61,9 +61,9 @@ Config::fromArray([
 | `http.timeout` | `httpTimeout` | `10.0` | seconds, applied only to clients the library creates itself |
 | `http.user_agent` | `userAgent` | `null` | overrides `indexnowkit-php/<version> (+https://github.com/indexnowkit/php)` |
 | `key_file.enabled` | `serveKeyFile` | `true` | whether an adapter should answer `GET /{key}.txt`; `serve_key_file` is the deprecated name and wins when both are set |
-| `key_file.cache_max_age` | `keyFileMaxAge` / `keyFileHeaders()` | `300` | `Cache-Control: max-age` of the key file response; short on purpose, a cached old file turns every submission into a 403 after a rotation |
-| `debounce.store` | `debounceStore` | `null` | `memory` (per process), `none`, or an id the adapter resolves to its shared cache; `null` = the adapter's default (Laravel `cache`, bundle `cache.app`, Yii2 `cache`, plain PHP `memory`) |
-| `http.client` | `httpClient` | `null` | id or class of a PSR-18 client the adapter resolves; `null` = discovery |
+| `key_file.cache_max_age` | `keyFileMaxAge` / `keyFileHeaders()` | `300` | `Cache-Control: max-age` of the key file response; short on purpose, a cached old file turns every submission into a 403 after a rotation. `keyFileHeaders()` adds `Vary: Host` whenever the body depends on the host — a `hosts` map, **or** `strict_hosts`, where the default key is served for the base host only and every other host gets a 404; without the header a shared cache would keep whichever of the two answers came first |
+| `debounce.store` | `debounceStore` | `null` | `memory` (per process), `none`, or an id the adapter resolves to its shared cache; `null` = the adapter's default (Laravel `cache`, bundle `cache.app`, Yii2 `cache`, Yii3 the container id `Psr\SimpleCache\CacheInterface`, plain PHP `memory`) |
+| `http.client` | `httpClient` | `null` | id or class of a PSR-18 client the adapter resolves; `null` = discovery. It carries the application's own settings, so `check` warns when it is set (`http.client`): a client that follows redirects internally turns a 30x to a catch-all page into a 200 for the key file check. The pre-flight of `indexnowkit/verify` does **not** use it — a followed redirect would hide exactly the 3xx the pre-flight exists to see, so verify builds its own client from `verify.timeout` and `verify.max_redirects` |
 | `dry_run` | `dryRun` | `false` | log the request instead of sending it |
 | `environment` | `environment` | `null` | application environment; drives the non-production safety net below |
 | `production_environments` | `productionEnvironments` | `['prod', 'production']` | environment names (case-insensitive) that count as production; replaces the default list |
@@ -90,6 +90,13 @@ The `normalizer.*` options are applied by `Url\UrlNormalizerFactory::fromConfig(
 `IndexNowKit::create()` use to build the normalizer: `Url\UrlNormalizer` (absolute URL, host, port, dot-segments)
 wrapped in `Url\CanonicalUrlNormalizer`. Turning `strip_tracking_params` on or off changes the debounce keys of URLs
 that carried such parameters once.
+
+What `Url\UrlNormalizer` does unconditionally, with no option behind it: the scheme and the host are lower-cased and
+an internationalized host becomes punycode, the default port is dropped, dot-segments are removed, the fragment is
+cut, and the percent-encoding of the path and the query is brought to the canonical form of RFC 3986 §6.2.2 — a
+percent-escape of an unreserved character (`A-Za-z0-9-._~`) becomes the character, every other escape is upper-cased,
+so `/%7Euser/a%2Db` and `/~user/a-b` are one URL and are debounced, submitted and recorded once. A URL with
+credentials, control characters or a non-`http(s)` scheme is rejected with `InvalidUrlException` instead.
 
 Constants worth referencing instead of hard-coding: `Config::MAX_BATCH_URLS` (10000),
 `Config::DEFAULT_BATCH_MAX_URLS`, `Config::DEFAULT_DEBOUNCE_PER_URL` (600),
@@ -205,6 +212,15 @@ The `history` block is the same in the four adapters and is owned by the history
 
 `Config::fromEnv()` reads `getenv()` merged with `$_SERVER` and `$_ENV`. Pass your own array as the first argument
 to read from somewhere else, and a second argument to change the `INDEXNOW_` prefix. Empty strings count as unset.
+
+**Booleans are parsed, not cast.** Every boolean option — `enabled`, `dry_run`, `strict_hosts`, `key_file.enabled`,
+`serve_key_file`, `collector.detect_leaks`, `normalizer.strip_tracking_params`, `normalizer.sort_query` — goes
+through the same parser (`filter_var` with the boolean filter) in `fromEnv()` **and** in `fromArray()`, so the
+strings `false`, `0`, `no` and `off` mean false and `true`, `1`, `yes`, `on` mean true. An empty string is "not set"
+and falls back to the default; a non-scalar is a `ConfigurationException` naming the key. This matters wherever an
+adapter hands an environment variable straight to `fromArray()` without a cast of its own — Yii3's params block
+does, and a plain `(bool)` there would read `INDEXNOW_DRY_RUN=false` as true and quietly submit nothing while
+`check` reported it as a deliberate choice.
 
 | Variable | Option |
 |---|---|

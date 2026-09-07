@@ -273,6 +273,11 @@ final class Services
     /**
      * The change handler of the graph: rules, the guarded resolver and the extractor, nothing else — an ORM hook that
      * yields no URL builds neither the client nor the store. The facade ({@see kit()}) shares this instance.
+     *
+     * This node exists so that the hook and the facade read the same handler, not as an extension point:
+     * `ObjectChangeHandler` is `final` and there is no interface behind it, so the value is always that class.
+     * To change what a hook resolves, replace the pieces the handler is built from — the reader
+     * ({@see ServicesBuilder::reader()}), the URL resolver or the param extractor.
      */
     public function changes(): ObjectChangeHandler
     {

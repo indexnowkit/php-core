@@ -10,11 +10,14 @@ can check them. The promise itself (what may change in a minor, what may not) is
   whole matrix (8.2, 8.3, 8.4, 8.5) against the lowest and the highest dependency set. The minimum is raised in the
   first minor after the previous version leaves security support: `^8.2` becomes `^8.3` in the first minor released
   after 2026-12-31. **Raising the minimum PHP is not a breaking change** of the library: Composer does not offer the
-  new minor to an application on the old PHP, and the code the application sees does not change.
+  new minor to an application on the old PHP, and the code the application sees does not change. None of the packages
+  declares an upper bound of its own; where the matrix stops short of the newest PHP, the bound comes from a
+  dependency — the `yiisoft/*` packages of `indexnowkit/yii3` are the case today (they declare `8.1 - 8.5`), so an
+  application on a newer PHP waits for them, not for us.
 - **Frameworks.** An adapter supports the framework versions that are in bug-fix or security support upstream, and
   drops a version in the first minor after its security support ends. A new major of a framework is added in a minor
   of the adapter when the test suite passes on it, without a release of the core.
-- **Between the packages.** Every package pins the core to one minor (`^0.10`); the adapters pin `console`,
+- **Between the packages.** Every package pins the core to one minor; the adapters pin `console`,
   `sitemap`, `verify`, `history` and `doctrine` the same way. A release wave moves the constraints together (see
   [the family changelog](https://github.com/indexnowkit/php/blob/main/CHANGELOG.md)), so `composer update indexnowkit/*` is the upgrade.
 
@@ -24,7 +27,7 @@ can check them. The promise itself (what may change in a minor, what may not) is
 |---|---|---|---|
 | `indexnowkit/core` | `^8.2` | PSR-18 client of your choice (`php-http/discovery`), PSR-3, PSR-16 | — |
 | `indexnowkit/console` | `^8.2` | `symfony/console ^6.4 \|\| ^7.0 \|\| ^8.0` | 6.4: security fixes to 2027-11; 7.4 LTS: 2029-11 |
-| `indexnowkit/testing` | `^8.2` | PHPUnit `^10.5 \|\| ^11 \|\| ^12` (the conformance kits) | per [phpunit.de](https://phpunit.de/supported-versions.html) |
+| `indexnowkit/testing` | `^8.2` | PHPUnit `^11.5 \|\| ^12.0 \|\| ^13.0` (the conformance kits) | per [phpunit.de](https://phpunit.de/supported-versions.html); PHPUnit 11 left bug-fix support on 2026-02-06. The Laravel adapter's own suite stays on PHPUnit 11: `laravel/framework` 12/13 and PHPUnit 12.5 disagree on the error handler |
 | `indexnowkit/sitemap` | `^8.2` | `symfony/console ^6.4 \|\| ^7.0 \|\| ^8.0` for the command | as console |
 | `indexnowkit/verify` | `^8.2` | the core's transport; `symfony/console` for `check --sample` (suggested) | as console |
 | `indexnowkit/history` | `^8.2` | `ext-pdo` (sqlite, mysql, pgsql schemas), PSR-16; `symfony/console` for the commands | as console |
@@ -32,12 +35,12 @@ can check them. The promise itself (what may change in a minor, what may not) is
 | `indexnowkit/symfony-bundle` | `^8.2` | Symfony `^6.4 \|\| ^7.0 \|\| ^8.0` (`framework-bundle`, `http-kernel ^6.4.13`; Symfony 8 needs PHP 8.4), `doctrine/doctrine-bundle ^2.13 \|\| ^3.0` with `indexnowkit/doctrine` | 6.4 LTS: bug fixes to 2026-11, security to 2027-11; 7.4 LTS: 2028-11 / 2029-11 ([symfony.com/releases](https://symfony.com/releases)) |
 | `indexnowkit/laravel` | `^8.2` | `illuminate/support ^12.0 \|\| ^13.0` (Laravel 12, 13) | 12: bug fixes to 2026-08, security to 2027-02; 13: 2027-08 / 2028-02 ([laravel.com/docs/releases](https://laravel.com/docs/releases)) |
 | `indexnowkit/yii2` | `^8.2` | `yiisoft/yii2 ^2.0.45`; `yiisoft/yii2-queue ^2.3` for `dispatch: queue` | 2.0.x maintained, no end date announced ([yiiframework.com](https://www.yiiframework.com/release-cycle)) |
-| `indexnowkit/yii3` | `^8.2` | `yiisoft/active-record ^1.0`, `yiisoft/db ^2.0`, `yiisoft/router ^4.0`; `yiisoft/config`, `yii-http`, `yii-console`, `yii-event` of the application read its config groups | Yii3 packages follow their own SemVer lines ([github.com/yiisoft](https://github.com/yiisoft)); no queue mode until `yiisoft/queue` is released |
+| `indexnowkit/yii3` | `^8.2`, in practice up to 8.5 | `yiisoft/active-record ^1.0`, `yiisoft/db ^2.0`, `yiisoft/router ^4.0`; `yiisoft/config`, `yii-http`, `yii-console`, `yii-event` of the application read its config groups | Yii3 packages follow their own SemVer lines ([github.com/yiisoft](https://github.com/yiisoft)); every `yiisoft/*` in `require` declares `8.1 - 8.5`, so that is the real PHP ceiling of this adapter; no queue mode until `yiisoft/queue` is released |
 
 PHP itself: 8.2 security fixes to 2026-12-31, 8.3 to 2027-12-31, 8.4 to 2028-12-31, 8.5 to 2029-12-31
 ([php.net/supported-versions](https://www.php.net/supported-versions.php)).
 
-Symfony 8 is a target of the bundle since 0.13 (CI: PHP 8.4 with `framework-bundle ^8.0`); `console`, `sitemap`, `history`
+Symfony 8 is a target of the bundle since 0.13 (CI: PHP 8.4 with `framework-bundle ^8.0`); `console`, `sitemap`, `history`,
 `yii2` and `yii3` accept `symfony/console ^8.0`. Laravel 11 and Symfony 6.3 and below are not supported.
 
 ## Flavours in CI

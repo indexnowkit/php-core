@@ -198,7 +198,13 @@ final class ServicesBuilder
         return $this->node(Services::CLOCK, $clock);
     }
 
-    /** Replaces the change handler the ORM hooks use (default: over the rules, the guarded resolver and the extractor of this graph). */
+    /**
+     * The change handler the ORM hooks and the facade share (default: over the rules, the guarded resolver and the
+     * extractor of this graph). A shared-instance node, not an extension point: `ObjectChangeHandler` is `final`
+     * and has no interface, so what this takes is always that class — an adapter passes one here to hand the same
+     * instance to a container definition, not to substitute the behaviour. Change what a hook resolves through
+     * {@see reader()}, {@see urlResolver()} or {@see paramExtractor()} instead.
+     */
     public function changes(ObjectChangeHandler|Closure $changes): self
     {
         return $this->node(Services::CHANGES, $changes);

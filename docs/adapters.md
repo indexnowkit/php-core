@@ -99,6 +99,17 @@ a queue). `Services` also gives you `checker()` (add your lines with `checks()`)
 commands, `rules()` for rules registered at runtime, and `hasCollected()`/`flushIfCollected()` for the request-end
 hook. The parity between the two layers is a test in the core (`ServicesParityTest`).
 
+Three accessors exist because two adapters wrote the same workaround before them. `router()` and `resolverLocator()`
+return `null` when the graph has no such node, which is right for the core and wrong for a framework adapter that
+always sets one: writing `?? throw` after every call is a dead branch with a message nobody reads. Use
+**`requireRouter()`** and **`requireResolverLocator()`** instead — same node, a `ConfigurationException` naming the
+missing node when it is really absent. And the `events` closure **may return `null`**, like the nullable nodes: an
+adapter whose container may or may not hold a `Psr\EventDispatcher\EventDispatcherInterface` answers that question
+lazily inside the closure rather than asking the container during `build()`, which is meant to do no IO at all.
+`Hook\ObserverHelper` has two named constructors for the same reason: `forChanges($changes, $sink, $logger)` for a
+hook that must not build the client, and `forKit($kit, $logger)` for the plain case, so nobody has to work out what
+the union-typed constructor wants.
+
 A container that describes services (Symfony, Laravel) stays on layer 1 and calls the same factories service by
 service: its service ids and bindings are its public API, and a builder would hide them. `IndexNowKit::create()`
 is the plain-PHP form of the same graph.
@@ -142,6 +153,17 @@ sitemap; verify uses `PageSignals::class` as the marker and decorates the submit
   ships, or `sitemap: not installed, the sitemap block in the configuration is ignored (composer require
   indexnowkit/sitemap)` at level warning when the application configured a block nothing reads. That line is the
   only place the absence is mentioned: no log line at boot or on a request.
+- **`Check\SampleGateCheck` over `Check\SampleOptions`**, both in the core, for `check --sample` / `--sample-class`.
+  `verify` is the one optional package with a command option in front of it, so the check that decides what
+  `--sample` means has to load **without** the package — which is why the gate lives in the core and not in verify,
+  and why every adapter used to carry a byte-identical copy of it together with its two user-facing sentences. Do not
+  copy it again. `SampleOptions` is one mutable holder per graph that the `check` command fills with what it parsed
+  (`urls`, `classes`, and the `sampler` closure that turns a class into URLs through your record loader — the only
+  part that is yours). `SampleGateCheck::withPackage($options, $factory)` hands them to the package's
+  `Verify\Check\SampleCheck`; `::withoutPackage($options, $package, $block, $defaults)` writes the "not installed"
+  line of the predicate with ` — pre-flight checks off`, or an error `check --sample needs indexnowkit/verify` when a
+  sample was given anyway. Every line it writes carries the code `verify.installed` (`SampleGateCheck::CODE`), never
+  `verify.sample` — that code exists only while the package does ([check-codes.md](check-codes.md)).
 - **`SitemapConfig::loadOrDisabled($block, $logger, $checkCommand)`** (from `indexnowkit/sitemap`) builds the
   sitemap configuration at runtime: an invalid block is one `critical` line naming the error and your check command,
   and a disabled configuration — nothing throws from the container.
@@ -367,8 +389,10 @@ by primary key and says whether the change actually landed (created/updated: the
 ```php
 $staging = new VerifyingStaging($logger);
 
-// in the ORM event, when a transaction is open:
-$staging->stage($connection, fn (): bool => $this->rowMatches($record, $written), $urls, Post::class . '#' . $id);
+// in the ORM event, when a transaction is open. The last argument is the subject key: the identity of the row
+// within this transaction, so a second change of the same row merges into the first entry instead of adding one.
+$subject = Post::class . '#' . $id;
+$staging->stage($connection, fn (): bool => $this->rowMatches($record, $written), $urls, $subject, key: $subject);
 
 // when the data layer says the transaction ended (commit event), or at the end of the request when it says nothing:
 $indexNow->collect($staging->flush($connection));   // runs the verifiers, drops what did not land (logged at debug)
@@ -379,6 +403,27 @@ One primary-key lookup per staged subject, only for changes inside an explicit t
 straight to the collector). A change that did not land drops every URL it produced, including `via` pages and the
 old URL of a renamed page: announcing "deleted" for a page that still exists is the one outcome to avoid. A verifier
 that throws counts as landed (a stale URL costs one crawl, a lost one costs the update) and is logged at warning.
+
+Two rules decide what to put in `$expected`, and getting them wrong is silent — every URL of the change disappears at
+`debug` level:
+
+- **An insert is verified by existence, nothing else.** Pass an empty `$expected`: an insert that reached the commit
+  landed by definition, and the row being there is the whole answer. Handing `rowMatches()` every non-null property
+  of a new record is how a single DECIMAL or `timestamptz` column silences the announcement of every new page of a
+  class. A delete asks for `null` the same way.
+- **For an update, only unambiguous values are compared.** The row comes back raw from the driver — a string for an
+  integer, `'19.90'` for what the application wrote as `19.9`, a zone suffix on a `timestamptz`, the database's own
+  spelling of a JSON document. `rowMatches()` therefore compares integers, strings, booleans, backed enums and null,
+  and skips everything else (floats, dates, arrays, objects) as if the row did not carry the column. A row with
+  nothing left to compare counts as matching. Do not filter `$expected` yourself and do not add a comparison of your
+  own on the skipped types: the question the verifier answers is "did the transaction commit", not "is the row byte
+  for byte what I wrote".
+
+Pass the subject key whenever a row can be written more than once inside one transaction — two `save()` calls, a
+create followed by an update, a rename in two steps. Without it each write is staged on its own, every verifier runs
+at the end against the **last** state of the row, and the earlier ones compare against values that are no longer
+there. With it the entry is merged: the URLs of both writes are kept and the verifier of the later write is the one
+that runs.
 Satisfies A02, A05, A05b, A05c without touching the connection configuration; the Yii adapters are the reference (Yii2 flushes on the commit
 event of the outermost transaction, Yii3 at the end of the request, keeping what is still inside an open transaction).
 
@@ -475,22 +520,38 @@ A debounce store may throw: the submitter treats a failing read as "nothing is r
 `TokenBucket` blocks with `usleep()` per process. In a web request `NullThrottle` is often the better default, with
 the real rate limiting in the queue worker. Both take a `Psr\Clock\ClockInterface`, so tests use `FrozenClock`.
 
+**Open the clock as a replaceable service or binding of its own**, under `Psr\Clock\ClockInterface`, and pass it to
+all three places that read time: `Throttle\TokenBucket::fromConfig($config, $logger, clock: …)`,
+`Debounce\DebounceStoreFactory::fromConfig(…, clock: …)` and the submitter (`Submitter`'s last parameter, and
+`Adapter\SubmitterFactory`'s, which is what the commands build their submitter with). `Testing\FrozenClock` is
+useless otherwise: an application that binds it still gets wall-clock debounce windows, wall-clock throttle waits
+and wall-clock timestamps in the submission history — and the records written by a command end up on a different
+clock from the records written by the application. On layer 2 this is the `clock` node
+(`Adapter\ServicesBuilder::clock()`, `Adapter\Services::clock()`), which every other node already reads.
+
 ## 14. Diagnostics users will ask for
 
-Ship six commands. They are what turns "it does not work" into a self-service answer, and their bodies are the
+Ship six commands of your own. They are what turns "it does not work" into a self-service answer, and their bodies are the
 `indexnowkit/console` package (`Console\*Runner`, rendering to a `Symfony\Component\Console\Style\SymfonyStyle`;
 Laravel's `OutputStyle` is one; require it — the core itself does not depend on `symfony/console`). A framework command parses its arguments and calls the runner; every framework prints the same thing.
 
 | Command | Runner | What the adapter supplies |
 |---|---|---|
-| `check` | `Console\CheckRunner` | a closure that builds `Config` from the raw configuration (throws `ConfigurationException`); `Check\CheckInterface` services for adapter wiring (is the ORM hook active? is the queue routed?) and the checks of the add-on packages |
+| `check` | `Console\CheckRunner` | a closure that builds `Config` from the raw configuration (throws `ConfigurationException`); `Check\CheckInterface` services for adapter wiring (is the ORM hook active? is the queue routed?) and the checks of the add-on packages. `--sample` / `--sample-class` go into the graph's `Check\SampleOptions`, which `Check\SampleGateCheck` reads (§2 "Optional packages"); the ORM sampler behind it is yours |
+| `config` | `Console\ConfigRunner` | the closure that builds the `Config`, the raw configuration array as the framework read it (its own blocks included, for the adapter-only keys) and the effective block of every installed optional package. The runner prints the effective values with the keys masked, the adapter-only keys next to them, and masks secrets in both. `config --json` is what a bug report pastes |
 | `submit <url>...` | `Console\SubmitRunner` | — |
 | `submit-<subject> <class> [ids]` | `Console\SubmitSubjectsRunner` + `SubmitSubjectsOptions` | a `Console\SubjectLoaderInterface`: class resolution (FQCN or the framework's short name), objects by id, first N objects; `byIds()` / `all()` receive the `Event` so `deleted` can include soft-deleted rows |
 | `explain <class> <id>` | `Console\ExplainRunner` | the same loader |
 | `key:generate` | `Console\KeyGenerateRunner` | the default env file path |
 
-The sixth command, which submits the site's own URL list, is an add-on package (see the family table in the README):
-its runner, options and check live there, and its `docs/adapters.md` says how to wire the command.
+Three more commands come from the optional packages, so a complete adapter registers nine: `sitemap` submits the
+site's own URL list (`indexnowkit/sitemap`), and `history` and `status` read what was submitted
+(`indexnowkit/history`: `History\Console\Definitions::history()` / `::status()` for the inputs,
+`History\Adapter\HistoryServices::historyRunnerFor()` / `::statusRunnerFor()` for the bodies; `status` also takes the
+queue facts only the adapter knows). Each of the three is behind the package predicate of §2, with a stub command of
+the same name when the package is absent. `Console\Definitions` and the packages' own `Definitions` are the single
+source of every command name, option, shortcut and description — an adapter that writes its own option descriptions
+has already drifted.
 
 Shared by all of them: `Adapter\SubmitterFactoryInterface` (`SubmitterFactory`: the separate submitter `--force` and
 `--dry-run` build, `SubmitterFactory::choose()` picks it or the application's), `Console\ResultFormatterInterface`
@@ -522,13 +583,31 @@ on the same submitter instance the application uses, and forward `addListener()`
 
 The golden rule: **nothing reaching a lifecycle hook may throw into the host application.**
 
+### What your adapter throws
+
+The core's own promise is that every exception implements `Exception\IndexNowException`, so `catch (IndexNowException
+$e)` is the stable form ([bc.md](bc.md#exceptions)). An adapter that throws its framework's exception class for a
+situation the core has a class for breaks that catch for its users, and the family has drifted here before: the same
+"`history.store` is set but no store could be built" was `yii\base\InvalidConfigException` in one adapter and
+`Exception\ConfigurationException` in another. One rule for all of them:
+
+| Situation | Throw |
+|---|---|
+| anything wrong with the configuration the application wrote (an unknown service id, a `debounce.store` that is not a cache, a store that cannot be built) | `Exception\ConfigurationException` — never the framework's own configuration exception, even where the framework has one |
+| a delegate of an optional package that is not installed (a stub command's collaborator, an accessor behind the predicate of §2) | `\LogicException` with `Adapter\OptionalPackage::notInstalledMessage()` as the message, so the sentence names the `composer require` line once |
+| an invariant of your own code that the application cannot cause (a node that must exist by construction, an unreachable branch) | the native class (`\LogicException`, `\RuntimeException`); it is a bug report, not a user error |
+
+`Adapter\Services::requireRouter()` and `requireResolverLocator()` exist so the second row does not become a third
+copy of `?? throw` in every adapter: they throw a `ConfigurationException` naming the missing node. And nothing in
+this table applies inside a lifecycle hook — there, the golden rule wins and everything is logged instead.
+
 ## 16. Testing your adapter
 
 Use `IndexNowKit\Testing` (`FakeTransport`, `ArrayLogger`, `FrozenClock`, `RecordingDispatcher`) — see
 [testing.md](testing.md). Assert classification through `ObjectChangeHandler::*Events()` before any URL exists, and
 delivery through `RecordingDispatcher`. For the HTTP and command scenarios, parse your framework's response or
 output and hand it to `Testing\Conformance\KeyFileAssertions` (H01–H03: status, content type, `Cache-Control` by
-directive, `Vary: Host` only with a hosts map) and `Testing\Conformance\CheckOutputAssertions` (H04–H05: exit code
+directive, `Vary: Host` exactly when `Config::keyFileHeaders()` adds it — a hosts map or `strict_hosts`) and `Testing\Conformance\CheckOutputAssertions` (H04–H05: exit code
 with the output as the failure message, the ready line, the key file hint), so your tests do not carry a copy of the
 core's phrases. Both, the conformance kits and the mock server are the `indexnowkit/testing` package
 (`require-dev`); the core ships only the four PHPUnit-free doubles.
@@ -592,9 +671,11 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
       or a runtime-assembled container over `Adapter\ServicesBuilder` with `queueFactory()`.
 - [ ] Flush at the end of every unit of work (request, command, queue message); `Collector::reset()` in long-running runtimes.
 - [ ] `KeyFileResponder::fromConfig()` + `Config::keyFileHeaders()` on a route without session or CSRF; H01–H03 green.
-- [ ] Six commands over the runners of `indexnowkit/console` (`sitemap` from `indexnowkit/sitemap`), their inputs from
-      `Console\Definitions` / `Sitemap\Console\Definitions` (no own option descriptions), `check` with your
-      `CheckInterface` lines plus `Check\DebounceStoreCheck` (with a probe) and `Sitemap\Check\SitemapSpoolCheck`.
+- [ ] Nine commands: six over the runners of `indexnowkit/console` (`check`, `config`, `submit`, `submit-<subject>`,
+      `explain`, `key:generate`), `sitemap` from `indexnowkit/sitemap`, `history` and `status` from
+      `indexnowkit/history`; their inputs from `Console\Definitions` / `Sitemap\Console\Definitions` /
+      `History\Console\Definitions` (no own option descriptions), `check` with your `CheckInterface` lines plus
+      `Check\DebounceStoreCheck` (with a probe), `Check\SampleGateCheck` and `Sitemap\Check\SitemapSpoolCheck`.
 - [ ] `indexnowkit/sitemap` in `suggest` and `require-dev`, behind one predicate (§2 "Optional packages"): without it
       the `sitemap` command is a stub that explains what to install and exits 1, `check` prints the `StaticCheck`
       line, a `sitemap` block in the configuration warns about nothing, every other command works, and nothing is
