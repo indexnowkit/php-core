@@ -87,11 +87,11 @@ Config::fromArray([
 `Config::PRODUCTION_ENVIRONMENTS` (`['prod', 'production']`), `Config::DEFAULT_MAX_URL_LENGTH`, `Config::DEFAULT_LOG_URLS`,
 `Config::DEFAULT_FORBIDDEN_ESCALATION`, `Config::DEFAULT_RETRY_*`, `Config::DEFAULT_RESOLVER_MAX_VIA_*`, `Config::LOG_EVENTS`.
 
-## Одно понятие — три ключа
+## Одно понятие — четыре ключа
 
 Адаптеры разделяют ключи ядра под теми же именами и добавляют несколько своих; у некоторых понятий ключ (или набор
 значений) свой в каждом фреймворке. Таблицы генерируются из кода (`bin/config-table`) и проверяются в CI — см.
-раздел «One concept, three keys» в [английской версии](configuration.md#one-concept-three-keys). Коротко:
+раздел «One concept, four keys» в [английской версии](configuration.md#one-concept-four-keys). Коротко:
 
 | Понятие | Symfony | Laravel | Yii2 |
 |---|---|---|---|

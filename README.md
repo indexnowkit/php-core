@@ -3,7 +3,7 @@
 Tell Yandex, Bing and the other [IndexNow](https://www.indexnow.org) engines which URLs changed, from any PHP
 application. Batching, debounce, throttling, retry policy, key file handling and the `#[IndexNow]` rule model, on
 top of PSR-18 / PSR-17 / PSR-3 / PSR-16 only. The framework adapters ([Symfony](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle), [Doctrine](https://github.com/indexnowkit/php/tree/main/packages/doctrine),
-[Laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [Yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2)) and the add-on packages build on it; use it directly in plain PHP, a CMS
+[Laravel](https://github.com/indexnowkit/php/tree/main/packages/laravel), [Yii2](https://github.com/indexnowkit/php/tree/main/packages/yii2), [Yii3](https://github.com/indexnowkit/php/tree/main/packages/yii3)) and the add-on packages build on it; use it directly in plain PHP, a CMS
 plugin or a custom framework.
 
 [![Packagist](https://img.shields.io/packagist/v/indexnowkit/core)](https://packagist.org/packages/indexnowkit/core)
@@ -44,7 +44,7 @@ does the part that goes wrong in practice:
 - **Debounce** (10 minutes per URL, shared through your cache), **batches** of up to 10 000 URLs, one key per host from env.
 - **Answers handled**: 202 (key pending), 422, 429 with `Retry-After` back-off and a retry through your queue, 403 escalation.
 - **`check` before the first submission** says what is wrong (key file, engines, queue, cache, environment); `explain` says why a URL was or was not sent.
-- **One core** under the Symfony, Laravel, Yii2 and Doctrine adapters with a shared conformance suite: the same behaviour everywhere, documented once.
+- **One core** under the Symfony, Laravel, Yii2, Yii3 and Doctrine adapters with a shared conformance suite: the same behaviour everywhere, documented once.
 
 
 ## Install
@@ -63,6 +63,7 @@ changes. The family:
 | [`indexnowkit/symfony-bundle`](https://github.com/indexnowkit/php/tree/main/packages/symfony-bundle) | Symfony: config, Messenger, key file route, commands, profiler panel |
 | [`indexnowkit/laravel`](https://github.com/indexnowkit/php/tree/main/packages/laravel) | Laravel: Eloquent observer, queue, key file route, artisan commands |
 | [`indexnowkit/yii2`](https://github.com/indexnowkit/php/tree/main/packages/yii2) | Yii2: ActiveRecord events with verify-on-commit, yii2-queue, console controller |
+| [`indexnowkit/yii3`](https://github.com/indexnowkit/php/tree/main/packages/yii3) | Yii3: `#[IndexNowEvents]` on yiisoft/active-record with verify-on-commit, a yiisoft/config plugin, console commands |
 | [`indexnowkit/sitemap`](https://github.com/indexnowkit/php/tree/main/packages/sitemap) | reads a sitemap (index, gzip, text) and submits its URLs; the `sitemap` command of every adapter |
 | [`indexnowkit/verify`](https://github.com/indexnowkit/php/tree/main/packages/verify) | one GET before every submission: noindex, robots.txt, canonical, redirects, origin errors; `check --sample` |
 | [`indexnowkit/history`](https://github.com/indexnowkit/php/tree/main/packages/history) | what was submitted, when, with what answer: PSR-16 and PDO stores, the `history` and `status` commands |
@@ -330,7 +331,7 @@ What is covered by the promise and what is not: [docs/bc.md](docs/bc.md).
 
 ## Notes for AI assistants
 
-- Composer package `indexnowkit/core` (PHP ^8.2, PSR-18 client + PSR-17 factories needed). Framework users want an adapter instead: `indexnowkit/symfony-bundle`, `indexnowkit/laravel`, `indexnowkit/yii2`, `indexnowkit/doctrine`.
+- Composer package `indexnowkit/core` (PHP ^8.2, PSR-18 client + PSR-17 factories needed). Framework users want an adapter instead: `indexnowkit/symfony-bundle`, `indexnowkit/laravel`, `indexnowkit/yii2`, `indexnowkit/yii3`, `indexnowkit/doctrine`.
 - Minimal complete snippet (every `use` included):
 
 ```php
@@ -343,12 +344,12 @@ $results = $indexNow->submit(['/posts/hello']);              // list<IndexNowKit
 
 - Verify: `(new IndexNowKit\Check\Checker($config, $indexNow->keys, $indexNow->transport))->run()` is what the adapters' `check` command runs; `$indexNow->explain($object)` shows the rule behind every URL; every remote outcome is a `Result` with `status`/`reason`, nothing throws.
 - Pitfalls:
-  - `dispatch: auto` exists in Symfony (`auto` | `messenger` | `sync` | `none`) and Yii2 (`auto` | `queue` | `sync` | `none`), **not** in Laravel (`queue` | `sync` | `none`).
-  - Locales: `router.locales` in Laravel and Yii2, `framework.enabled_locales` in Symfony; `locales: 'all'` on a rule uses that list.
+  - `dispatch: auto` exists in Symfony (`auto` | `messenger` | `sync` | `none`) and Yii2 (`auto` | `queue` | `sync` | `none`), **not** in Laravel (`queue` | `sync` | `none`); Yii3 has `sync` | `none` only.
+  - Locales: `router.locales` in Laravel, Yii2 and Yii3, `framework.enabled_locales` in Symfony; `locales: 'all'` on a rule uses that list.
   - `url:` names an accessor (method or property) that returns the URL; `urls:` is a list of literal URLs. Never put a literal in `url:`.
   - A string in `when:` is an accessor read as truthy (`published`, `isPublished`). A status string needs `Equals`: `when: new Equals('status', 'published')` (`IndexNowKit\Attribute\Param\Equals`).
-  - Manual submission is `submitEntity()` in Symfony, `submitModel()` in Laravel, `submitRecord()` in Yii2; the commands are `indexnow:submit-entity`, `indexnow:submit-model`, `indexnow/submit-record`. Bulk queries (`update()`, `DB::table()`, `updateAll()`) fire no hooks: submit afterwards with those.
-  - Laravel has two classes called `IndexNowKit`: the facade `IndexNowKit\Laravel\Facades\IndexNowKit` and the core service `IndexNowKit\IndexNowKit` (inject by type). Yii2 exposes the core through `Yii::$app->indexnow->kit()`.
+  - Manual submission is `submitEntity()` in Symfony, `submitModel()` in Laravel, `submitRecord()` in Yii2 and Yii3; the commands are `indexnow:submit-entity`, `indexnow:submit-model`, `indexnow/submit-record` (Yii2), `indexnow:submit-record` (Yii3). Bulk queries (`update()`, `DB::table()`, `updateAll()`) fire no hooks: submit afterwards with those.
+  - Laravel has two classes called `IndexNowKit`: the facade `IndexNowKit\Laravel\Facades\IndexNowKit` and the core service `IndexNowKit\IndexNowKit` (inject by type). Yii2 exposes the core through `Yii::$app->indexnow->kit()`; Yii3 defines `IndexNowKit\IndexNowKit` in the container.
   - Outside production a configured key with `dry_run` unset makes `check` fail (a staging copy would submit real URLs): set `dry_run: true` there, or `dry_run: false` explicitly when it submits on purpose.
   - Unknown configuration keys are warned about at boot (typos such as debounce.per_urls); the key list is `Config::OPTIONS` plus the adapter's own keys.
 

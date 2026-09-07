@@ -32,12 +32,13 @@ can check them. The promise itself (what may change in a minor, what may not) is
 | `indexnowkit/symfony-bundle` | `^8.2` | Symfony `^6.4 \|\| ^7.0 \|\| ^8.0` (`framework-bundle`, `http-kernel ^6.4.13`; Symfony 8 needs PHP 8.4), `doctrine/doctrine-bundle ^2.13 \|\| ^3.0` with `indexnowkit/doctrine` | 6.4 LTS: bug fixes to 2026-11, security to 2027-11; 7.4 LTS: 2028-11 / 2029-11 ([symfony.com/releases](https://symfony.com/releases)) |
 | `indexnowkit/laravel` | `^8.2` | `illuminate/support ^12.0 \|\| ^13.0` (Laravel 12, 13) | 12: bug fixes to 2026-08, security to 2027-02; 13: 2027-08 / 2028-02 ([laravel.com/docs/releases](https://laravel.com/docs/releases)) |
 | `indexnowkit/yii2` | `^8.2` | `yiisoft/yii2 ^2.0.45`; `yiisoft/yii2-queue ^2.3` for `dispatch: queue` | 2.0.x maintained, no end date announced ([yiiframework.com](https://www.yiiframework.com/release-cycle)) |
+| `indexnowkit/yii3` | `^8.2` | `yiisoft/active-record ^1.0`, `yiisoft/db ^2.0`, `yiisoft/router ^4.0`; `yiisoft/config`, `yii-http`, `yii-console`, `yii-event` of the application read its config groups | Yii3 packages follow their own SemVer lines ([github.com/yiisoft](https://github.com/yiisoft)); no queue mode until `yiisoft/queue` is released |
 
 PHP itself: 8.2 security fixes to 2026-12-31, 8.3 to 2027-12-31, 8.4 to 2028-12-31, 8.5 to 2029-12-31
 ([php.net/supported-versions](https://www.php.net/supported-versions.php)).
 
 Symfony 8 is a target of the bundle since 0.13 (CI: PHP 8.4 with `framework-bundle ^8.0`); `console`, `sitemap`, `history`
-and `yii2` accept `symfony/console ^8.0`. Laravel 11 and Symfony 6.3 and below are not supported.
+`yii2` and `yii3` accept `symfony/console ^8.0`. Laravel 11 and Symfony 6.3 and below are not supported.
 
 ## Flavours in CI
 

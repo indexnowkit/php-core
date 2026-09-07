@@ -203,8 +203,8 @@ word per concept. `locale` (the attribute's `locales`, `ResolvedUrl::$locale`, `
 `router.locale_parameter`, `router.set_app_locale`) — not "language", even where the framework says so (Yii2 renamed its
 keys back in 0.12). Methods follow `submitX` / `submitXs` with the framework's word for an object: `submitEntity()` /
 `submitEntities()` in the core and Doctrine, `submitModel()` / `submitModels()` in Laravel, `submitRecord()` /
-`submitRecords()` in Yii2 — and the command is `submit-<x>` (`indexnow:submit-entity`, `indexnow:submit-model`,
-`indexnow/submit-record`). Framework-native differences stay where the framework's own vocabulary is the point
+`submitRecords()` in Yii2 and Yii3 — and the command is `submit-<x>` (`indexnow:submit-entity`, `indexnow:submit-model`,
+`indexnow/submit-record`, `indexnow:submit-record`). Framework-native differences stay where the framework's own vocabulary is the point
 (`queue.connection` / `queue.component`, `logging.channel` / `logging.category`, `eloquent.*` / `active_record.*`).
 
 ## 5. How your framework says "this object has a public page"
@@ -373,7 +373,8 @@ One primary-key lookup per staged subject, only for changes inside an explicit t
 straight to the collector). A change that did not land drops every URL it produced, including `via` pages and the
 old URL of a renamed page: announcing "deleted" for a page that still exists is the one outcome to avoid. A verifier
 that throws counts as landed (a stale URL costs one crawl, a lost one costs the update) and is logged at warning.
-Satisfies A02, A05, A05b, A05c without touching the connection configuration; the Yii adapters are the reference.
+Satisfies A02, A05, A05b, A05c without touching the connection configuration; the Yii adapters are the reference (Yii2 flushes on the commit
+event of the outermost transaction, Yii3 at the end of the request, keeping what is still inside an open transaction).
 
 ## 9. The unit of work
 
@@ -543,24 +544,25 @@ Definition of Done is in [docs/spec/91-roadmap.md](https://github.com/indexnowki
 
 The bundle and the Laravel package sit on layer 1 (the static factories and `Adapter\ConfigFactory`, one service or
 binding per node, because those ids are their public API); the Yii2 component sits on layer 2
-(`Adapter\ServicesBuilder`, the graph described once, the pieces exposed as delegates). All of them share
+(`Adapter\ServicesBuilder`, the graph described once, the pieces exposed as delegates); the Yii3 package sits on layer 2 too,
+with every node of the graph a definition of the container and the core's factory as the default of each. All of them share
 `Hook\ObserverHelper` in the observers, `Retry\WorkerOutcome` in the queue jobs and `Console\Definitions`
 (`indexnowkit/console`) in the commands.
 
-| Section | `doctrine` | `symfony-bundle` | `laravel` | `yii2` |
-|---|---|---|---|---|
-| layer | — | 1 (services) | 1 (bindings) | 2 (`ServicesBuilder`) |
-| component graph | `src/IndexNowDoctrine.php` | `src/DependencyInjection/IndexNowKitLoader.php` | `src/IndexNowKitServiceProvider.php` | `src/IndexNowComponent.php` (`services()`) |
-| configuration | — | `src/DependencyInjection/{IndexNowKitConfiguration,ConfigFactory}.php` | `config/indexnow.php`, `src/Config/ConfigFactory.php` | `src/Config/ConfigFactory.php` |
-| router bridge | — | `src/Url/SymfonyRouteUrlResolver.php` | `src/Url/LaravelRouteUrlResolver.php` | `src/Url/YiiRouteUrlResolver.php` |
-| resolver lookup | — | `src/Url/ResolverLocatorFactory.php` (core `ArrayResolverLocator`) | in the provider (core `ArrayResolverLocator`) | in the component (core `ArrayResolverLocator`) |
-| model change hooks | `src/IndexNowListener.php` | via the Doctrine package | `src/Eloquent/IndexNowObserver.php` (`ObserverHelper` + `afterCommit()`) | `src/ActiveRecord/IndexNowObserver.php` (`ObserverHelper` + staging), `IndexNowBehavior.php` |
-| commit safety | `src/Middleware/*` | `src/Doctrine/StagingSink.php` | Laravel's `afterCommit()` | core `VerifyingStaging` |
-| unit of work | — | `src/EventListener/FlushListener.php` | `terminating()`, `JobProcessed` | `EVENT_AFTER_SEND`, `EVENT_AFTER_REQUEST` |
-| delivery | — | `src/Messenger/*` (`WorkerOutcome`) | `src/Queue/*` (`WorkerOutcome`) | `src/Queue/*` (yii2-queue, `WorkerOutcome`) |
-| key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileController.php` |
-| diagnostics | — | `src/Command/*` (`Definitions`), `src/DataCollector/*` | `src/Console/*` (`Definitions`), `src/Check/*` | `src/Console/IndexNowController.php` (`Definitions`), `src/Check/*` |
-| subject reader | — | — | `src/Eloquent/EloquentSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` |
+| Section | `doctrine` | `symfony-bundle` | `laravel` | `yii2` | `yii3` |
+|---|---|---|---|---|---|
+| layer | — | 1 (services) | 1 (bindings) | 2 (`ServicesBuilder`) | 2 (`ServicesBuilder`, every node a container definition) |
+| component graph | `src/IndexNowDoctrine.php` | `src/DependencyInjection/IndexNowKitLoader.php` | `src/IndexNowKitServiceProvider.php` | `src/IndexNowComponent.php` (`services()`) | `src/Wiring.php`, `config/di.php` |
+| configuration | — | `src/DependencyInjection/{IndexNowKitConfiguration,ConfigFactory}.php` | `config/indexnow.php`, `src/Config/ConfigFactory.php` | `src/Config/ConfigFactory.php` | `config/params.php`, `src/Config/ConfigFactory.php` |
+| router bridge | — | `src/Url/SymfonyRouteUrlResolver.php` | `src/Url/LaravelRouteUrlResolver.php` | `src/Url/YiiRouteUrlResolver.php` | `src/Url/YiiRouteUrlResolver.php` (`UrlGeneratorInterface`) |
+| resolver lookup | — | `src/Url/ResolverLocatorFactory.php` (core `ArrayResolverLocator`) | in the provider (core `ArrayResolverLocator`) | in the component (core `ArrayResolverLocator`) | in `Wiring` (core `ArrayResolverLocator` over the container) |
+| model change hooks | `src/IndexNowListener.php` | via the Doctrine package | `src/Eloquent/IndexNowObserver.php` (`ObserverHelper` + `afterCommit()`) | `src/ActiveRecord/IndexNowObserver.php` (`ObserverHelper` + staging), `IndexNowBehavior.php` | `src/ActiveRecord/IndexNowObserver.php` (`ObserverHelper` + staging), `IndexNowEvents.php` (attribute handlers) |
+| commit safety | `src/Middleware/*` | `src/Doctrine/StagingSink.php` | Laravel's `afterCommit()` | core `VerifyingStaging` | core `VerifyingStaging`, verified at the end of the request |
+| unit of work | — | `src/EventListener/FlushListener.php` | `terminating()`, `JobProcessed` | `EVENT_AFTER_SEND`, `EVENT_AFTER_REQUEST` | `src/Event/FlushListener.php` (`AfterEmit`, `ApplicationShutdown`) |
+| delivery | — | `src/Messenger/*` (`WorkerOutcome`) | `src/Queue/*` (`WorkerOutcome`) | `src/Queue/*` (yii2-queue, `WorkerOutcome`) | `sync` / `none`; a replaced `DispatcherInterface` |
+| key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileHandler.php` (PSR-15), `config/routes.php` |
+| diagnostics | — | `src/Command/*` (`Definitions`), `src/DataCollector/*` | `src/Console/*` (`Definitions`), `src/Check/*` | `src/Console/IndexNowController.php` (`Definitions`), `src/Check/*` | `src/Console/*` (`Definitions`), `src/Check/*` |
+| subject reader | — | — | `src/Eloquent/EloquentSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` |
 
 ## 19. Compatibility
 

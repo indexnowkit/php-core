@@ -49,14 +49,17 @@ global lines have `null` there.
 | `wiring.messenger` | symfony-bundle | warning | `dispatch: messenger` without a routed transport |
 | `wiring.doctrine` | symfony-bundle | ok, warning | entity hooks active or not |
 | `queue.dispatch` | laravel, yii2 | ok | `dispatch` is not `queue`: what happens instead |
+| `dispatch.mode` | yii3 | ok, error | `sync` / `none`, or the `DispatcherInterface` the application replaced in the container; error when the dispatcher cannot be built |
 | `queue.connection` | laravel | error | the queue connection is not defined |
 | `queue.component` | yii2 | error | the yii2-queue component does not exist |
 | `queue.driver` | laravel, yii2 | ok, warning | the queue driver: `sync` (warning, nothing is retried) or a real one |
 | `eloquent.enabled` | laravel | ok, warning | model observers active or not |
-| `active_record.enabled` | yii2 | ok, warning | ActiveRecord hooks active or not |
+| `active_record.enabled` | yii2, yii3 | ok, warning, error | ActiveRecord hooks active or not; Yii3: error when the observer is not installed (the package's bootstrap did not run) |
 | `url_manager.key_file` | yii2 | ok, error | the key file is not served by the application, or `key_file` is misconfigured |
 | `url_manager.pretty_url` | yii2 | error | `enablePrettyUrl` is off, `/<key>.txt` cannot be routed |
 | `url_manager.rule` | yii2 | ok, error | the key file URL rule is registered, or missing (component not in `bootstrap`) |
+| `router.key_file` | yii3 | ok, error | the key file is not served by the application (`key_file.enabled: false`), or `key_file` is misconfigured |
+| `router.route` | yii3 | ok, error | the route `indexnow/key-file` is in the route collection (or the console says the web application serves it), or missing (the `routes` group of the package is not merged) |
 
 ## Optional packages
 
