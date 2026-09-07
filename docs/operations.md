@@ -350,6 +350,10 @@ file they cannot verify.
 If the key file cannot live at `/{key}.txt`, set `key_location` to its absolute URL on the same host. A
 `key_location` on a different host is rejected at configuration time, because engines answer 422 for it.
 
+Behind a proxy or a CDN on a PSR-15 stack, put `Key\KeyFileRequestHandler` in the middleware pipeline **before** the
+router (and before any authentication or maintenance-mode middleware): the key file is then served whatever the
+application does with the rest of its routes, and every other request goes on untouched.
+
 The key travels in the JSON body of every submission and in the key file, nowhere else: the library never uses the
 GET form of the protocol (`?url=…&key=…`), so the key does not end up in access logs, proxy logs or referrers. Logs
 and exception messages of the library mask it to four characters.

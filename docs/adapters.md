@@ -469,7 +469,24 @@ multi-tenant install, implement the interface and cache per request. **Honour th
 ownership signals on another's domain. `null` means "any managed host" and is only for single-site adapters and CLI
 diagnostics.
 
-Serving the file is `Key\KeyFileResponder`, so no adapter reimplements the matching:
+Serving the file on a PSR-7 / PSR-15 stack (Slim, Mezzio, Laminas, Yii3, a plain PSR-15 pipeline) is
+`Key\KeyFileRequestHandler`, the first recipe for a new adapter — no class of your own:
+
+```php
+$handler = KeyFileRequestHandler::fromConfig($config, $keys, $responseFactory, $streamFactory);   // PSR-17 factories of the application
+
+$app->get('/{key:[A-Za-z0-9-]{8,128}}.txt', $handler);   // a route: handle() reads the key off the path, 404 otherwise
+$app->add($handler);                                      // or a middleware before the router: a request it does not serve goes on
+return $handler->respond($route->getArgument('key'), $request);   // or the key your router already extracted
+```
+
+It answers 200 with the key and `Config::keyFileHeaders()` for a key of the requested host (the URI host), 404
+otherwise; as a middleware it hands everything else — a path that is not a key file, an unknown key, another host's
+key — to the next handler untouched. The core requires only the PSR interfaces (`psr/http-server-handler`,
+`psr/http-server-middleware`); tests use `nyholm/psr7`.
+
+Behind it, and for a stack that is not PSR-7 (HttpFoundation, Illuminate), `Key\KeyFileResponder` decides so no
+adapter reimplements the matching:
 
 ```php
 $responder = new KeyFileResponder($keys, $config->serveKeyFile);
@@ -477,7 +494,7 @@ $responder = new KeyFileResponder($keys, $config->serveKeyFile);
 $body = $responder->bodyForPath($request->getPath(), $request->getHost());   // or bodyForKey() if your router
 if ($body === null) { return $this->notFound(); }                            // extracted {key} already
 
-return $this->response($body, 200, KeyFileResponder::headers($maxAge));
+return $this->response($body, 200, $config->keyFileHeaders());
 ```
 
 `KeyFileResponder::PATH_PATTERN` is the request-path regex (group 1 is the key) for routers that match by pattern,
@@ -534,6 +551,15 @@ clock from the records written by the application. On layer 2 this is the `clock
 Ship six commands of your own. They are what turns "it does not work" into a self-service answer, and their bodies are the
 `indexnowkit/console` package (`Console\*Runner`, rendering to a `Symfony\Component\Console\Style\SymfonyStyle`;
 Laravel's `OutputStyle` is one; require it — the core itself does not depend on `symfony/console`). A framework command parses its arguments and calls the runner; every framework prints the same thing.
+
+**The command lives in the package, the adapter registers it.** On `symfony/console` the commands are classes already:
+`Console\Command\*` of `indexnowkit/console` (`SubmitCommand`, `SubmitSubjectsCommand`, `ExplainCommand`, `CheckCommand`,
+`ConfigCommand`, `KeyGenerateCommand`, the three `*NotInstalledCommand` stubs), `Sitemap\Console\SitemapCommand`,
+`History\Console\HistoryCommand` and `StatusCommand`. An adapter on symfony/console (the bundle, Yii3, a plain
+`Symfony\Component\Console\Application`) registers those classes and hands them what varies by constructor — the
+runners, a `Console\Vocabulary`, a `Console\ConfigSourceInterface` for `check` and `config`, the `.env` file of
+`key:generate`, a `Check\SampleOptions` with the ORM sampler already inside — and writes no command of its own. The
+table below is what a command **not** on symfony/console (artisan, a Yii2 controller) parses and hands to the runner.
 
 | Command | Runner | What the adapter supplies |
 |---|---|---|
@@ -645,8 +671,8 @@ with every node of the graph a definition of the container and the core's factor
 | commit safety | `src/Middleware/*` | `src/Doctrine/StagingSink.php` | Laravel's `afterCommit()` | core `VerifyingStaging` | core `VerifyingStaging`, verified at the end of the request |
 | unit of work | — | `src/EventListener/FlushListener.php` | `terminating()`, `JobProcessed` | `EVENT_AFTER_SEND`, `EVENT_AFTER_REQUEST` | `src/Event/FlushListener.php` (`AfterEmit`, `ApplicationShutdown`) |
 | delivery | — | `src/Messenger/*` (`WorkerOutcome`) | `src/Queue/*` (`WorkerOutcome`) | `src/Queue/*` (yii2-queue, `WorkerOutcome`) | `sync` / `none`; a replaced `DispatcherInterface` |
-| key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileHandler.php` (PSR-15), `config/routes.php` |
-| diagnostics | — | `src/Command/*` (`Definitions`), `src/DataCollector/*` | `src/Console/*` (`Definitions`), `src/Check/*` | `src/Console/IndexNowController.php` (`Definitions`), `src/Check/*` | `src/Console/*` (`Definitions`), `src/Check/*` |
+| key file | — | `src/Controller/KeyFileController.php`, `config/routes.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileController.php` | `src/Http/KeyFileHandler.php` over the core's `Key\KeyFileRequestHandler` (PSR-15), `config/routes.php` |
+| diagnostics | — | the command classes of `indexnowkit/console`, `sitemap` and `history`, registered in `src/DependencyInjection/IndexNowKitLoader.php` (`loadConsole()`); `src/DataCollector/*` | `src/Console/*` (`Definitions`), `src/Check/*` | `src/Console/IndexNowController.php` (`Definitions`), `src/Check/*` | the same command classes, mapped in `config/params-console.php`, wired in `config/di-console.php`; `src/Check/*` |
 | subject reader | — | — | `src/Eloquent/EloquentSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` | `src/ActiveRecord/ActiveRecordSubjectReader.php` |
 
 ## 19. Compatibility
@@ -670,8 +696,12 @@ What the core guarantees, what is excluded, and how to ask for a new extension p
 - [ ] A queue job over `Retry\WorkerOutcome` (retryable vs final, the three log lines) plus your framework's action;
       or a runtime-assembled container over `Adapter\ServicesBuilder` with `queueFactory()`.
 - [ ] Flush at the end of every unit of work (request, command, queue message); `Collector::reset()` in long-running runtimes.
-- [ ] `KeyFileResponder::fromConfig()` + `Config::keyFileHeaders()` on a route without session or CSRF; H01–H03 green.
-- [ ] Nine commands: six over the runners of `indexnowkit/console` (`check`, `config`, `submit`, `submit-<subject>`,
+- [ ] `Key\KeyFileRequestHandler` on a PSR-15 stack, else `KeyFileResponder::fromConfig()` + `Config::keyFileHeaders()`,
+      on a route without session or CSRF; H01–H03 green.
+- [ ] Nine commands: on symfony/console the classes of `indexnowkit/console` (`Console\Command\*`), `indexnowkit/sitemap`
+      (`Sitemap\Console\SitemapCommand`) and `indexnowkit/history` (`History\Console\HistoryCommand`, `StatusCommand`),
+      registered with their runners, a `Vocabulary`, a `ConfigSourceInterface` and a `SampleOptions`; on another console
+      layer six commands over the runners of `indexnowkit/console` (`check`, `config`, `submit`, `submit-<subject>`,
       `explain`, `key:generate`), `sitemap` from `indexnowkit/sitemap`, `history` and `status` from
       `indexnowkit/history`; their inputs from `Console\Definitions` / `Sitemap\Console\Definitions` /
       `History\Console\Definitions` (no own option descriptions), `check` with your `CheckInterface` lines plus

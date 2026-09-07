@@ -30,6 +30,14 @@ against, plus the four constructions every adapter had copied.
 
 ### Added
 
+- **`Key\KeyFileRequestHandler`** (wave L, spec 18 §3.5): `GET /<key>.txt` over PSR-7 for any PSR-15 stack — a
+  `RequestHandlerInterface` (the action of a route: the key is read off the path), a `MiddlewareInterface` (in front
+  of the router: a request it does not serve goes on to the next handler untouched) and `respond(?string $key, $request)`
+  for a key the router already extracted. The body is `KeyFileResponder`'s, the headers are `Config::keyFileHeaders()`,
+  the host is the request URI's; `fromConfig($config, $keys, $responseFactory, $streamFactory)` builds it over the
+  adapter's key provider and PSR-17 factories. Nothing changes in the semantics — only the PSR-7 response is built in
+  one place instead of in every adapter (the Yii3 handler delegates to it). `psr/http-server-handler` and
+  `psr/http-server-middleware` join `require` (interfaces only; the core stays PSR-only).
 - **`Adapter\SubmitterFactory` takes `?ClockInterface $clock` as its last parameter** and passes it to the `Submitter`
   it builds; `Adapter\Services::submitterFactory()` gives it the graph's `clock` node (A1). Appended and optional, so
   the "call" tier holds. Without it the `clock` node stopped at the application's submitter: `Testing\FrozenClock` left

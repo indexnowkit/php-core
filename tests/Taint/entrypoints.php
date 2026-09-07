@@ -11,9 +11,12 @@ namespace IndexNowKit\Taint;
 
 use IndexNowKit\Config;
 use IndexNowKit\IndexNowKit;
+use IndexNowKit\Key\KeyFileRequestHandler;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\StaticKeyProvider;
 use IndexNowKit\Url\UrlNormalizer;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\ServerRequest;
 
 /** A request value as a string: the taint of the superglobal, none of the mixed. */
 function input(string $name): string
@@ -35,3 +38,9 @@ echo $responder->bodyForPath(input('REQUEST_URI'), input('HTTP_HOST'));
 foreach ($config->keyFileHeaders() as $name => $value) {
     header($name . ': ' . $value);
 }
+// the PSR-15 handler: the path, the host and the route argument of the request reach the key lookup and the body
+$factory = new Psr17Factory();
+$handler = KeyFileRequestHandler::fromConfig($config, StaticKeyProvider::fromConfig($config), $factory, $factory);
+$request = new ServerRequest('GET', input('REQUEST_URI'), ['Host' => input('HTTP_HOST')]);
+echo (string) $handler->handle($request)->getBody();
+echo (string) $handler->respond(input('key'), $request)->getBody();

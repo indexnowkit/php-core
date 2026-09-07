@@ -25,7 +25,7 @@ can check them. The promise itself (what may change in a minor, what may not) is
 
 | Package | PHP | Framework / library | Upstream support ends |
 |---|---|---|---|
-| `indexnowkit/core` | `^8.2` | PSR-18 client of your choice (`php-http/discovery`), PSR-3, PSR-16 | — |
+| `indexnowkit/core` | `^8.2` | PSR-18 client of your choice (`php-http/discovery`), PSR-3, PSR-16; PSR-7/PSR-17 and PSR-15 (`psr/http-server-handler`, `psr/http-server-middleware`) for `Key\KeyFileRequestHandler` — interfaces only, no implementation is required | — |
 | `indexnowkit/console` | `^8.2` | `symfony/console ^6.4 \|\| ^7.0 \|\| ^8.0` | 6.4: security fixes to 2027-11; 7.4 LTS: 2029-11 |
 | `indexnowkit/testing` | `^8.2` | PHPUnit `^11.5 \|\| ^12.0 \|\| ^13.0` (the conformance kits) | per [phpunit.de](https://phpunit.de/supported-versions.html); PHPUnit 11 left bug-fix support on 2026-02-06. The Laravel adapter's own suite stays on PHPUnit 11: `laravel/framework` 12/13 and PHPUnit 12.5 disagree on the error handler |
 | `indexnowkit/sitemap` | `^8.2` | `symfony/console ^6.4 \|\| ^7.0 \|\| ^8.0` for the command | as console |
