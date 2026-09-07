@@ -14,6 +14,7 @@ final class MockServer
     /** @var resource */
     private $process;
 
+    /** @param resource $process */
     private function __construct(private readonly string $host, private readonly int $port, $process)
     {
         $this->process = $process;

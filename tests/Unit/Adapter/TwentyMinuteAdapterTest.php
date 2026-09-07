@@ -39,7 +39,7 @@ final class IndexNowIntegration
         // Never throws: an invalid value is one critical log line and a disabled Config until it is fixed.
         $config = (new ConfigFactory(ownedOptions: ['myfw.route_prefix'], checkCommand: 'myfw indexnow:check'))->load($frameworkConfig, $environment, $logger);
         $builder = (new ServicesBuilder($config, $logger))
-            ->httpClientLocator(fn(string $id): object => $this->service($id) ?? throw new RuntimeException($id))
+            ->httpClientLocator(fn(string $id): object => throw new RuntimeException($id)) // service() always returns null in this stub: any http.client id is a programming error here
             ->debounceStore(fn(Services $s): DebounceStoreInterface => DebounceStoreFactory::fromConfig($s->config, fn(string $id) => $this->cache($id)))
             ->resolverLocator(new ArrayResolverLocator([], locate: fn(string $id) => $this->service($id), hint: 'a service id'));
         if ($router !== null) {
@@ -99,7 +99,7 @@ final class IndexNowIntegration
         return new Psr16Cache(new ArrayAdapter());
     }
 
-    private function service(string $id): ?object
+    private function service(string $id): null
     {
         return null;
     }
@@ -132,7 +132,9 @@ final class TwentyMinuteAdapterTest extends TestCase
         self::assertSame([], $transport->posts, 'nothing leaves before the unit of work ends');
         $adapter->onShutdown();
         self::assertCount(1, $transport->posts);
-        self::assertSame(['https://www.example.com/posts/hello', 'https://www.example.com/posts/bye'], $transport->posts[0]['body']['urlList']);
+        /** @var list<array{url: string, json: string, headers: array<string, string>, body: array<string, mixed>}> $posts */
+        $posts = $transport->posts;
+        self::assertSame(['https://www.example.com/posts/hello', 'https://www.example.com/posts/bye'], $posts[0]['body']['urlList']);
         self::assertSame([], $logger->messages('warning'), 'myfw.route_prefix is an owned option');
         self::assertSame([], $logger->messages('error'));
 

@@ -116,7 +116,9 @@ final class WhenConditionTest extends TestCase
         self::assertFalse((new Equals('status', 'published'))->heldFor('draft'));
 
         try {
-            (new ParamExtractor())->extract($post, ['slug' => 'slug', 'v' => new Equals('status', 'published')]);
+            /** @var array<string, mixed> $params */
+            $params = ['slug' => 'slug', 'v' => new Equals('status', 'published')];
+            (new ParamExtractor())->extract($post, $params);
             self::fail('a condition is not a param value');
         } catch (ConfigurationException $e) {
             self::assertStringContainsString('Param "v" of ' . $post::class . ' is a IndexNowKit\Attribute\Param\Equals, which is not a value source', $e->getMessage());

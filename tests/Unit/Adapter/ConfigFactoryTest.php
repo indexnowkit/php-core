@@ -127,14 +127,18 @@ final class ConfigFactoryTest extends TestCase
     #[TestDox('lists and nested blocks in defaults are refused at construction')]
     public function testListsInDefaultsAreRefused(): void
     {
+        /** @var array<string, mixed> $listDefaults */
+        $listDefaults = ['engines' => ['yandex']];
         try {
-            new ConfigFactory(defaults: ['engines' => ['yandex']]);
+            new ConfigFactory(defaults: $listDefaults);
             self::fail('expected an exception');
         } catch (LogicException $e) {
             self::assertStringContainsString('"engines"', $e->getMessage());
         }
         $this->expectException(LogicException::class);
-        new ConfigFactory(defaults: ['debounce' => ['store' => ['nested' => true]]]);
+        /** @var array<string, mixed> $nestedDefaults */
+        $nestedDefaults = ['debounce' => ['store' => ['nested' => true]]];
+        new ConfigFactory(defaults: $nestedDefaults);
     }
 
     #[TestDox('a block named only by the owned options merges too; a block that is not in defaults comes from raw as is')]

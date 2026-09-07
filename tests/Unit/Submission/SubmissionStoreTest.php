@@ -101,10 +101,20 @@ final class SubmissionStoreTest extends TestCase
         $dryConfig = $config->with(dryRun: true);
         $dry = new Submitter(new Client($t, StaticKeyProvider::fromConfig($dryConfig), $dryConfig), $dryConfig, store: $store, clock: $clock);
         $dry->submit(['/a']);
-        $last = $store->lastFor('https://www.example.com/a');
+        $last = self::widenRecord($store->lastFor('https://www.example.com/a'));
         self::assertSame(Reason::DryRun, $last?->result->reason, 'a dry-run skip is a record too');
-        self::assertSame('yandex', $last?->result->engine, 'a dry-run result carries the engine it would have reached; the last of the two engines wins');
-        self::assertSame('2026-09-06 10:01:00', $last?->at->format('Y-m-d H:i:s'));
+        self::assertSame('yandex', $last->result->engine, 'a dry-run result carries the engine it would have reached; the last of the two engines wins');
+        self::assertSame('2026-09-06 10:01:00', $last->at->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * Re-widens $store->lastFor()'s result to its declared ?SubmissionRecord type: PHPStan otherwise keeps
+     * the non-null type it narrowed the same call+argument expression to a few statements above, even
+     * though the store was mutated (via a second submit()) in between.
+     */
+    private static function widenRecord(?SubmissionRecord $record): ?SubmissionRecord
+    {
+        return $record;
     }
 
     #[TestDox('a throwing store is one error log line per submit(); the results and the listeners are not affected; the null store keeps nothing')]

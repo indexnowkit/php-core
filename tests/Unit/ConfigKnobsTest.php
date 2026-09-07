@@ -198,6 +198,7 @@ final class ConfigKnobsTest extends TestCase
         yield 'engine' => [['engines' => ['gogle']], 'Unknown IndexNow engine "gogle". Use one of: api, yandex, bing, naver, seznam, yep, internetarchive, amazon, an alias from engine_aliases, or a full https endpoint URL.'];
     }
 
+    /** @param array<string, mixed> $overrides */
     #[DataProvider('boundsProvider')]
     public function testEachBoundHasItsOwnMessage(array $overrides, string $message): void
     {

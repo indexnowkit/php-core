@@ -58,8 +58,8 @@ final class DecisionsTest extends TestCase
     public function testFieldConditionIsNotACondition(): void
     {
         self::assertFalse((new ReflectionClass(FieldCondition::class))->implementsInterface(Condition::class));
-        self::assertNotInstanceOf(Condition::class, new Equals('status', 'live'));
-        self::assertFalse(method_exists(Equals::class, 'evaluate'));
+        self::assertFalse((new ReflectionClass(Equals::class))->implementsInterface(Condition::class));
+        self::assertFalse((new ReflectionClass(Equals::class))->hasMethod('evaluate'));
 
         $page = new DecisionsPage(status: 'draft');
         self::assertFalse(ParamExtractor::plain()->condition($page, new Equals('status', 'live')));

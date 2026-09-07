@@ -75,7 +75,6 @@ final class FacadeBulkTest extends TestCase
         self::assertCount(1, $transport->posts);
         self::assertSame(['https://www.example.com/posts/a', 'https://www.example.com/category/news', 'https://www.example.com/posts/b'], $transport->posts[0]['body']['urlList']);
         self::assertSame([], $kit->submitEntities([]), 'nothing to submit, no request');
-        /** @phpstan-ignore method.deprecated */
         self::assertCount(1, $kit->submitAll($posts), 'submitAll() is the deprecated alias of submitEntities()');
     }
 

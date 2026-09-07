@@ -22,7 +22,10 @@ class GeneratorCache implements CacheInterface
         return $this->values[$key] ?? $default;
     }
 
-    /** @param string $key @param null|int|DateInterval $ttl */
+    /**
+     * @param string $key
+     * @param null|int|DateInterval $ttl
+     */
     public function set($key, $value, $ttl = null): bool
     {
         $this->values[$key] = $value;
@@ -45,7 +48,11 @@ class GeneratorCache implements CacheInterface
         return true;
     }
 
-    /** @param iterable<string> $keys */
+    /**
+     * @param iterable<string> $keys
+     *
+     * @return iterable<string, mixed>
+     */
     public function getMultiple($keys, $default = null): iterable
     {
         foreach ($keys as $key) {
@@ -55,8 +62,8 @@ class GeneratorCache implements CacheInterface
 
     /**
      * @param iterable<string, mixed> $values
+     * @param null|int|DateInterval $ttl
      */
-    /** @param iterable<string, mixed> $values @param null|int|DateInterval $ttl */
     public function setMultiple($values, $ttl = null): bool
     {
         foreach ($values as $key => $value) {

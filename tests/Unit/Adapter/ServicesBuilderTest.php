@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit\Adapter;
 
+use Closure;
 use IndexNowKit\Adapter\Services;
 use IndexNowKit\Adapter\ServicesBuilder;
 use IndexNowKit\Attribute\AttributeReader;
@@ -160,20 +161,32 @@ final class ServicesBuilderTest extends TestCase
         } catch (LogicException $e) {
             self::assertSame('ServicesBuilder::keys(): the closure must return IndexNowKit\Key\KeyProviderInterface, got stdClass.', $e->getMessage());
         }
-        $services = (new ServicesBuilder(Factory::config(['dispatch' => 'queue'])))->queueFactory(static fn(): stdClass => new stdClass())->build();
+        $badQueueFactory = self::widen(static fn(): stdClass => new stdClass());
+        $services = (new ServicesBuilder(Factory::config(['dispatch' => 'queue'])))->queueFactory($badQueueFactory)->build();
         try {
             $services->dispatcher();
             self::fail();
         } catch (LogicException $e) {
             self::assertStringContainsString('ServicesBuilder::queueFactory(): the closure must return IndexNowKit\Dispatch\DispatcherInterface', $e->getMessage());
         }
-        $services = (new ServicesBuilder(Factory::config()))->checks(static fn(): stdClass => new stdClass())->build();
+        $badChecks = self::widen(static fn(): stdClass => new stdClass());
+        $services = (new ServicesBuilder(Factory::config()))->checks($badChecks)->build();
         try {
             $services->checker();
             self::fail();
         } catch (LogicException $e) {
             self::assertStringContainsString('ServicesBuilder::checks(): the closure must return an iterable of CheckInterface', $e->getMessage());
         }
+    }
+
+    /**
+     * Erases a closure's specific call signature so PHPStan checks the runtime type error, not the static one:
+     * the callers above intentionally pass a closure with the wrong return type to exercise ServicesBuilder's
+     * own runtime check.
+     */
+    private static function widen(Closure $closure): Closure
+    {
+        return $closure;
     }
 
     #[TestDox('rules() is the given RuleRegistry, or decorates any other reader; the resolver, facade and change handler read through it')]

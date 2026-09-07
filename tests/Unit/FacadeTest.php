@@ -129,7 +129,9 @@ final class FacadeTest extends TestCase
         self::assertSame([], $batches);
         $kit->collect(['https://www.example.com/2']);
         self::assertCount(1, $batches, 'flushed as soon as the cap was reached');
-        self::assertCount(2, $batches[0]);
+        /** @var list<list<string>> $batchList */
+        $batchList = $batches;
+        self::assertCount(2, $batchList[0]);
         $kit->collect(['https://www.example.com/3']);
         $kit->flush();
         self::assertCount(2, $batches);
