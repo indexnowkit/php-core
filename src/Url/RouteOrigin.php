@@ -27,11 +27,12 @@ final class RouteOrigin
      * @param list<string>|string $locales    the rule's `locales`
      * @param list<string>        $configured the adapter's list (`router.locales`, `framework.enabled_locales`)
      * @param string              $option     the option the warning names
-     * @param bool|null           $warned     the adapter's per-process flag, set to true by the first warning; null = warn every time
+     * @param bool                $warned     the adapter's per-process flag, passed by reference and set to true by the first
+     *                                        warning; omitted = warn on every call
      *
      * @return list<string|null> null = the current locale
      */
-    public static function expand(array|string $locales, array $configured, ?LoggerInterface $logger = null, string $option = 'router.locales', ?bool &$warned = null): array
+    public static function expand(array|string $locales, array $configured, ?LoggerInterface $logger = null, string $option = 'router.locales', bool &$warned = false): array
     {
         if (\is_array($locales)) {
             return $locales === [] ? [null] : $locales;
@@ -42,7 +43,7 @@ final class RouteOrigin
         if ($configured !== []) {
             return $configured;
         }
-        if ($logger !== null && $warned !== true) {
+        if ($logger !== null && !$warned) {
             $warned = true;
             $logger->warning(\sprintf('indexnow: a rule asks for locales: \'all\' but "%s" is empty; one URL in the current locale is generated instead of one per locale', $option));
         }
