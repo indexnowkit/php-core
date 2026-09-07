@@ -25,7 +25,9 @@ final class RuleCompiler
     private function __construct() {}
 
     /**
-     * @param ReflectionClass<object> $class
+     * @template T of object
+     *
+     * @param ReflectionClass<T> $class
      *
      * @throws ConfigurationException on a malformed attribute
      */

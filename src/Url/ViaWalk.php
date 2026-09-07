@@ -27,12 +27,12 @@ final class ViaWalk
 
     public function visit(object $subject): void
     {
-        $this->visited->attach($subject);
+        $this->visited->offsetSet($subject, null);
     }
 
     public function visited(object $subject): bool
     {
-        return $this->visited->contains($subject);
+        return $this->visited->offsetExists($subject);
     }
 
     /** One more related object to resolve; false when the budget is spent. */

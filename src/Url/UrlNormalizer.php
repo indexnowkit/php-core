@@ -141,7 +141,7 @@ final class UrlNormalizer implements UrlNormalizerInterface
         }
 
         return (string) preg_replace_callback('/%([0-9A-Fa-f]{2})/', static function (array $m): string {
-            $char = \chr((int) hexdec($m[1]));
+            $char = (string) hex2bin($m[1]);
 
             return preg_match('/^[A-Za-z0-9\-._~]$/', $char) === 1 ? $char : '%' . strtoupper($m[1]);
         }, $component);

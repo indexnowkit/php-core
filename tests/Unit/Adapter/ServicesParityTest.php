@@ -162,7 +162,7 @@ final class ServicesParityTest extends TestCase
         if (!\is_object($value)) {
             return $value;
         }
-        if ($seen->contains($value)) {
+        if ($seen->offsetExists($value)) {
             return '(seen #' . $seen[$value] . ')';
         }
         $seen[$value] = \count($seen);
