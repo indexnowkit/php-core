@@ -11,6 +11,7 @@ use IndexNowKit\Url\CallableUrlResolver;
 use IndexNowKit\Url\UrlResolverInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use stdClass;
 
 final class NeedsArgumentsResolver implements UrlResolverInterface
@@ -58,6 +59,14 @@ final class ResolverLocatorContainerTest extends TestCase
     #[TestDox('a located object that is no resolver, a class with dependencies the container does not know, and an unknown id name the hint')]
     public function testErrors(): void
     {
+        $throwing = new ArrayResolverLocator([], locate: static fn(string $id): ?object => throw new RuntimeException('Service "' . $id . '" not found'), hint: 'a container binding');
+        try {
+            $throwing->get('broken');
+            self::fail('expected an exception');
+        } catch (ConfigurationException $e) {
+            self::assertSame('IndexNow URL resolver "broken" cannot be built by the container: Service "broken" not found', $e->getMessage(), 'the container exception is wrapped with one text for every adapter');
+            self::assertInstanceOf(RuntimeException::class, $e->getPrevious());
+        }
         $locator = new ArrayResolverLocator([], locate: static fn(string $id): ?object => $id === 'thing' ? new stdClass() : null, hint: 'a container binding');
         try {
             $locator->get('thing');

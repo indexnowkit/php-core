@@ -72,6 +72,8 @@ final class ConfigTest extends TestCase
 
         self::assertTrue(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => true, 'key_file' => ['enabled' => false]])->serveKeyFile, 'an explicit serve_key_file wins, as every adapter did');
         self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => 'false'])->serveKeyFile, 'the string "false" is false');
+        self::assertSame('Host', Config::fromArray(['key' => 'abcdefgh', 'base_url' => 'https://a.example.com', 'strict_hosts' => true])->keyFileHeaders()['Vary'], 'strict_hosts makes the body host-dependent too: other hosts get a 404');
+        self::assertArrayNotHasKey('Vary', Config::fromArray(['key' => 'abcdefgh', 'base_url' => 'https://a.example.com'])->keyFileHeaders());
         self::assertFalse(Config::fromArray(['key' => 'abcdefgh', 'serve_key_file' => false, 'key_file' => ['enabled' => true]])->serveKeyFile);
         self::assertTrue(Config::serveKeyFileFrom([]), 'serveKeyFileFrom(): the default');
         self::assertTrue(Config::serveKeyFileFrom(['serve_key_file' => true, 'key_file' => ['enabled' => false]]), 'serveKeyFileFrom(): the explicit serve_key_file wins');

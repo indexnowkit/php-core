@@ -18,8 +18,9 @@ final class PendingChange
      * @param callable(): bool $verifier
      * @param list<string>     $urls
      * @param string           $subject class#id for log lines
+     * @param string|null      $key     identity of the subject within its scope, for merging ({@see VerifyingStaging::stage()})
      */
-    public function __construct(callable $verifier, public readonly array $urls, public readonly string $subject = '')
+    public function __construct(callable $verifier, public readonly array $urls, public readonly string $subject = '', public readonly ?string $key = null)
     {
         $this->verifier = $verifier;
     }

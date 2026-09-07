@@ -40,16 +40,34 @@ final class VerifyingStaging
     }
 
     /**
+     * Stages the URLs of one change. With a $key (the subject: `class#id`), a later change of the same subject in the
+     * same scope merges into the earlier one: the URLs are joined (the old URL of a renamed page stays announced) and
+     * the verifier is replaced by the latest, since the verifiers run once, at the end, against the row as the last
+     * change left it — two `save()` of one record in one transaction would otherwise discard the first change, whose
+     * expected values the second overwrote.
+     *
      * @param callable(): bool $verifier true when the change is visible in the database after the transaction
      * @param list<string>     $urls     URLs the change produced
+     * @param string           $subject  class#id for log lines
+     * @param string|null      $key      identity of the subject within the scope; null = never merged
      */
-    public function stage(object $scope, callable $verifier, array $urls, string $subject = ''): void
+    public function stage(object $scope, callable $verifier, array $urls, string $subject = '', ?string $key = null): void
     {
         if ($urls === []) {
             return;
         }
         $list = $this->pending[$scope] ?? [];
-        $list[] = new PendingChange($verifier, array_values(array_unique($urls)), $subject);
+        if ($key !== null) {
+            foreach ($list as $i => $change) {
+                if ($change->key === $key) {
+                    $list[$i] = new PendingChange($verifier, array_values(array_unique([...$change->urls, ...$urls])), $subject, $key);
+                    $this->pending[$scope] = $list;
+
+                    return;
+                }
+            }
+        }
+        $list[] = new PendingChange($verifier, array_values(array_unique($urls)), $subject, $key);
         $this->pending[$scope] = $list;
     }
 
@@ -117,8 +135,15 @@ final class VerifyingStaging
     }
 
     /**
-     * Whether a re-read row still carries the values a change wrote: loose comparison after casting both sides to
-     * string, since drivers return strings for integers and booleans and the application may hold typed values.
+     * Whether a re-read row still carries the values a change wrote. The row comes back raw from the driver (a
+     * string for an integer or a boolean, `'19.90'` for a DECIMAL, a zone suffix on a `timestamptz`, the database's
+     * own spelling of a JSON document), the application holds typed values; only the columns whose written value has
+     * one unambiguous text form are compared — integers, strings, booleans, backed enums, null — the others (floats,
+     * dates, arrays, objects) are skipped like a column the row does not carry. A row with nothing left to compare
+     * counts as matching: the question is whether the change landed, and the row is there.
+     *
+     * For an insert pass no expected values at all: an insert that reached the commit landed by definition, and the
+     * row's presence is the whole answer. For a delete ask for `null`.
      *
      * @param array<string, mixed>|null $row      the row as re-read (null = no row)
      * @param array<string, mixed>      $expected column => value the change wrote
@@ -129,7 +154,7 @@ final class VerifyingStaging
             return false;
         }
         foreach ($expected as $column => $value) {
-            if (!\array_key_exists($column, $row)) {
+            if (!\array_key_exists($column, $row) || !self::comparable($value)) {
                 continue;
             }
             if (self::normalize($row[$column]) !== self::normalize($value)) {
@@ -138,6 +163,12 @@ final class VerifyingStaging
         }
 
         return true;
+    }
+
+    /** Whether a written value has one text form every driver agrees on. */
+    private static function comparable(mixed $value): bool
+    {
+        return $value === null || \is_int($value) || \is_string($value) || \is_bool($value) || $value instanceof BackedEnum;
     }
 
     private static function normalize(mixed $value): ?string

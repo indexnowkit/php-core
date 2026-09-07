@@ -58,6 +58,12 @@ final class ObserverHelper
         $this->sink = $sink ?? throw new LogicException('ObserverHelper over an ObjectChangeHandler needs the $sink the URLs go to.');
     }
 
+    /** Over the facade: the change handler and `collect()` of $kit. Builds the whole graph on the first hook (see {@see forChanges()}). */
+    public static function forKit(IndexNowKit $kit, LoggerInterface $logger = new NullLogger()): self
+    {
+        return new self($kit, $logger);
+    }
+
     /**
      * @param Closure(list<string>): void $sink
      */

@@ -31,6 +31,8 @@ final class UrlNormalizerTest extends TestCase
         yield 'relative with base_url path is appended' => ['page', 'https://example.com/blog', 'https://example.com/blog/page'];
         yield 'absolute path with base_url ignores base path' => ['/x', 'https://h.example.com/blog', 'https://h.example.com/x'];
         yield 'IPv6 host kept with non-default port' => ['https://[::1]:8443/x', null, 'https://[::1]:8443/x'];
+        yield 'percent-escape of an unreserved character decoded (RFC 3986 §6.2.2.2)' => ['https://example.com/%7Euser/%61?q=%7e', null, 'https://example.com/~user/a?q=~'];
+        yield 'other percent-escapes get upper-case hex' => ['https://example.com/a%2fb?x=%3a%20y', null, 'https://example.com/a%2Fb?x=%3A%20y'];
     }
 
     #[DataProvider('acceptedProvider')]

@@ -161,7 +161,10 @@ final class Checker implements CheckerInterface
             if ($response->status !== 200) {
                 $report->error(\sprintf('%s: GET %s returned HTTP %d. Search engines will answer 403 until the key file is served with 200 (no redirects).', $host, self::maskUrl($keyUrl, $key), $response->status), 'key_file.status', $host);
             } elseif (trim($response->body) !== $key) {
-                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), self::maskUrl(self::excerpt($response->body), $key)), 'key_file.body', $host);
+                // the usual mismatch after a rotation is the server still answering the previous key: mask it too
+                $excerpt = self::maskUrl(self::excerpt($response->body), $key);
+                $previous = $this->config->previousKeys[$host] ?? $this->config->previousKey;
+                $report->error(\sprintf('%s: key file body does not match the configured key (got %d bytes starting with "%s"); a 200 answer with HTML usually means a catch-all route matched before the key file route.', $host, \strlen($response->body), $previous === null ? $excerpt : self::maskUrl($excerpt, $previous)), 'key_file.body', $host);
             } else {
                 $report->ok(\sprintf('%s: key file OK (%s)', $host, self::maskUrl($keyUrl, $key)), 'key_file.status', $host);
                 $this->checkKeyFileHeaders($host, $key, $response, $report);

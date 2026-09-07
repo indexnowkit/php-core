@@ -47,7 +47,7 @@ use SplObjectStorage;
 final class ServicesParityTest extends TestCase
 {
     /** Accessors that are not graph nodes: state queries and the request-end hook, tested in ServicesBuilderTest. */
-    private const NOT_NODES = ['hasCollected', 'flushIfCollected'];
+    private const NOT_NODES = ['hasCollected', 'flushIfCollected', 'requireRouter', 'requireResolverLocator'];
 
     #[TestDox('every public accessor of Services returns what the corresponding factory or constructor builds')]
     public function testParity(): void
@@ -128,7 +128,7 @@ final class ServicesParityTest extends TestCase
             'kit' => $kit,
             'keyFileResponder' => KeyFileResponder::fromConfig($config, $keys),
             'checker' => new Checker($config, $keys, $transport, []),
-            'submitterFactory' => new SubmitterFactory($transport, $keys, $config, $debounce, $throttle, $normalizer, $logger),
+            'submitterFactory' => new SubmitterFactory($transport, $keys, $config, $debounce, $throttle, $normalizer, $logger, clock: $clock),
             'forbiddenCounter' => new ForbiddenCounter(null, $config->debounceKeyPrefix, $config->forbiddenEscalation, Client::FAILURE_CACHE_TTL, $logger),
         ];
     }

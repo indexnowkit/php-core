@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Tests\Unit;
 
+use DateTimeImmutable;
 use IndexNowKit\Testing\ArrayLogger;
 use IndexNowKit\Transaction\VerifyingStaging;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -78,4 +79,50 @@ final class VerifyingStagingTest extends TestCase
         self::assertTrue(VerifyingStaging::rowMatches(['deleted_at' => null], ['deleted_at' => null]));
         self::assertFalse(VerifyingStaging::rowMatches(['deleted_at' => '2026-01-01 00:00:00'], ['deleted_at' => null]));
     }
+
+    #[TestDox('rowMatches skips the values a driver spells its own way (floats, dates, arrays, objects) and treats an empty expectation as "the row is there"')]
+    public function testRowMatchesAmbiguousTypes(): void
+    {
+        self::assertTrue(VerifyingStaging::rowMatches(['price' => '19.90'], ['price' => 19.9]), 'DECIMAL comes back as a string with the scale of the column');
+        self::assertTrue(VerifyingStaging::rowMatches(['at' => '2026-09-07 08:00:00+00'], ['at' => new DateTimeImmutable('2026-09-07 08:00:00')]), 'timestamptz carries a zone suffix');
+        self::assertTrue(VerifyingStaging::rowMatches(['meta' => '{"b": 1, "a": 2}'], ['meta' => ['a' => 2, 'b' => 1]]), 'the database re-spells a JSON document');
+        self::assertTrue(VerifyingStaging::rowMatches(['id' => '7'], []), 'an insert passes no values: the row is there, the change landed');
+        self::assertFalse(VerifyingStaging::rowMatches(null, []), 'no row: nothing landed');
+        self::assertFalse(VerifyingStaging::rowMatches(['price' => '19.90', 'slug' => 'old'], ['price' => 19.9, 'slug' => 'new']), 'the unambiguous column still decides');
+        self::assertTrue(VerifyingStaging::rowMatches(['kind' => 'a'], ['kind' => StagingKind::A]));
+        self::assertFalse(VerifyingStaging::rowMatches(['kind' => 'b'], ['kind' => StagingKind::A]));
+    }
+
+    #[TestDox('a second change of the same subject (key) in one scope merges into the first: URLs joined, the verifier replaced by the latest')]
+    public function testStageMergesBySubjectKey(): void
+    {
+        $logger = new ArrayLogger();
+        $staging = new VerifyingStaging($logger);
+        $scope = new stdClass();
+        $first = 0;
+        $second = 0;
+
+        $staging->stage($scope, static function () use (&$first): bool {
+            ++$first;
+            return false;
+        }, ['https://a/old', 'https://a/mid'], 'Post#1', 'Post#1');
+        $staging->stage($scope, static function () use (&$second): bool {
+            ++$second;
+            return true;
+        }, ['https://a/mid', 'https://a/new'], 'Post#1', 'Post#1');
+        $staging->stage($scope, static fn(): bool => true, ['https://a/other'], 'Post#2', 'Post#2');
+        $staging->stage($scope, static fn(): bool => true, ['https://a/anon'], 'Post#3');
+        $staging->stage($scope, static fn(): bool => true, ['https://a/anon2'], 'Post#3');
+        self::assertSame(6, $staging->pendingCount($scope), 'the merged change counts its joined URLs once; changes without a key never merge');
+
+        self::assertSame(['https://a/old', 'https://a/mid', 'https://a/new', 'https://a/other', 'https://a/anon', 'https://a/anon2'], $staging->flush($scope));
+        self::assertSame(0, $first, 'the first verifier is gone: it expected values the second change overwrote');
+        self::assertSame(1, $second);
+    }
+}
+
+enum StagingKind: string
+{
+    case A = 'a';
+    case B = 'b';
 }

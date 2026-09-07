@@ -7,6 +7,7 @@ namespace IndexNowKit;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Key\KeyFileResponder;
 use IndexNowKit\Key\KeyValidator;
+use IndexNowKit\Url\Punycode;
 
 /**
  * Immutable configuration shared by every indexnowkit adapter. Keys mirror docs/spec/02.
@@ -465,15 +466,16 @@ final readonly class Config
         /** @var list<string> $engines */
         $engines = \is_array($data['engines'] ?? null) ? array_values($data['engines']) : [Engine::Api->value];
         $key = self::str($data['key'] ?? null);
-        $dryRun = (bool) ($data['dry_run'] ?? false);
-        $dryRunExplicit = ($data['dry_run'] ?? null) !== null;
+        $dryRunValue = self::bool($data['dry_run'] ?? null, null, 'dry_run');
+        $dryRun = $dryRunValue ?? false;
+        $dryRunExplicit = $dryRunValue !== null; // null and '' (an unset environment variable) are "not set
         $environment = self::str($data['environment'] ?? null);
         if ($key === null && $hosts === [] && $environment !== null && !\in_array(strtolower($environment), array_map('strtolower', $productionEnvironments), true)) {
             $dryRun = true;
         }
 
         return new self(
-            enabled: (bool) ($data['enabled'] ?? true),
+            enabled: self::bool($data['enabled'] ?? null, true, 'enabled') ?? true,
             key: $key,
             hosts: $hosts,
             keyLocation: self::str($data['key_location'] ?? null),
@@ -487,7 +489,7 @@ final readonly class Config
             userAgent: self::str($http['user_agent'] ?? null),
             serveKeyFile: $serveKeyFile,
             dryRun: $dryRun,
-            strictHosts: (bool) ($data['strict_hosts'] ?? false),
+            strictHosts: self::bool($data['strict_hosts'] ?? null, false, 'strict_hosts') ?? false,
             environment: $environment,
             productionEnvironments: $productionEnvironments,
             maxUrlLength: self::int($data['max_url_length'] ?? null, self::DEFAULT_MAX_URL_LENGTH, 'max_url_length'),
@@ -504,7 +506,7 @@ final readonly class Config
             resolverMaxViaFanout: self::int($resolver['max_via_fanout'] ?? null, self::DEFAULT_RESOLVER_MAX_VIA_FANOUT, 'resolver.max_via_fanout'),
             debounceKeyPrefix: self::str($debounce['key_prefix'] ?? null) ?? self::DEFAULT_DEBOUNCE_KEY_PREFIX,
             collectorMaxUrls: self::int($collector['max_urls'] ?? null, 0, 'collector.max_urls'),
-            collectorDetectLeaks: (bool) ($collector['detect_leaks'] ?? true),
+            collectorDetectLeaks: self::bool($collector['detect_leaks'] ?? null, true, 'collector.detect_leaks') ?? true,
             logBody: self::int($logging['max_body'] ?? null, self::DEFAULT_LOG_BODY, 'logging.max_body'),
             engineAliases: $engineAliases,
             localeHosts: $localeHosts,
@@ -722,14 +724,15 @@ final readonly class Config
     }
 
     /**
-     * Response headers of the key file: `key_file.cache_max_age`, and `Vary: Host` when a `hosts` map makes the
-     * body depend on the host. Every adapter used to compute this itself.
+     * Response headers of the key file: `key_file.cache_max_age`, and `Vary: Host` when the body depends on the host:
+     * a `hosts` map, or `strict_hosts` (the default key is served for the base host only, other hosts get a 404, and
+     * a shared cache without `Vary` would keep whichever answer came first). Every adapter used to compute this itself.
      *
      * @return array<string, string>
      */
     public function keyFileHeaders(): array
     {
-        return KeyFileResponder::headers($this->keyFileMaxAge, $this->hosts !== []);
+        return KeyFileResponder::headers($this->keyFileMaxAge, $this->hosts !== [] || $this->strictHosts);
     }
 
     /**
@@ -791,7 +794,8 @@ final readonly class Config
     }
 
     /**
-     * Host of base_url, lower-cased, or null.
+     * Host of base_url, lower-cased and in punycode (the form `UrlNormalizer` gives every submitted URL, so that an
+     * IDN base_url matches its own URLs in `strict_hosts`, the redirect allow-list of verify and `check`), or null.
      */
     public function baseHost(): ?string
     {
@@ -799,8 +803,11 @@ final readonly class Config
             return null;
         }
         $host = parse_url($this->baseUrl, PHP_URL_HOST);
+        if (!\is_string($host) || $host === '') {
+            return null;
+        }
 
-        return \is_string($host) ? strtolower($host) : null;
+        return $host[0] === '[' ? strtolower($host) : strtolower(Punycode::encodeHost($host));
     }
 
     /**

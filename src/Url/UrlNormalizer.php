@@ -54,8 +54,8 @@ final class UrlNormalizer implements UrlNormalizerInterface
         $scheme = strtolower($parts['scheme']);
         $host = self::normalizeHost($parts['host']);
         $port = isset($parts['port']) && $parts['port'] !== self::DEFAULT_PORTS[$scheme] ? ':' . $parts['port'] : '';
-        $path = self::removeDotSegments($parts['path'] ?? '/');
-        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+        $path = self::normalizePercentEncoding(self::removeDotSegments($parts['path'] ?? '/'));
+        $query = isset($parts['query']) ? '?' . self::normalizePercentEncoding($parts['query']) : '';
 
         return $scheme . '://' . $host . $port . $path . $query;
     }
@@ -128,6 +128,23 @@ final class UrlNormalizer implements UrlNormalizerInterface
         }
 
         return $host;
+    }
+
+    /**
+     * RFC 3986 §6.2.2: a percent-escape of an unreserved character (`A-Za-z0-9-._~`) becomes the character, every
+     * other escape gets upper-case hex digits — `%7e` and `~`, `%3a` and `%3A` are one URL, and one debounce entry.
+     */
+    private static function normalizePercentEncoding(string $component): string
+    {
+        if (!str_contains($component, '%')) {
+            return $component;
+        }
+
+        return (string) preg_replace_callback('/%([0-9A-Fa-f]{2})/', static function (array $m): string {
+            $char = \chr((int) hexdec($m[1]));
+
+            return preg_match('/^[A-Za-z0-9\-._~]$/', $char) === 1 ? $char : '%' . strtoupper($m[1]);
+        }, $component);
     }
 
     /**

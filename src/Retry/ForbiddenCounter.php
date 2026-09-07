@@ -132,10 +132,10 @@ final class ForbiddenCounter
         return $this->threshold;
     }
 
-    /** `<prefix>403.<host>` and `<prefix>403.<host>_escalated`. */
+    /** `<prefix>403.<host>` and `<prefix>403.<host>_escalated`; an IPv6 literal (`[::1]`) loses its PSR-16 reserved characters. */
     public function key(string $host, bool $escalated = false): string
     {
-        return $this->keyPrefix . '403.' . $host . ($escalated ? '_escalated' : '');
+        return $this->keyPrefix . '403.' . strtr($host, ['[' => '', ']' => '', ':' => '_']) . ($escalated ? '_escalated' : '');
     }
 
     /**

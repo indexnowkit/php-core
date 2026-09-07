@@ -8,6 +8,7 @@ use Closure;
 use IndexNowKit\Event;
 use IndexNowKit\Exception\ConfigurationException;
 use ReflectionClass;
+use Throwable;
 
 /**
  * Registry of resolvers by id for `#[IndexNow(resolver: ...)]`: the ones registered here, then whatever the
@@ -50,7 +51,12 @@ final class ArrayResolverLocator implements ResolverLocatorInterface
         if (isset($this->resolvers[$id])) {
             return $this->resolvers[$id];
         }
-        $located = $this->locate === null ? null : ($this->locate)($id);
+        try {
+            $located = $this->locate === null ? null : ($this->locate)($id);
+        } catch (Throwable $e) {
+            // one text for every adapter: the container's own exception (not found, cannot autowire) named by cause
+            throw new ConfigurationException(\sprintf('IndexNow URL resolver "%s" cannot be built by the container: %s', $id, $e->getMessage()), 0, $e);
+        }
         if ($located !== null) {
             if (!$located instanceof UrlResolverInterface) {
                 throw new ConfigurationException(\sprintf('IndexNow URL resolver "%s" resolves to %s, which does not implement %s.', $id, get_debug_type($located), UrlResolverInterface::class));

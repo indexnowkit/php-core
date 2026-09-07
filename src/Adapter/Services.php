@@ -22,6 +22,7 @@ use IndexNowKit\Debounce\DebounceStoreFactory;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Dispatch\DispatcherFactory;
 use IndexNowKit\Dispatch\DispatcherInterface;
+use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\Http\TransportFactory;
 use IndexNowKit\Http\TransportInterface;
 use IndexNowKit\IndexNowKit;
@@ -117,11 +118,12 @@ final class Services
         return $this->memo(self::CLOCK, ClockInterface::class, static fn(): ClockInterface => new SystemClock());
     }
 
-    /** The PSR-14 dispatcher as given (an object, or a closure called once); none by default. */
+    /** The PSR-14 dispatcher as given (an object, or a closure called once — it may return null: "no dispatcher"); none by default. */
     public function events(): ?EventDispatcherInterface
     {
         if ($this->events instanceof Closure) {
-            $this->events = $this->typed(($this->events)($this), EventDispatcherInterface::class, 'events');
+            $events = ($this->events)($this);
+            $this->events = $events === null ? null : $this->typed($events, EventDispatcherInterface::class, 'events');
         }
 
         return $this->events;
@@ -231,6 +233,27 @@ final class Services
         return $this->optional(self::RESOLVER_LOCATOR, ResolverLocatorInterface::class);
     }
 
+    /**
+     * The router bridge of an adapter that always has one (a framework adapter): the nullable accessor without the
+     * dead `?? throw` branch every adapter wrote.
+     *
+     * @throws ConfigurationException when the graph has no router node
+     */
+    public function requireRouter(): RouteUrlResolverInterface
+    {
+        return $this->router() ?? throw new ConfigurationException('The graph has no router node (ServicesBuilder::router()); route: rules cannot be resolved.');
+    }
+
+    /**
+     * The resolver locator of an adapter that always has one.
+     *
+     * @throws ConfigurationException when the graph has no resolver locator node
+     */
+    public function requireResolverLocator(): ResolverLocatorInterface
+    {
+        return $this->resolverLocator() ?? throw new ConfigurationException('The graph has no resolver locator node (ServicesBuilder::resolverLocator()); #[IndexNow(resolver: ...)] cannot be looked up.');
+    }
+
     /** How `params` and `when` are read off objects: the adapter's readers (Active Record attributes) or the plain DSL by default. */
     public function paramExtractor(): ParamExtractor
     {
@@ -294,7 +317,7 @@ final class Services
     /** `Adapter\SubmitterFactory` over the nodes: `--force` / `--dry-run` submitters for the commands. */
     public function submitterFactory(): SubmitterFactoryInterface
     {
-        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events(), $this->failureCache(), $this->submissionStore());
+        return $this->submitterFactory ??= new SubmitterFactory($this->transport(), $this->keys(), $this->config, $this->debounceStore(), $this->throttle(), $this->normalizer(), $this->logger, $this->events(), $this->failureCache(), $this->submissionStore(), $this->clock());
     }
 
     /** False when the collector was never built (nothing was collected) or is empty; builds nothing. */
