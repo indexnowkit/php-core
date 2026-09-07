@@ -111,18 +111,24 @@ sitemap; verify uses `PageSignals::class` as the marker and decorates the submit
 `verify.enabled`, history uses `HistoryConfig::class` and puts its store into the submission-store slot when
 `history.store` is set — an interface cannot be a marker, `class_exists()` is false for it):
 
-- **One predicate per adapter, `Adapter\OptionalPackage`**: `new OptionalPackage('indexnowkit/sitemap',
-  SitemapReader::class, 'sitemap', $installed)` — `installed()` is `class_exists()` of the marker unless the
-  adapter passes an override (`null` = detect; the bundle's `sitemapInstalled` constructor argument, a Laravel
-  container binding under `IndexNowKitServiceProvider::SITEMAP_PACKAGE`, the Yii2 component's `sitemapInstalled`
-  property). No statics: the override travels with the adapter's own configuration. `notInstalledMessage()`,
-  `checkLine()`, `checkLevel()` and `check()` are the three texts below, written once.
+- **One predicate per adapter, `Adapter\OptionalPackage`**: `OptionalPackage::sitemap($installed)` (`verify()`,
+  `history()`: the Composer name, the marker class and the feature word live in the core, the markers as strings) —
+  `installed()` is `class_exists()` of the marker unless the adapter passes an override (`null` = detect; the bundle's
+  `sitemapInstalled` constructor argument, a Laravel container binding under
+  `IndexNowKitServiceProvider::SITEMAP_PACKAGE`, the Yii2 component's `sitemapInstalled` property, the Yii3 service's
+  `sitemapInstalled` argument). No statics: the override travels with the adapter's own configuration.
+  `notInstalledMessage()`, `checkLine()`, `checkLevel()` and `check()` are the three texts below, written once.
+  **Ask the core, not the package**: `Sitemap\Adapter\SitemapServices::package()` returns the same object but lives in
+  `indexnowkit/sitemap` — an adapter that called it to find out whether the package is installed booted fine in its
+  test suite (the package in `require-dev`, `installed: false` passed by hand) and was a `Class not found` in an
+  application without the package. The CI job `optional-packages-absent` removes the three packages and boots every
+  adapter with detection; `Testing\Conformance\OptionalPackageAssertions::assertDetected()` is the assertion of that test.
 - **Separate classes behind it**: every file with a `use IndexNowKit\Sitemap\*` is instantiated only when the
   predicate holds (`<Adapter>\Console\SitemapCommand`, and whatever registers the reader, the spool check and the
   runner). A `::class` constant on an absent class is safe; `SitemapConfig::OPTIONS`, `SitemapReader::MAX_*` or
   `Sitemap\Console\Definitions` in a file that is loaded without the package are a fatal.
 - **The package wires itself**: `Sitemap\Adapter\SitemapServices`, `Verify\Adapter\VerifyServices` and
-  `History\Adapter\HistoryServices` hold what every adapter needs from the package — `package()`, `options()`, `config()`,
+  `History\Adapter\HistoryServices` hold what every adapter needs from the package — `options()`, `config()`,
   the reader / transport / robots cache / stores, the decorators, the check lines with their texts, the runners — as plain
   static functions over the pieces, plus `*For()` twins over `Adapter\Services` for a runtime graph. Call them; do not
   copy the constructions or the texts. What stays in the adapter is what the framework decides: where the block comes

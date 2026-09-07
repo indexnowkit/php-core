@@ -24,6 +24,27 @@ final class OptionalPackageTest extends TestCase
         self::assertTrue((new OptionalPackage('indexnowkit/nope', 'IndexNowKit\\Nope\\Reader', 'nope', installed: true))->installed());
     }
 
+    #[TestDox('sitemap(), verify() and history() carry the names, the markers (strings: the core names no class of the packages) and the feature words')]
+    public function testFamilyPackages(): void
+    {
+        $expected = [
+            'sitemap' => ['indexnowkit/sitemap', 'IndexNowKit\\Sitemap\\SitemapReader'],
+            'verify' => ['indexnowkit/verify', 'IndexNowKit\\Verify\\PageSignals'],
+            'history' => ['indexnowkit/history', 'IndexNowKit\\History\\HistoryConfig'],
+        ];
+        foreach ($expected as $feature => [$name, $marker]) {
+            $package = OptionalPackage::$feature();
+            self::assertSame($name, $package->package);
+            self::assertSame($marker, $package->marker);
+            self::assertSame($feature, $package->feature);
+            self::assertFalse($package->installed(), 'the core does not require the packages: detection says absent');
+            self::assertTrue(OptionalPackage::$feature(true)->installed(), 'the override is the fourth argument');
+            self::assertFalse(OptionalPackage::$feature(false)->installed());
+            self::assertSame(\sprintf('%s: not installed (composer require %s)', $feature, $name), $package->checkLine([]));
+            self::assertSame($feature . '.installed', $package->checkCode());
+        }
+    }
+
     #[TestDox('the install line names the package twice: the fact and the command')]
     public function testNotInstalledMessage(): void
     {

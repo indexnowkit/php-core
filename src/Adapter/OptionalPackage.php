@@ -13,12 +13,18 @@ use IndexNowKit\Check\StaticCheck;
  * of the stub command, and the `check` line with or without a configuration block the package would have read.
  * No statics: the override for tests (or for the compile time of a bundle) is a constructor argument, and the
  * adapter decides where it comes from (a bundle parameter, a container binding, a component property).
+ *
+ * The three packages of the family have their names, markers and feature words here ({@see sitemap()},
+ * {@see verify()}, {@see history()}), so that an adapter builds the predicate without loading a class of the package
+ * it asks about: `Sitemap\Adapter\SitemapServices::package()` lives in `indexnowkit/sitemap` and cannot answer
+ * "not installed" (the packages' `*Services::package()` delegate here). The markers are strings, not `::class`
+ * constants, so that this file names no class of a package the core does not require.
  */
 final class OptionalPackage
 {
     /**
      * @param string       $package   Composer name: `indexnowkit/sitemap`
-     * @param class-string $marker    a class the package ships; its existence means "installed" (`::class` on an
+     * @param string       $marker    a class the package ships; its existence means "installed" (`::class` on an
      *                                absent class is safe, `class_exists()` is not called before {@see installed()})
      * @param string       $feature   the word `check` prints and the name of the configuration block: `sitemap`
      * @param bool|null    $installed override (tests, compile time of a bundle); null = `class_exists($marker)`
@@ -29,6 +35,27 @@ final class OptionalPackage
         public readonly string $feature,
         private readonly ?bool $installed = null,
     ) {}
+
+    /**
+     * The predicate for `indexnowkit/sitemap` (the reader, the spool check and the `sitemap` command); null =
+     * detect, false = wire as if the package were absent (tests, the compile time of a bundle).
+     */
+    public static function sitemap(?bool $installed = null): self
+    {
+        return new self('indexnowkit/sitemap', 'IndexNowKit\\Sitemap\\SitemapReader', 'sitemap', $installed);
+    }
+
+    /** The predicate for `indexnowkit/verify` (the pre-flight GET before submission). */
+    public static function verify(?bool $installed = null): self
+    {
+        return new self('indexnowkit/verify', 'IndexNowKit\\Verify\\PageSignals', 'verify', $installed);
+    }
+
+    /** The predicate for `indexnowkit/history` (the submission store and the `history` / `status` commands). */
+    public static function history(?bool $installed = null): self
+    {
+        return new self('indexnowkit/history', 'IndexNowKit\\History\\HistoryConfig', 'history', $installed); // a class, not the interface: installed() asks class_exists()
+    }
 
     public function installed(): bool
     {
